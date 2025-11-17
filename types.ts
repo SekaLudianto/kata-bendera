@@ -48,6 +48,7 @@ export enum GameState {
     Setup = 'setup',
     Connecting = 'connecting',
     Playing = 'playing',
+    Paused = 'paused',
     Champion = 'champion',
     Finished = 'finished',
 }
@@ -55,8 +56,10 @@ export enum GameState {
 export enum GameMode {
   GuessTheFlag = 'guess_the_flag',
   ABC5Dasar = 'abc_5_dasar',
+  GuessTheWord = 'guess_the_word',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
+export type WordCategory = 'Pemain Bola' | 'Klub Bola';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';

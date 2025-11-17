@@ -8,6 +8,7 @@ interface RoundWinnerModalProps {
   winners: RoundWinner[];
   round: number;
   gameMode: GameMode;
+  allAnswersFound: boolean;
 }
 
 const getRankDisplay = (rank: number) => {
@@ -17,7 +18,7 @@ const getRankDisplay = (rank: number) => {
     return `${rank + 1}.`;
 };
 
-const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gameMode }) => {
+const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gameMode, allAnswersFound }) => {
   const sortedWinners = [...winners].sort((a, b) => (b.score + (b.bonus || 0)) - (a.score + (a.bonus || 0)));
 
   return (
@@ -39,6 +40,16 @@ const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gam
         <h2 className="text-2xl font-bold mt-2 text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-teal-400">
           Pemenang Ronde {round}!
         </h2>
+        {allAnswersFound && (
+            <motion.p 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-sm text-green-300 mt-1 font-semibold"
+            >
+                Kerja bagus! Semua jawaban ditemukan!
+            </motion.p>
+        )}
         <div className="mt-4 space-y-2 max-h-60 overflow-y-auto pr-2">
             {winners.sort((a,b) => a.time - b.time).map((winner, index) => (
                 <motion.div 

@@ -33,7 +33,7 @@ const ChatTab: React.FC<ChatTabProps> = ({ messages }) => {
           <span className="text-red-500 text-xs font-bold">LIVE</span>
         </div>
       </div>
-      <div ref={chatContainerRef} className="flex-grow overflow-y-auto flex flex-col-reverse pr-1">
+      <div ref={chatContainerRef} className="flex-grow overflow-y-auto pr-1">
         <div className="space-y-1.5">
           {messages.map((msg) => (
             <motion.div

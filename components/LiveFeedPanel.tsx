@@ -71,11 +71,11 @@ const LiveFeedPanel: React.FC<LiveFeedPanelProps> = ({ feed }) => {
   }, [feed]);
 
   return (
-    <div className="hidden lg:flex flex-col flex-1 h-[80vh] min-h-[600px] max-h-[800px] bg-gray-800 rounded-3xl shadow-lg shadow-sky-500/5 border border-gray-700 overflow-hidden">
+    <div className="hidden lg:flex flex-col flex-1 h-[95vh] min-h-[600px] max-h-[800px] bg-gray-800 rounded-3xl shadow-lg shadow-sky-500/5 border border-gray-700 overflow-hidden">
       <header className="p-3 text-center border-b border-gray-700 shrink-0">
         <h2 className="text-md font-bold text-gray-300">Live Interaksi</h2>
       </header>
-      <div ref={feedContainerRef} className="flex-grow overflow-y-auto p-3 flex flex-col-reverse">
+      <div ref={feedContainerRef} className="flex-grow overflow-y-auto p-3">
         <div className="space-y-2">
             <AnimatePresence initial={false}>
             {feed.map((item) => {

@@ -5,17 +5,19 @@ import GameScreen from './components/GameScreen';
 import GameOverScreen from './components/GameOverScreen';
 import ChampionScreen from './components/ChampionScreen';
 import LiveFeedPanel from './components/LiveFeedPanel';
+import PauseScreen from './components/PauseScreen';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { GameState, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CHAMPION_SCREEN_TIMEOUT_MS } from './constants';
+import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 
 const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
   const [username, setUsername] = useState<string>('');
+  const [maxWinners, setMaxWinners] = useState<number>(DEFAULT_MAX_WINNERS_PER_ROUND);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isDisconnected, setIsDisconnected] = useState(false);
   
@@ -23,7 +25,7 @@ const App: React.FC = () => {
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
   const [liveFeed, setLiveFeed] = useState<LiveFeedEvent[]>([]);
 
-  const game = useGameLogic();
+  const game = useGameLogic(maxWinners);
   
   const handleGift = useCallback((gift: Omit<GiftNotificationType, 'id'>) => {
       const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.nickname}` };
@@ -87,11 +89,12 @@ const App: React.FC = () => {
 
   const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
 
-  const handleStart = useCallback((tiktokUsername: string) => {
+  const handleStart = useCallback((tiktokUsername: string, winnersCount: number) => {
     setLiveFeed([]);
     setConnectionError(null);
     setIsDisconnected(false);
     setUsername(tiktokUsername);
+    setMaxWinners(winnersCount);
     setGameState(GameState.Connecting);
     connect(tiktokUsername);
   }, [connect]);
@@ -142,7 +145,7 @@ const App: React.FC = () => {
     return () => window.clearTimeout(timeoutId);
   }, [gameState]);
 
-  // Keyboard shortcut to skip round
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Prevent shortcut when typing in an input field
@@ -151,6 +154,15 @@ const App: React.FC = () => {
       }
       if (event.key.toLowerCase() === 's' && gameState === GameState.Playing) {
         game.skipRound();
+      }
+      if (event.key.toLowerCase() === 'p') {
+        if (gameState === GameState.Playing) {
+          game.pauseGame();
+          setGameState(GameState.Paused);
+        } else if (gameState === GameState.Paused) {
+          game.resumeGame();
+          setGameState(GameState.Playing);
+        }
       }
     };
 
@@ -167,7 +179,7 @@ const App: React.FC = () => {
     <div className="w-full min-h-screen bg-gray-900 flex items-center justify-center p-2 sm:p-4">
       <div className="w-full max-w-5xl mx-auto flex flex-row items-start justify-center gap-4">
         {/* Left Column: Game Screen */}
-        <div className="w-full max-w-sm h-[80vh] min-h-[600px] max-h-[800px] bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-gray-700 overflow-hidden flex flex-col relative">
+        <div className="w-full max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-gray-700 overflow-hidden flex flex-col relative">
           <AnimatePresence mode="wait">
             {(gameState === GameState.Setup || gameState === GameState.Connecting) && (
                <motion.div
@@ -203,6 +215,18 @@ const App: React.FC = () => {
                   connectionError={connectionError}
                   currentGift={currentGift}
                 />
+              </motion.div>
+            )}
+
+            {gameState === GameState.Paused && (
+              <motion.div
+                key="paused"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="h-full"
+              >
+                <PauseScreen />
               </motion.div>
             )}
 

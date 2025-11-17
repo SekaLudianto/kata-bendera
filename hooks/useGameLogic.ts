@@ -1,6 +1,6 @@
 
 import { useReducer, useCallback, useEffect, useRef } from 'react';
-import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory } from '../types';
+import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory } from '../types';
 import { countries } from '../data/countries';
 import { fruits } from '../data/fruits';
 import { animals } from '../data/animals';
@@ -8,7 +8,9 @@ import { objects } from '../data/objects';
 import { professions } from '../data/professions';
 import { indonesianCities } from '../data/indonesian_cities';
 import { plants } from '../data/plants';
-import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, MAX_WINNERS_PER_ROUND, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, ABC_5_DASAR_START_ROUND, UNIQUENESS_BONUS_POINTS } from '../constants';
+import { footballPlayers } from '../data/football_players';
+import { footballClubs } from '../data/football_clubs';
+import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, DEFAULT_MAX_WINNERS_PER_ROUND, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, ABC_5_DASAR_START_ROUND, UNIQUENESS_BONUS_POINTS } from '../constants';
 
 interface LetterObject {
   id: string;
@@ -21,6 +23,8 @@ interface GameState {
   currentCountry: Country | null;
   currentLetter: string | null;
   currentCategory: AbcCategory | null;
+  currentWord: string | null;
+  currentWordCategory: WordCategory | null;
   usedAnswers: string[]; // For ABC 5 Dasar to prevent duplicate country names
   scrambledCountryName: LetterObject[][];
   chatMessages: ChatMessage[];
@@ -31,24 +35,40 @@ interface GameState {
   roundTimer: number;
   isGameOver: boolean;
   showWinnerModal: boolean;
+  availableAnswersCount: number | null;
+  allAnswersFoundInRound: boolean;
+  maxWinners: number;
+  isPausedByAdmin: boolean;
 }
 
 type GameAction =
   | { type: 'START_GAME'; payload: Country[] }
-  | { type: 'NEXT_ROUND'; payload: { nextCountry?: Country, nextLetter?: string, nextCategory?: AbcCategory } }
+  | { type: 'NEXT_ROUND'; payload: { 
+      nextCountry?: Country, 
+      nextLetter?: string, 
+      nextCategory?: AbcCategory, 
+      availableAnswersCount?: number,
+      nextWord?: string,
+      nextWordCategory?: WordCategory,
+    } }
   | { type: 'PROCESS_COMMENT'; payload: ChatMessage }
-  | { type: 'END_ROUND' }
+  | { type: 'END_ROUND'; payload?: { allAnswersFound: boolean } }
   | { type: 'TICK_TIMER' }
   | { type: 'SHOW_WINNER_MODAL' }
   | { type: 'HIDE_WINNER_MODAL' }
+  | { type: 'SET_MAX_WINNERS'; payload: number }
+  | { type: 'PAUSE_GAME' }
+  | { type: 'RESUME_GAME' }
   | { type: 'RESET_GAME' };
 
-const initialState: GameState = {
+const createInitialState = (maxWinners: number): GameState => ({
   round: 0,
   gameMode: GameMode.GuessTheFlag,
   currentCountry: null,
   currentLetter: null,
   currentCategory: null,
+  currentWord: null,
+  currentWordCategory: null,
   usedAnswers: [],
   scrambledCountryName: [],
   chatMessages: [],
@@ -59,7 +79,11 @@ const initialState: GameState = {
   roundTimer: ROUND_TIMER_SECONDS,
   isGameOver: false,
   showWinnerModal: false,
-};
+  availableAnswersCount: null,
+  allAnswersFoundInRound: false,
+  maxWinners: maxWinners,
+  isPausedByAdmin: false,
+});
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
@@ -82,7 +106,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     case 'START_GAME': {
       const firstCountry = action.payload[0];
       return {
-        ...initialState,
+        ...createInitialState(state.maxWinners),
         leaderboard: state.leaderboard,
         round: 1,
         gameMode: GameMode.GuessTheFlag,
@@ -96,7 +120,15 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         return { ...state, isGameOver: true, isRoundActive: false };
       }
       const newRound = state.round + 1;
-      const newGameMode = newRound >= ABC_5_DASAR_START_ROUND ? GameMode.ABC5Dasar : GameMode.GuessTheFlag;
+      
+      let newGameMode: GameMode;
+      if (action.payload.nextCountry) {
+        newGameMode = GameMode.GuessTheFlag;
+      } else if (action.payload.nextCategory) {
+        newGameMode = GameMode.ABC5Dasar;
+      } else {
+        newGameMode = GameMode.GuessTheWord;
+      }
 
       return {
         ...state,
@@ -105,12 +137,21 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         currentCountry: newGameMode === GameMode.GuessTheFlag ? action.payload.nextCountry! : null,
         currentLetter: newGameMode === GameMode.ABC5Dasar ? action.payload.nextLetter! : null,
         currentCategory: newGameMode === GameMode.ABC5Dasar ? action.payload.nextCategory! : null,
-        scrambledCountryName: newGameMode === GameMode.GuessTheFlag ? scrambleWord(action.payload.nextCountry!.name) : [],
+        currentWord: newGameMode === GameMode.GuessTheWord ? action.payload.nextWord! : null,
+        currentWordCategory: newGameMode === GameMode.GuessTheWord ? action.payload.nextWordCategory! : null,
+        availableAnswersCount: newGameMode === GameMode.ABC5Dasar ? action.payload.availableAnswersCount! : null,
+        scrambledCountryName: newGameMode === GameMode.GuessTheFlag 
+            ? scrambleWord(action.payload.nextCountry!.name) 
+            : newGameMode === GameMode.GuessTheWord 
+            ? scrambleWord(action.payload.nextWord!)
+            : [],
         usedAnswers: [],
         isRoundActive: true,
         roundWinners: [],
         roundTimer: ROUND_TIMER_SECONDS,
         showWinnerModal: false,
+        allAnswersFoundInRound: false, // Reset for new round
+        isPausedByAdmin: false, // Ensure not paused on new round
       };
     }
     case 'PROCESS_COMMENT': {
@@ -118,9 +159,13 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       let newChatMessages = [message, ...state.chatMessages];
       if (newChatMessages.length > 50) newChatMessages = newChatMessages.slice(0, 50);
 
+      const currentMaxWinners = state.gameMode === GameMode.ABC5Dasar && state.availableAnswersCount != null 
+            ? Math.min(state.maxWinners, state.availableAnswersCount) 
+            : state.maxWinners;
+
       if (
         !state.isRoundActive ||
-        state.roundWinners.length >= MAX_WINNERS_PER_ROUND ||
+        state.roundWinners.length >= currentMaxWinners ||
         state.roundWinners.some(w => w.nickname === message.nickname)
       ) {
         return { ...state, chatMessages: newChatMessages };
@@ -135,6 +180,11 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           isCorrect = true;
           foundAnswer = state.currentCountry.name;
         }
+      } else if (state.gameMode === GameMode.GuessTheWord && state.currentWord) {
+          if (comment.startsWith(state.currentWord.toLowerCase())) {
+              isCorrect = true;
+              foundAnswer = state.currentWord;
+          }
       } else if (state.gameMode === GameMode.ABC5Dasar && state.currentLetter && state.currentCategory) {
           const startsWithCorrectLetter = comment.startsWith(state.currentLetter.toLowerCase());
           
@@ -282,8 +332,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         
         // Reveal animation logic for Guess The Flag
         let revealedAnswer = state.scrambledCountryName;
-        if (state.gameMode === GameMode.GuessTheFlag && state.currentCountry) {
-            const words = state.currentCountry.name.toUpperCase().split(' ');
+        if ((state.gameMode === GameMode.GuessTheFlag && state.currentCountry) || (state.gameMode === GameMode.GuessTheWord && state.currentWord)) {
+            const wordToReveal = state.gameMode === GameMode.GuessTheFlag ? state.currentCountry!.name : state.currentWord!;
+            const words = wordToReveal.toUpperCase().split(' ');
             revealedAnswer = words.map(word => {
                 const letters = word.replace(/[^A-Z]/g, '').split('');
                 return letters.map((char, index) => ({
@@ -297,6 +348,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             ...state, 
             isRoundActive: false, 
             scrambledCountryName: revealedAnswer,
+            allAnswersFoundInRound: action.payload?.allAnswersFound || false,
+            isPausedByAdmin: false, // Round ended, so not paused anymore
             ...(didUpdateScores ? {
                 roundWinners: finalRoundWinners,
                 sessionLeaderboard: finalSessionLeaderboard,
@@ -308,18 +361,50 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         return { ...state, showWinnerModal: true };
     case 'HIDE_WINNER_MODAL':
         return { ...state, showWinnerModal: false };
+    case 'SET_MAX_WINNERS':
+        return { ...state, maxWinners: action.payload };
+    case 'PAUSE_GAME':
+        return { ...state, isRoundActive: false, isPausedByAdmin: true };
+    case 'RESUME_GAME':
+        return { ...state, isRoundActive: true, isPausedByAdmin: false };
     case 'RESET_GAME':
-      return { ...initialState, leaderboard: JSON.parse(localStorage.getItem('leaderboard') || '[]') };
+      return { ...createInitialState(state.maxWinners), leaderboard: JSON.parse(localStorage.getItem('leaderboard') || '[]') };
     default:
       return state;
   }
 };
 
 const abcCategories: AbcCategory[] = ['Negara', 'Buah', 'Hewan', 'Benda', 'Profesi', 'Kota di Indonesia', 'Tumbuhan'];
+const wordCategories: WordCategory[] = ['Pemain Bola', 'Klub Bola'];
 
-export const useGameLogic = () => {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+const getValidationList = (category: AbcCategory): string[] => {
+    switch (category) {
+        case 'Negara':
+            return countries.map(c => c.name);
+        case 'Buah':
+            return fruits;
+        case 'Hewan':
+            return animals;
+        case 'Benda':
+            return objects;
+        case 'Profesi':
+            return professions;
+        case 'Kota di Indonesia':
+            return indonesianCities;
+        case 'Tumbuhan':
+            return plants;
+        default:
+             return [];
+    }
+};
+
+export const useGameLogic = (maxWinners: number = DEFAULT_MAX_WINNERS_PER_ROUND) => {
+  const [state, dispatch] = useReducer(gameReducer, createInitialState(maxWinners));
   const countryDeck = useRef<Country[]>([]);
+
+  useEffect(() => {
+    dispatch({ type: 'SET_MAX_WINNERS', payload: maxWinners });
+  }, [maxWinners]);
 
   const prepareNewDeck = useCallback(() => {
     countryDeck.current = shuffleArray(countries);
@@ -343,13 +428,51 @@ export const useGameLogic = () => {
   
   const nextRound = useCallback(() => {
     const currentRound = state.round + 1;
-    const nextPayload: { nextCountry?: Country, nextLetter?: string, nextCategory?: AbcCategory } = {};
-    if (currentRound >= ABC_5_DASAR_START_ROUND) {
-      nextPayload.nextLetter = getRandomLetter();
-      nextPayload.nextCategory = abcCategories[Math.floor(Math.random() * abcCategories.length)];
-    } else {
+    const nextPayload: { 
+        nextCountry?: Country, 
+        nextLetter?: string, 
+        nextCategory?: AbcCategory, 
+        availableAnswersCount?: number,
+        nextWord?: string,
+        nextWordCategory?: WordCategory,
+    } = {};
+
+    if (currentRound < ABC_5_DASAR_START_ROUND) {
       nextPayload.nextCountry = getNextCountry();
+    } else {
+      const modeChoice = Math.random() < 0.5 ? GameMode.ABC5Dasar : GameMode.GuessTheWord;
+      
+      if (modeChoice === GameMode.ABC5Dasar) {
+        let letter: string;
+        let category: AbcCategory;
+        let availableAnswersCount = 0;
+        let retries = 0;
+        const maxRetries = 50; // Safeguard against potential infinite loops
+
+        do {
+          letter = getRandomLetter();
+          category = abcCategories[Math.floor(Math.random() * abcCategories.length)];
+          const validationList = getValidationList(category);
+          
+          availableAnswersCount = validationList.filter(item => 
+              item.trim().toLowerCase().startsWith(letter.toLowerCase())
+          ).length;
+          retries++;
+        } while (availableAnswersCount === 0 && retries < maxRetries);
+
+        nextPayload.nextLetter = letter;
+        nextPayload.nextCategory = category;
+        nextPayload.availableAnswersCount = availableAnswersCount;
+      } else { // GameMode.GuessTheWord
+        const category = wordCategories[Math.floor(Math.random() * wordCategories.length)];
+        const wordList = category === 'Pemain Bola' ? footballPlayers : footballClubs;
+        const word = wordList[Math.floor(Math.random() * wordList.length)];
+        
+        nextPayload.nextWord = word;
+        nextPayload.nextWordCategory = category;
+      }
     }
+    
     dispatch({ type: 'NEXT_ROUND', payload: nextPayload });
   }, [getNextCountry, state.round]);
 
@@ -362,9 +485,12 @@ export const useGameLogic = () => {
 
   const skipRound = useCallback(() => {
     if (state.isRoundActive) {
-      dispatch({ type: 'END_ROUND' });
+      dispatch({ type: 'END_ROUND', payload: { allAnswersFound: false } });
     }
   }, [state.isRoundActive]);
+
+  const pauseGame = useCallback(() => dispatch({ type: 'PAUSE_GAME' }), []);
+  const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
 
   useEffect(() => {
     prepareNewDeck();
@@ -383,26 +509,33 @@ export const useGameLogic = () => {
   
   // Ends round when timer hits 0 or max winners is reached
   useEffect(() => {
-      if (state.isRoundActive && (state.roundTimer <= 0 || state.roundWinners.length >= MAX_WINNERS_PER_ROUND)) {
-          dispatch({ type: 'END_ROUND' });
+      const currentMaxWinners = state.gameMode === GameMode.ABC5Dasar && state.availableAnswersCount != null 
+            ? Math.min(state.maxWinners, state.availableAnswersCount) 
+            : state.maxWinners;
+
+      if (state.isRoundActive && (state.roundTimer <= 0 || state.roundWinners.length >= currentMaxWinners)) {
+          const allAnswersFound = state.gameMode === GameMode.ABC5Dasar &&
+                                  state.availableAnswersCount != null &&
+                                  state.roundWinners.length > 0 && // Make sure there's at least one winner
+                                  state.roundWinners.length === state.availableAnswersCount;
+          dispatch({ type: 'END_ROUND', payload: { allAnswersFound } });
       }
-  }, [state.roundTimer, state.roundWinners.length, state.isRoundActive]);
+  }, [state.roundTimer, state.roundWinners.length, state.isRoundActive, state.gameMode, state.availableAnswersCount, state.maxWinners]);
 
   // Shows winner modal when a round ends, after a delay for the reveal animation
   useEffect(() => {
-      if (!state.isRoundActive && state.round > 0 && !state.isGameOver) {
+      if (!state.isRoundActive && !state.isPausedByAdmin && state.round > 0 && !state.isGameOver) {
           const timeoutId = setTimeout(() => {
               dispatch({ type: 'SHOW_WINNER_MODAL' });
           }, 3000); // Delay to let reveal animation play and be seen
           return () => clearTimeout(timeoutId);
       }
-  }, [state.isRoundActive, state.round, state.isGameOver]);
+  }, [state.isRoundActive, state.isPausedByAdmin, state.round, state.isGameOver]);
 
   // Hides modal and proceeds to next round after a delay
   useEffect(() => {
       if (state.showWinnerModal) {
           const timeoutId = setTimeout(() => {
-              // FIX: Corrected typo in dispatch type from a truncated file and completed logic.
               dispatch({ type: 'HIDE_WINNER_MODAL' });
               nextRound();
           }, WINNER_MODAL_TIMEOUT_MS);
@@ -410,7 +543,6 @@ export const useGameLogic = () => {
       }
   }, [state.showWinnerModal, nextRound]);
 
-  // FIX: Added a return statement to export the game state and control functions.
   return {
     state,
     startGame,
@@ -418,5 +550,7 @@ export const useGameLogic = () => {
     processComment,
     skipRound,
     nextRound,
+    pauseGame,
+    resumeGame,
   };
 };

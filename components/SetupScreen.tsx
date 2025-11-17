@@ -1,19 +1,31 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GlobeIcon } from './IconComponents';
+import { DEFAULT_MAX_WINNERS_PER_ROUND, ABSOLUTE_MAX_WINNERS } from '../constants';
 
 interface SetupScreenProps {
-  onStart: (username: string) => void;
+  onStart: (username: string, maxWinners: number) => void;
   error: string | null;
 }
 
 const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
   const [username, setUsername] = useState('');
+  const [maxWinners, setMaxWinners] = useState(DEFAULT_MAX_WINNERS_PER_ROUND);
+
+  const handleMaxWinnersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (value >= 1 && value <= ABSOLUTE_MAX_WINNERS) {
+      setMaxWinners(value);
+    } else if (e.target.value === '') {
+      setMaxWinners(1);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
-      onStart(username.trim().replace(/^@/, '')); // Remove leading @ if present
+      onStart(username.trim().replace(/^@/, ''), maxWinners); // Remove leading @ if present
     }
   };
 
@@ -31,8 +43,8 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
         </h1>
         <p className="text-gray-400 mt-1">Edisi TikTok Live</p>
 
-        <form onSubmit={handleSubmit} className="w-full max-w-xs mt-8">
-          <div className="relative">
+        <form onSubmit={handleSubmit} className="w-full max-w-xs mt-6">
+          <div className="relative mb-3">
             <input
               type="text"
               value={username}
@@ -43,12 +55,25 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
               aria-describedby="error-message"
             />
           </div>
+          <div className="relative mb-3">
+             <label htmlFor="max-winners" className="block text-xs text-left text-gray-400 mb-1">Jumlah Pemenang per Ronde</label>
+            <input
+              type="number"
+              id="max-winners"
+              value={maxWinners}
+              onChange={handleMaxWinnersChange}
+              min="1"
+              max={ABSOLUTE_MAX_WINNERS}
+              className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
+              aria-label="Jumlah Pemenang Maksimum"
+            />
+          </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={!username.trim()}
-            className="w-full mt-3 px-4 py-2.5 bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-all disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
+            className="w-full mt-2 px-4 py-2.5 bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-all disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
           >
             Mulai Live
           </motion.button>

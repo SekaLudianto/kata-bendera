@@ -42,7 +42,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
             {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} />}
         </AnimatePresence>
         <AnimatePresence>
-          {gameState.showWinnerModal && <RoundWinnerModal winners={gameState.roundWinners} round={gameState.round} gameMode={gameState.gameMode} />}
+          {gameState.showWinnerModal && <RoundWinnerModal 
+              winners={gameState.roundWinners} 
+              round={gameState.round} 
+              gameMode={gameState.gameMode}
+              allAnswersFound={gameState.allAnswersFoundInRound} 
+            />}
         </AnimatePresence>
         <AnimatePresence>
           {isDisconnected && <ReconnectOverlay onReconnect={onReconnect} error={connectionError} />}
