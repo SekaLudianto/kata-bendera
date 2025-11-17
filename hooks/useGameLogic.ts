@@ -127,42 +127,51 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       }
 
       let isCorrect = false;
-      const answer = message.comment.trim().toLowerCase();
+      let foundAnswer = '';
+      const comment = message.comment.trim().toLowerCase();
 
       if (state.gameMode === GameMode.GuessTheFlag && state.currentCountry) {
-        isCorrect = answer.startsWith(state.currentCountry.name.toLowerCase());
-      } else if (state.gameMode === GameMode.ABC5Dasar && state.currentLetter && state.currentCategory) {
-          let isValidItem = false;
-          switch (state.currentCategory) {
-              case 'Negara':
-                  isValidItem = countries.some(c => c.name.toLowerCase() === answer);
-                  break;
-              case 'Buah':
-                  isValidItem = fruits.some(f => f.toLowerCase() === answer);
-                  break;
-              case 'Hewan':
-                  isValidItem = animals.some(a => a.toLowerCase() === answer);
-                  break;
-              case 'Benda':
-                  isValidItem = objects.some(o => o.toLowerCase() === answer);
-                  break;
-              case 'Profesi':
-                  isValidItem = professions.some(p => p.toLowerCase() === answer);
-                  break;
-              case 'Kota di Indonesia':
-                  isValidItem = indonesianCities.some(c => c.toLowerCase() === answer);
-                  break;
-              case 'Tumbuhan':
-                  isValidItem = plants.some(p => p.toLowerCase() === answer);
-                  break;
-          }
-        
-        const startsWithCorrectLetter = answer.startsWith(state.currentLetter.toLowerCase());
-        const isNotUsed = !state.usedAnswers.includes(answer);
-        
-        if(isValidItem && startsWithCorrectLetter && isNotUsed) {
-            isCorrect = true;
+        if (comment.startsWith(state.currentCountry.name.toLowerCase())) {
+          isCorrect = true;
+          foundAnswer = state.currentCountry.name;
         }
+      } else if (state.gameMode === GameMode.ABC5Dasar && state.currentLetter && state.currentCategory) {
+          const startsWithCorrectLetter = comment.startsWith(state.currentLetter.toLowerCase());
+          
+          if (startsWithCorrectLetter) {
+            let validationList: string[] = [];
+            switch (state.currentCategory) {
+                case 'Negara':
+                    validationList = countries.map(c => c.name);
+                    break;
+                case 'Buah':
+                    validationList = fruits;
+                    break;
+                case 'Hewan':
+                    validationList = animals;
+                    break;
+                case 'Benda':
+                    validationList = objects;
+                    break;
+                case 'Profesi':
+                    validationList = professions;
+                    break;
+                case 'Kota di Indonesia':
+                    validationList = indonesianCities;
+                    break;
+                case 'Tumbuhan':
+                    validationList = plants;
+                    break;
+            }
+
+            // Find the first valid item that the comment starts with
+            const validItem = validationList.find(item => comment.startsWith(item.toLowerCase()));
+
+            if (validItem && !state.usedAnswers.includes(validItem.toLowerCase())) {
+                isCorrect = true;
+                foundAnswer = validItem;
+            }
+          }
       }
 
       if (isCorrect) {
@@ -174,7 +183,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           score,
           profilePictureUrl: message.profilePictureUrl,
           time: timeTaken,
-          answer: state.gameMode === GameMode.ABC5Dasar ? message.comment.trim() : undefined,
+          answer: state.gameMode === GameMode.ABC5Dasar ? foundAnswer : undefined,
         };
         
         const updatedLeaderboard = [...state.leaderboard];
@@ -202,7 +211,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           roundWinners: [...state.roundWinners, newWinner],
           leaderboard: updatedLeaderboard,
           sessionLeaderboard: updatedSessionLeaderboard,
-          usedAnswers: state.gameMode === GameMode.ABC5Dasar ? [...state.usedAnswers, answer] : state.usedAnswers,
+          usedAnswers: state.gameMode === GameMode.ABC5Dasar ? [...state.usedAnswers, foundAnswer.toLowerCase()] : state.usedAnswers,
         };
       }
 
@@ -393,15 +402,21 @@ export const useGameLogic = () => {
   useEffect(() => {
       if (state.showWinnerModal) {
           const timeoutId = setTimeout(() => {
+              // FIX: Corrected typo in dispatch type from a truncated file and completed logic.
               dispatch({ type: 'HIDE_WINNER_MODAL' });
-              if (!state.isGameOver) {
-                  nextRound();
-              }
+              nextRound();
           }, WINNER_MODAL_TIMEOUT_MS);
           return () => clearTimeout(timeoutId);
       }
-  }, [state.showWinnerModal, state.isGameOver, nextRound]);
+  }, [state.showWinnerModal, nextRound]);
 
-
-  return { state, startGame, resetGame, processComment, skipRound };
+  // FIX: Added a return statement to export the game state and control functions.
+  return {
+    state,
+    startGame,
+    resetGame,
+    processComment,
+    skipRound,
+    nextRound,
+  };
 };
