@@ -42,7 +42,7 @@ const ChatTab: React.FC<ChatTabProps> = ({ messages }) => {
               animate={{ opacity: 1, y: 0 }}
               layout
               className={`p-1.5 rounded-lg flex items-start gap-2 ${
-                msg.isWinner ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-gray-800'
+                msg.isWinner ? 'bg-amber-100 border border-amber-300 dark:bg-amber-500/20 dark:border-amber-500/50' : 'bg-sky-50 dark:bg-gray-700'
               }`}
             >
               <img
@@ -51,10 +51,10 @@ const ChatTab: React.FC<ChatTabProps> = ({ messages }) => {
                 className="w-7 h-7 rounded-full mt-0.5 shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <p className={`font-semibold text-xs ${msg.isWinner ? 'text-amber-300' : 'text-sky-300'}`}>
+                <p className={`font-semibold text-xs ${msg.isWinner ? 'text-amber-600 dark:text-amber-300' : 'text-sky-600 dark:text-sky-300'}`}>
                   {msg.nickname}
                 </p>
-                <p className="text-white break-words text-sm">{msg.comment}</p>
+                <p className="text-slate-800 dark:text-white break-words text-sm">{msg.comment}</p>
               </div>
             </motion.div>
           ))}

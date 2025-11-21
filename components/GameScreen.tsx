@@ -28,9 +28,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
   ];
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 rounded-3xl">
-      <header className="p-3 text-center border-b border-gray-700 shrink-0">
-        <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-400">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
+      <header className="p-3 text-center border-b border-sky-100 dark:border-gray-700 shrink-0">
+        <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-teal-400">
           Kuis Kata & Bendera Live
         </h1>
       </header>
@@ -54,13 +54,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
       </main>
 
-      <nav className="flex justify-around p-1 border-t border-gray-700 bg-gray-800 rounded-b-3xl shrink-0">
+      <nav className="flex justify-around p-1 border-t border-sky-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 rounded-b-3xl shrink-0">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id as Tab)}
             className={`flex flex-col items-center justify-center w-20 h-14 rounded-lg transition-colors duration-200 ${
-              activeTab === item.id ? 'text-sky-400 bg-sky-400/10' : 'text-gray-400 hover:bg-gray-700'
+              activeTab === item.id ? 'text-sky-500 bg-sky-500/10 dark:text-sky-400 dark:bg-sky-400/10' : 'text-gray-500 hover:bg-sky-100 dark:text-gray-400 dark:hover:bg-gray-700'
             } ${item.id === 'chat' ? 'lg:hidden' : ''}`}
           >
             <item.icon className="w-5 h-5 mb-0.5" />

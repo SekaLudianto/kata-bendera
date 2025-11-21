@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCwIcon } from './IconComponents';
@@ -14,11 +13,11 @@ const ReconnectOverlay: React.FC<ReconnectOverlayProps> = ({ onReconnect, error 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-50 text-center"
+      className="absolute inset-0 bg-white/70 dark:bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-50 text-center"
     >
-      <div className="bg-gray-800 p-8 rounded-2xl shadow-lg border border-red-500/50 max-w-sm">
-        <h2 className="text-2xl font-bold text-red-400">Koneksi Terputus</h2>
-        <p className="text-gray-300 mt-2 mb-6">
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-red-300 dark:border-red-500/50 max-w-sm">
+        <h2 className="text-2xl font-bold text-red-500 dark:text-red-400">Koneksi Terputus</h2>
+        <p className="text-slate-600 dark:text-gray-300 mt-2 mb-6">
           {error || 'Terjadi masalah saat menyambung ke server. Silakan coba lagi.'}
         </p>
         <motion.button

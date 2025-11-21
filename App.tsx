@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
@@ -6,6 +5,8 @@ import GameOverScreen from './components/GameOverScreen';
 import ChampionScreen from './components/ChampionScreen';
 import LiveFeedPanel from './components/LiveFeedPanel';
 import PauseScreen from './components/PauseScreen';
+import ThemeToggle from './components/ThemeToggle';
+import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { GameState, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent } from './types';
@@ -15,6 +16,7 @@ import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './con
 const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
 
 const App: React.FC = () => {
+  useTheme(); // Initialize theme logic
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
   const [username, setUsername] = useState<string>('');
   const [maxWinners, setMaxWinners] = useState<number>(DEFAULT_MAX_WINNERS_PER_ROUND);
@@ -68,15 +70,27 @@ const App: React.FC = () => {
   const handleComment = useCallback((message: ChatMessage) => {
     setLiveFeed(prev => [message, ...prev].slice(0,100));
     const commentText = message.comment.trim().toLowerCase();
+    const isModerator = MODERATOR_USERNAMES.includes(message.nickname.toLowerCase());
 
-    // Handle !skip command from moderators
-    if (gameState === GameState.Playing && commentText === '!skip') {
-      if (MODERATOR_USERNAMES.includes(message.nickname.toLowerCase())) {
+    // Moderator commands
+    if (isModerator) {
+      if (gameState === GameState.Playing && commentText === '!skip') {
         game.skipRound();
-        return; // Stop further processing
+        return;
+      }
+      if (gameState === GameState.Playing && commentText === '!pause') {
+        game.pauseGame();
+        setGameState(GameState.Paused);
+        return;
+      }
+      if (gameState === GameState.Paused && commentText === '!resume') {
+        game.resumeGame();
+        setGameState(GameState.Playing);
+        return;
       }
     }
 
+    // General commands
     if (gameState === GameState.Playing) {
       game.processComment(message);
     } else if (gameState === GameState.Finished) {
@@ -176,10 +190,13 @@ const App: React.FC = () => {
   const champion = game.state.sessionLeaderboard?.length > 0 ? game.state.sessionLeaderboard[0] : undefined;
 
   return (
-    <div className="w-full min-h-screen bg-gray-900 flex items-center justify-center p-2 sm:p-4">
+    <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
+        <div className="absolute top-4 right-4 z-10">
+            <ThemeToggle />
+        </div>
       <div className="w-full max-w-5xl mx-auto flex flex-row items-start justify-center gap-4">
         {/* Left Column: Game Screen */}
-        <div className="w-full max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-gray-700 overflow-hidden flex flex-col relative">
+        <div className="w-full max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
           <AnimatePresence mode="wait">
             {(gameState === GameState.Setup || gameState === GameState.Connecting) && (
                <motion.div
@@ -193,8 +210,8 @@ const App: React.FC = () => {
                 {gameState === GameState.Connecting && (
                   <div className="h-full flex flex-col items-center justify-center text-center p-4">
                       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-sky-400"></div>
-                      <p className="mt-4 text-sky-300">Menghubungkan ke live @{username}...</p>
-                      <p className="text-xs text-gray-400 mt-2">Pastikan username benar dan streamer sedang live.</p>
+                      <p className="mt-4 text-sky-500 dark:text-sky-300">Menghubungkan ke live @{username}...</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Pastikan username benar dan streamer sedang live.</p>
                   </div>
                 )}
                </motion.div>

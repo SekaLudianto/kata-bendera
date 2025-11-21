@@ -31,22 +31,22 @@ const LeaderboardTab: React.FC<LeaderboardTabProps> = ({ leaderboard }) => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="flex items-center p-2 bg-gray-800 rounded-lg"
+                className="flex items-center p-2 bg-sky-50 dark:bg-gray-700/60 rounded-lg"
             >
-                <div className="w-7 font-bold text-md text-center text-amber-400">{getMedal(index)}</div>
+                <div className="w-7 font-bold text-md text-center text-amber-500 dark:text-amber-400">{getMedal(index)}</div>
                 <img
                 src={entry.profilePictureUrl || 'https://i.pravatar.cc/40'}
                 alt={entry.nickname}
                 className="w-8 h-8 rounded-full mx-2"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-white truncate">{entry.nickname}</p>
+                  <p className="font-semibold text-sm truncate">{entry.nickname}</p>
                 </div>
-                <div className="text-sky-400 font-bold text-sm">{entry.score.toLocaleString()}</div>
+                <div className="text-sky-500 dark:text-sky-400 font-bold text-sm">{entry.score.toLocaleString()}</div>
             </motion.div>
             ))}
             {leaderboard.length === 0 && (
-                <p className="text-center text-gray-500 pt-10 text-sm">Papan peringkat masih kosong. Mainkan ronde untuk mendapatkan skor!</p>
+                <p className="text-center text-slate-500 dark:text-gray-500 pt-10 text-sm">Papan peringkat masih kosong. Mainkan ronde untuk mendapatkan skor!</p>
             )}
         </div>
       </div>

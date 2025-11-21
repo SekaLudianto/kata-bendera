@@ -10,7 +10,7 @@ import { indonesianCities } from '../data/indonesian_cities';
 import { plants } from '../data/plants';
 import { footballPlayers } from '../data/football_players';
 import { footballClubs } from '../data/football_clubs';
-import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, DEFAULT_MAX_WINNERS_PER_ROUND, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, ABC_5_DASAR_START_ROUND, UNIQUENESS_BONUS_POINTS } from '../constants';
+import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, DEFAULT_MAX_WINNERS_PER_ROUND, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, FLAG_ROUNDS_COUNT, UNIQUENESS_BONUS_POINTS } from '../constants';
 
 interface LetterObject {
   id: string;
@@ -92,7 +92,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 const scrambleWord = (name: string): LetterObject[][] => {
   const words = name.toUpperCase().split(' ');
   return words.map(word => {
-    const letters = word.replace(/[^A-Z]/g, '').split('');
+    const letters = word.split('');
     const mappedLetters = letters.map((char, index) => ({
       id: `${word}-${index}-${char}`, // ID stabil berdasarkan kata dan posisi asli
       letter: char,
@@ -336,7 +336,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             const wordToReveal = state.gameMode === GameMode.GuessTheFlag ? state.currentCountry!.name : state.currentWord!;
             const words = wordToReveal.toUpperCase().split(' ');
             revealedAnswer = words.map(word => {
-                const letters = word.replace(/[^A-Z]/g, '').split('');
+                const letters = word.split('');
                 return letters.map((char, index) => ({
                     id: `${word}-${index}-${char}`,
                     letter: char
@@ -401,33 +401,41 @@ const getValidationList = (category: AbcCategory): string[] => {
 export const useGameLogic = (maxWinners: number = DEFAULT_MAX_WINNERS_PER_ROUND) => {
   const [state, dispatch] = useReducer(gameReducer, createInitialState(maxWinners));
   const countryDeck = useRef<Country[]>([]);
+  const footballPlayerDeck = useRef<string[]>([]);
+  const footballClubDeck = useRef<string[]>([]);
+  const usedAbcCombinations = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     dispatch({ type: 'SET_MAX_WINNERS', payload: maxWinners });
   }, [maxWinners]);
 
-  const prepareNewDeck = useCallback(() => {
+  const prepareNewDecks = useCallback(() => {
     countryDeck.current = shuffleArray(countries);
+    footballPlayerDeck.current = shuffleArray(footballPlayers);
+    footballClubDeck.current = shuffleArray(footballClubs);
+    usedAbcCombinations.current.clear();
   }, []);
 
   const getNextCountry = useCallback(() => {
     if (countryDeck.current.length === 0) {
-      prepareNewDeck();
+      // Safeguard: reshuffle if deck runs out unexpectedly
+      countryDeck.current = shuffleArray(countries);
     }
     return countryDeck.current.pop() as Country;
-  }, [prepareNewDeck]);
+  }, []);
   
   const getRandomLetter = () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
 
   const startGame = useCallback(() => {
-    prepareNewDeck();
-    const firstCountries = Array.from({ length: TOTAL_ROUNDS }, getNextCountry);
+    prepareNewDecks();
+    const firstCountries = Array.from({ length: FLAG_ROUNDS_COUNT }, getNextCountry);
     countryDeck.current = firstCountries; // Use this deck for the session
     dispatch({ type: 'START_GAME', payload: firstCountries });
-  }, [prepareNewDeck, getNextCountry]);
+  }, [prepareNewDecks, getNextCountry]);
   
   const nextRound = useCallback(() => {
-    const currentRound = state.round + 1;
+    // Note: state.round is the *current* round, so next round is state.round + 1
+    const nextRoundNumber = state.round + 1;
     const nextPayload: { 
         nextCountry?: Country, 
         nextLetter?: string, 
@@ -437,7 +445,7 @@ export const useGameLogic = (maxWinners: number = DEFAULT_MAX_WINNERS_PER_ROUND)
         nextWordCategory?: WordCategory,
     } = {};
 
-    if (currentRound < ABC_5_DASAR_START_ROUND) {
+    if (nextRoundNumber <= FLAG_ROUNDS_COUNT) {
       nextPayload.nextCountry = getNextCountry();
     } else {
       const modeChoice = Math.random() < 0.5 ? GameMode.ABC5Dasar : GameMode.GuessTheWord;
@@ -445,28 +453,47 @@ export const useGameLogic = (maxWinners: number = DEFAULT_MAX_WINNERS_PER_ROUND)
       if (modeChoice === GameMode.ABC5Dasar) {
         let letter: string;
         let category: AbcCategory;
+        let combination: string;
         let availableAnswersCount = 0;
         let retries = 0;
-        const maxRetries = 50; // Safeguard against potential infinite loops
+        const maxRetries = 100; // Safeguard against potential infinite loops
 
         do {
           letter = getRandomLetter();
           category = abcCategories[Math.floor(Math.random() * abcCategories.length)];
-          const validationList = getValidationList(category);
+          combination = `${category}-${letter}`;
           
-          availableAnswersCount = validationList.filter(item => 
-              item.trim().toLowerCase().startsWith(letter.toLowerCase())
-          ).length;
+          if (!usedAbcCombinations.current.has(combination)) {
+              const validationList = getValidationList(category);
+              availableAnswersCount = validationList.filter(item => 
+                  item.trim().toLowerCase().startsWith(letter.toLowerCase())
+              ).length;
+          } else {
+              availableAnswersCount = 0; // Already used, force a retry
+          }
           retries++;
-        } while (availableAnswersCount === 0 && retries < maxRetries);
-
+        } while ((availableAnswersCount === 0 || usedAbcCombinations.current.has(combination)) && retries < maxRetries);
+        
+        usedAbcCombinations.current.add(combination);
         nextPayload.nextLetter = letter;
         nextPayload.nextCategory = category;
         nextPayload.availableAnswersCount = availableAnswersCount;
+
       } else { // GameMode.GuessTheWord
         const category = wordCategories[Math.floor(Math.random() * wordCategories.length)];
-        const wordList = category === 'Pemain Bola' ? footballPlayers : footballClubs;
-        const word = wordList[Math.floor(Math.random() * wordList.length)];
+        let word: string;
+
+        if (category === 'Pemain Bola') {
+            if (footballPlayerDeck.current.length === 0) {
+                footballPlayerDeck.current = shuffleArray(footballPlayers);
+            }
+            word = footballPlayerDeck.current.pop()!;
+        } else {
+            if (footballClubDeck.current.length === 0) {
+                footballClubDeck.current = shuffleArray(footballClubs);
+            }
+            word = footballClubDeck.current.pop()!;
+        }
         
         nextPayload.nextWord = word;
         nextPayload.nextWordCategory = category;
@@ -478,8 +505,8 @@ export const useGameLogic = (maxWinners: number = DEFAULT_MAX_WINNERS_PER_ROUND)
 
   const resetGame = useCallback(() => {
     dispatch({ type: 'RESET_GAME' });
-    prepareNewDeck();
-  }, [prepareNewDeck]);
+    prepareNewDecks();
+  }, [prepareNewDecks]);
   
   const processComment = useCallback((message: ChatMessage) => dispatch({ type: 'PROCESS_COMMENT', payload: message }), []);
 
@@ -493,8 +520,8 @@ export const useGameLogic = (maxWinners: number = DEFAULT_MAX_WINNERS_PER_ROUND)
   const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
 
   useEffect(() => {
-    prepareNewDeck();
-  }, [prepareNewDeck]);
+    prepareNewDecks();
+  }, [prepareNewDecks]);
 
   // Starts timer as soon as round is active
   useEffect(() => {

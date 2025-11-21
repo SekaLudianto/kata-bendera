@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS } from '../constants';
@@ -52,7 +51,7 @@ const GuessTheFlagContent: React.FC<{ gameState: any }> = ({ gameState }) => {
           key={currentCountry.code}
           src={`https://flagcdn.com/w320/${currentCountry.code}.png`}
           alt={`Bendera ${currentCountry.name}`}
-          className="w-36 sm:w-40 border-2 border-gray-600 rounded-md shadow-lg shadow-black/30"
+          className="w-36 sm:w-40 border-2 border-slate-300 dark:border-gray-600 rounded-md shadow-lg shadow-black/30"
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5, type: 'spring', stiffness: 120 }}
@@ -69,10 +68,10 @@ const GuessTheFlagContent: React.FC<{ gameState: any }> = ({ gameState }) => {
                   animate={isRoundActive ? "scrambled" : "revealed"}
                   custom={letterIndex}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className={`bg-gray-800 border-2 rounded-md flex items-center justify-center font-bold transition-colors duration-500 ${sizeClasses.split(' ').slice(0,2).join(' ')} ${
+                  className={`bg-sky-100 dark:bg-gray-700 border-2 rounded-md flex items-center justify-center font-bold transition-colors duration-500 ${sizeClasses.split(' ').slice(0,2).join(' ')} ${
                     isRoundActive 
-                    ? 'border-gray-600 text-amber-400' 
-                    : 'border-green-500 text-green-300'
+                    ? 'border-sky-200 dark:border-gray-600 text-amber-500 dark:text-amber-400' 
+                    : 'border-green-500 text-green-600 dark:text-green-300'
                   }`}
               >
                   {item.letter}
@@ -92,7 +91,7 @@ const GuessTheWordContent: React.FC<{ gameState: any }> = ({ gameState }) => {
   
     return (
       <>
-        <h2 className="text-xl sm:text-2xl font-bold text-sky-300 text-center mb-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
             Kategori: {currentWordCategory}
         </h2>
         <div className="flex flex-col items-center gap-1 px-2">
@@ -106,10 +105,10 @@ const GuessTheWordContent: React.FC<{ gameState: any }> = ({ gameState }) => {
                     animate={isRoundActive ? "scrambled" : "revealed"}
                     custom={letterIndex}
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                    className={`bg-gray-800 border-2 rounded-md flex items-center justify-center font-bold transition-colors duration-500 ${sizeClasses.split(' ').slice(0,2).join(' ')} ${
+                    className={`bg-sky-100 dark:bg-gray-700 border-2 rounded-md flex items-center justify-center font-bold transition-colors duration-500 ${sizeClasses.split(' ').slice(0,2).join(' ')} ${
                       isRoundActive 
-                      ? 'border-gray-600 text-amber-400' 
-                      : 'border-green-500 text-green-300'
+                      ? 'border-sky-200 dark:border-gray-600 text-amber-500 dark:text-amber-400' 
+                      : 'border-green-500 text-green-600 dark:text-green-300'
                     }`}
                 >
                     {item.letter}
@@ -149,7 +148,7 @@ const ABC5DasarContent: React.FC<{ gameState: any }> = ({ gameState }) => {
   }, [currentLetter, isRoundActive]);
 
   return (
-    <div className="w-36 h-36 sm:w-40 sm:h-40 bg-gray-800 border-4 border-gray-600 rounded-2xl flex items-center justify-center shadow-lg shadow-black/30">
+    <div className="w-36 h-36 sm:w-40 sm:h-40 bg-sky-50 dark:bg-gray-700 border-4 border-sky-200 dark:border-gray-600 rounded-2xl flex items-center justify-center shadow-lg shadow-black/30">
         <AnimatePresence mode="wait">
       {isSpinning ? (
         <motion.div
@@ -157,7 +156,7 @@ const ABC5DasarContent: React.FC<{ gameState: any }> = ({ gameState }) => {
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5}}
-            className="text-6xl sm:text-7xl font-bold text-sky-400"
+            className="text-6xl sm:text-7xl font-bold text-sky-500 dark:text-sky-400"
         >
           {spinningLetter}
         </motion.div>
@@ -167,7 +166,7 @@ const ABC5DasarContent: React.FC<{ gameState: any }> = ({ gameState }) => {
             initial={{ opacity: 0, scale: 2 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', stiffness: 100 }}
-            className="text-7xl sm:text-8xl font-bold text-amber-400"
+            className="text-7xl sm:text-8xl font-bold text-amber-500 dark:text-amber-400"
         >
           {currentLetter}
         </motion.div>
@@ -189,7 +188,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
 
   const getInstructionText = () => {
     if (gameMode === GameMode.GuessTheFlag) {
-      return "Tebak nama negara dari bendera & huruf acak!";
+      return "Tebak nama dari bendera & huruf acak!";
     }
     if (gameMode === GameMode.GuessTheWord) {
         return "Tebak kata dari huruf acak!";
@@ -226,11 +225,11 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
         </AnimatePresence>
       </div>
       
-      <div className="flex justify-between items-center text-xs text-gray-400 shrink-0">
+      <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
         <span>Ronde {round} / {TOTAL_ROUNDS}</span>
         <span className='font-semibold'>{getRoundTitle()}</span>
       </div>
-      <div className="w-full bg-gray-700 rounded-full h-2 my-2 shrink-0">
+      <div className="w-full bg-sky-100 dark:bg-gray-700 rounded-full h-2 my-2 shrink-0">
         <motion.div
           className="bg-gradient-to-r from-sky-500 to-teal-400 h-2 rounded-full"
           initial={{ width: `${((round - 1) / TOTAL_ROUNDS) * 100}%` }}
@@ -251,11 +250,11 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
                   exit={{ opacity: 0, y: -10 }}
                   className="flex flex-col gap-0.5"
                 >
-                  <p className="text-gray-400 text-xs">
+                  <p className="text-gray-500 dark:text-gray-400 text-xs">
                     {`Sebutkan nama ${currentCategory || ''} dari huruf '${gameState.currentLetter}'!`}
                   </p>
                   {availableAnswersCount != null && (
-                     <p className="text-xs font-semibold text-sky-400">
+                     <p className="text-xs font-semibold text-sky-500 dark:text-sky-400">
                         {`Terdapat ${availableAnswersCount} jawaban yang mungkin.`}
                     </p>
                   )}
@@ -281,11 +280,11 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
                 exit={{ opacity: 0, y: -10 }}
                 className="flex flex-col items-center"
               >
-                <div className="flex items-center gap-1.5 bg-amber-500/10 px-2 py-1 rounded-lg">
+                <div className="flex items-center gap-1.5 bg-amber-100 dark:bg-amber-500/10 px-2 py-1 rounded-lg">
                   <img src={firstWinner.profilePictureUrl} alt={firstWinner.nickname} className="w-5 h-5 rounded-full"/>
-                  <p className="text-amber-300 font-semibold text-xs">{firstWinner.nickname} menemukan jawaban!</p>
+                  <p className="text-amber-600 dark:text-amber-300 font-semibold text-xs">{firstWinner.nickname} menemukan jawaban!</p>
                 </div>
-                <p className="text-amber-400 text-xs mt-1 font-semibold">Pemenang: {roundWinners.length} / {maxWinnersForThisRound}</p>
+                <p className="text-amber-500 dark:text-amber-400 text-xs mt-1 font-semibold">Pemenang: {roundWinners.length} / {maxWinnersForThisRound}</p>
               </motion.div>
             ) : (
               <motion.div
@@ -296,14 +295,14 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
                 className="flex flex-col items-center"
               >
                 {(gameMode === GameMode.GuessTheFlag || gameMode === GameMode.GuessTheWord) && (
-                   <p className="text-gray-400 text-xs">{getInstructionText()}</p>
+                   <p className="text-gray-500 dark:text-gray-400 text-xs">{getInstructionText()}</p>
                 )}
-                <p className="text-amber-400 text-xs mt-1 font-semibold">Hanya {maxWinnersForThisRound} penebak tercepat yang mendapat poin!</p>
+                <p className="text-amber-500 dark:text-amber-400 text-xs mt-1 font-semibold">Hanya {maxWinnersForThisRound} penebak tercepat yang mendapat poin!</p>
               </motion.div>
             )}
           </AnimatePresence>
           
-          <div className="w-full max-w-[150px] bg-gray-700 rounded-full h-1.5 mx-auto mt-2">
+          <div className="w-full max-w-[150px] bg-sky-100 dark:bg-gray-700 rounded-full h-1.5 mx-auto mt-2">
             <motion.div
               className="bg-gradient-to-r from-sky-500 to-teal-400 h-1.5 rounded-full"
               animate={{ width: `${timerProgress}%` }}
