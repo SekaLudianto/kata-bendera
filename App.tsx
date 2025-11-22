@@ -17,6 +17,7 @@ import { useTikTokLive } from './hooks/useTikTokLive';
 import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
+import { SkipForwardIcon } from './components/IconComponents';
 
 const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
 
@@ -307,10 +308,26 @@ const App: React.FC = () => {
     }
   }
 
+  const showSkipButton = gameState === GameState.Playing || gameState === GameState.KnockoutPlaying;
 
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            <AnimatePresence>
+              {showSkipButton && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  onClick={game.skipRound}
+                  className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-900 focus:ring-sky-500"
+                  aria-label="Lewati Soal"
+                  title="Lewati Soal (S)"
+                >
+                  <SkipForwardIcon className="w-5 h-5 text-sky-500" />
+                </motion.button>
+              )}
+            </AnimatePresence>
             <SoundToggle />
             <ThemeToggle />
         </div>

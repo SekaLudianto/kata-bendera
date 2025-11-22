@@ -1,3 +1,4 @@
+
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads } from '../types';
 import { countries } from '../data/countries';
@@ -603,8 +604,12 @@ export const useGameLogic = () => {
   }, []);
 
   const skipRound = useCallback(() => {
-    if (state.isRoundActive && state.gameStyle === GameStyle.Classic) {
-      dispatch({ type: 'END_ROUND' });
+    if (state.isRoundActive) {
+        if (state.gameStyle === GameStyle.Classic) {
+            dispatch({ type: 'END_ROUND' });
+        } else if (state.gameStyle === GameStyle.Knockout) {
+            dispatch({ type: 'KNOCKOUT_QUESTION_TIMEOUT' });
+        }
     }
   }, [state.isRoundActive, state.gameStyle]);
 
