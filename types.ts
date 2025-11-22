@@ -44,6 +44,11 @@ export interface TikTokGiftEvent {
 
 export type LiveFeedEvent = ChatMessage | GiftNotification;
 
+export enum GameStyle {
+    Classic = 'classic',
+    Knockout = 'knockout',
+}
+
 export enum GameState {
     Setup = 'setup',
     Connecting = 'connecting',
@@ -51,6 +56,9 @@ export enum GameState {
     Paused = 'paused',
     Champion = 'champion',
     Finished = 'finished',
+    KnockoutRegistration = 'knockout_registration',
+    KnockoutDrawing = 'knockout_drawing',
+    KnockoutPlaying = 'knockout_playing',
 }
 
 export enum GameMode {
@@ -63,3 +71,39 @@ export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'K
 export type WordCategory = 'Pemain Bola' | 'Klub Bola';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
+
+// --- Knockout Mode Types ---
+export interface KnockoutPlayer {
+  nickname: string;
+  profilePictureUrl?: string;
+}
+
+export interface KnockoutMatch {
+  id: string;
+  player1: KnockoutPlayer | null; // Null indicates a BYE or placeholder
+  player2: KnockoutPlayer | null;
+  winner: KnockoutPlayer | null;
+  roundIndex: number; // The round this match belongs to (0 for first round)
+  matchIndex: number; // The index of the match within its round
+}
+
+export type KnockoutRound = KnockoutMatch[];
+export type KnockoutBracket = KnockoutRound[];
+
+// This will be used in useGameLogic.ts to set the word for a knockout match
+export interface GameActionPayloads {
+    'START_GAME': { gameStyle: GameStyle, maxWinners: number };
+    'START_CLASSIC_MODE': { deck: Country[] };
+    'NEXT_ROUND': { 
+      nextCountry?: Country, 
+      nextLetter?: string, 
+      nextCategory?: AbcCategory, 
+      availableAnswersCount?: number,
+      nextWord?: string,
+      nextWordCategory?: WordCategory,
+    };
+    'PROCESS_COMMENT': ChatMessage;
+    'REGISTER_PLAYER': KnockoutPlayer;
+    'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer };
+    'SET_KNOCKOUT_WORD': { word: string; category: WordCategory };
+}

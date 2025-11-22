@@ -6,6 +6,7 @@ export const ABSOLUTE_MAX_WINNERS = 10; // Batas atas untuk input kustom
 export const WINNER_MODAL_TIMEOUT_MS = 5000;
 export const CHAMPION_SCREEN_TIMEOUT_MS = 5000;
 export const FLAG_ROUNDS_COUNT = 10;
+export const KNOCKOUT_REGISTRATION_SECONDS = 15;
 
 
 // Points system

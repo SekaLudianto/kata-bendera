@@ -1,9 +1,13 @@
-import React from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LeaderboardEntry } from '../types';
+import { commentatorLines } from '../data/commentator_lines';
+import { useSound } from '../hooks/useSound';
 
 interface GameOverScreenProps {
   leaderboard: LeaderboardEntry[];
+  onRestart: () => void;
 }
 
 const getMedal = (rank: number) => {
@@ -13,8 +17,16 @@ const getMedal = (rank: number) => {
     return `${rank + 1}.`;
 };
 
-const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard }) => {
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, onRestart }) => {
   const topPlayers = leaderboard.slice(0, 10);
+  const [comment, setComment] = useState('');
+  const { playSound } = useSound();
+
+  useEffect(() => {
+    const randomComment = commentatorLines[Math.floor(Math.random() * commentatorLines.length)];
+    setComment(randomComment);
+    playSound('gameOver');
+  }, [playSound]);
 
   return (
     <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
@@ -50,10 +62,30 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard }) => {
             <p className="text-center text-gray-500 pt-10">Tidak ada skor yang tercatat di permainan ini.</p>
         )}
       </div>
+
+       {comment && (
+          <motion.div 
+            className="my-2 py-2 border-t border-dashed border-sky-200 dark:border-gray-600 shrink-0"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 + (Math.min(topPlayers.length, 5) * 0.1) }}
+          >
+            <p className="text-xs text-slate-500 dark:text-gray-400 font-semibold mb-1">Komentator Kocak Berkata:</p>
+            <p className="text-sm italic text-sky-600 dark:text-sky-300">
+                "{comment}"
+            </p>
+          </motion.div>
+        )}
+
        <div className="text-center pt-2 shrink-0 border-t border-sky-100 dark:border-gray-700">
-        <p className="text-sky-500 dark:text-sky-300 font-semibold animate-pulse text-sm">
-            Ketik <code className="bg-sky-100 text-sky-800 dark:bg-gray-700 dark:text-white px-2 py-1 rounded">!next</code> di kolom komentar untuk memulai lagi!
-        </p>
+        <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onRestart}
+            className="w-full mt-2 px-4 py-2.5 bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-all"
+        >
+          Kembali ke Awal
+        </motion.button>
     </div>
     </div>
   );

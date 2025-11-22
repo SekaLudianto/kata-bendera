@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { RoundWinner, GameMode } from '../types';
 import { PartyPopperIcon } from './IconComponents';
-import { commentatorLines } from '../data/commentator_lines';
+import { useSound } from '../hooks/useSound';
+
 
 interface RoundWinnerModalProps {
   winners: RoundWinner[];
@@ -19,15 +20,11 @@ const getRankDisplay = (rank: number) => {
 };
 
 const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gameMode, allAnswersFound }) => {
-  const sortedWinners = [...winners].sort((a, b) => (b.score + (b.bonus || 0)) - (a.score + (a.bonus || 0)));
-  const [comment, setComment] = useState('');
+  const { playSound } = useSound();
 
   useEffect(() => {
-    if (winners.length > 0) {
-      const randomComment = commentatorLines[Math.floor(Math.random() * commentatorLines.length)];
-      setComment(randomComment);
-    }
-  }, [winners.length]);
+    playSound(winners.length > 0 ? 'roundEnd' : 'roundEndMuted');
+  }, [playSound, winners.length]);
 
   return (
     <motion.div
@@ -89,24 +86,6 @@ const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gam
                 <p className="text-slate-500 dark:text-gray-400 pt-4">Tidak ada pemenang di ronde ini.</p>
              )}
         </div>
-
-        {winners.length > 0 && comment && (
-          <motion.div 
-            className="mt-5 pt-4 border-t-2 border-dashed border-sky-200 dark:border-gray-600"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ 
-              delay: 0.5 + (Math.min(winners.length, 5) * 0.1),
-              type: 'spring',
-              stiffness: 100
-            }}
-          >
-            <p className="text-xs text-slate-500 dark:text-gray-400 font-semibold mb-1">Komentator Kocak Berkata:</p>
-            <p className="text-sm italic text-sky-600 dark:text-sky-300">
-                "{comment}"
-            </p>
-          </motion.div>
-        )}
       </div>
     </motion.div>
   );

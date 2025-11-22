@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import GameTab from './GameTab';
 import ChatTab from './ChatTab';
 import LeaderboardTab from './LeaderboardTab';
+import CountdownOverlay from './CountdownOverlay';
 import { GamepadIcon, MessageCircleIcon, TrophyIcon } from './IconComponents';
 import { AnimatePresence } from 'framer-motion';
 import RoundWinnerModal from './RoundWinnerModal';
 import ReconnectOverlay from './ReconnectOverlay';
-import { GiftNotification as GiftNotificationType, GameMode } from '../types';
+import { useSound } from '../hooks/useSound';
+import { GiftNotification as GiftNotificationType, GameMode, GameStyle } from '../types';
+import { InternalGameState } from '../hooks/useGameLogic';
 
 type Tab = 'game' | 'chat' | 'leaderboard';
 
 interface GameScreenProps {
-  gameState: any; // Simplified for brevity
+  gameState: InternalGameState;
   isDisconnected: boolean;
   onReconnect: () => void;
   connectionError: string | null;
@@ -20,32 +24,60 @@ interface GameScreenProps {
 
 const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift }) => {
   const [activeTab, setActiveTab] = useState<Tab>('game');
+  const { playSound } = useSound();
+
+  // Play sound on new round start
+  useEffect(() => {
+    if (gameState.isRoundActive) {
+      playSound('roundStart');
+    }
+  }, [gameState.round, gameState.isRoundActive, playSound, gameState.currentMatchIndex]);
+
+  // Play sound on first correct answer (Classic Mode)
+  useEffect(() => {
+    if (gameState.gameStyle === GameStyle.Classic && gameState.roundWinners.length === 1) {
+      playSound('correctAnswer');
+    }
+  }, [gameState.roundWinners.length, gameState.gameStyle, playSound]);
 
   const navItems = [
     { id: 'game', label: 'Game', icon: GamepadIcon },
     { id: 'chat', label: 'Chat', icon: MessageCircleIcon },
     { id: 'leaderboard', label: 'Peringkat', icon: TrophyIcon },
   ];
+  
+  const getHeaderTitle = () => {
+    if (gameState.gameStyle === GameStyle.Knockout) {
+        return "Mode Knockout";
+    }
+    return "Kuis Kata & Bendera Live";
+  }
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
       <header className="p-3 text-center border-b border-sky-100 dark:border-gray-700 shrink-0">
         <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-teal-400">
-          Kuis Kata & Bendera Live
+          {getHeaderTitle()}
         </h1>
       </header>
 
       <main className="flex-grow overflow-hidden relative">
+        <AnimatePresence>
+          {gameState.countdownValue && gameState.countdownValue > 0 && (
+            <CountdownOverlay count={gameState.countdownValue} />
+          )}
+        </AnimatePresence>
+
         <AnimatePresence mode="wait">
             {activeTab === 'game' && <GameTab key="game" gameState={gameState} currentGift={currentGift} />}
             {activeTab === 'chat' && <ChatTab key="chat" messages={gameState.chatMessages} />}
             {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} />}
         </AnimatePresence>
         <AnimatePresence>
-          {gameState.showWinnerModal && <RoundWinnerModal 
+          {gameState.showWinnerModal && gameState.gameStyle === GameStyle.Classic && <RoundWinnerModal 
               winners={gameState.roundWinners} 
               round={gameState.round} 
-              gameMode={gameState.gameMode}
+              gameMode={gameState.gameMode!}
               allAnswersFound={gameState.allAnswersFoundInRound} 
             />}
         </AnimatePresence>

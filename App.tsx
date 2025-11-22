@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
@@ -6,10 +7,13 @@ import ChampionScreen from './components/ChampionScreen';
 import LiveFeedPanel from './components/LiveFeedPanel';
 import PauseScreen from './components/PauseScreen';
 import ThemeToggle from './components/ThemeToggle';
+import SoundToggle from './components/SoundToggle';
+import KnockoutRegistrationScreen from './components/KnockoutRegistrationScreen';
+import KnockoutBracketScreen from './components/KnockoutBracketScreen';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
-import { GameState, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 
@@ -18,6 +22,7 @@ const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
 const App: React.FC = () => {
   useTheme(); // Initialize theme logic
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
+  const [gameStyle, setGameStyle] = useState<GameStyle>(GameStyle.Classic);
   const [username, setUsername] = useState<string>('');
   const [maxWinners, setMaxWinners] = useState<number>(DEFAULT_MAX_WINNERS_PER_ROUND);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -27,7 +32,7 @@ const App: React.FC = () => {
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
   const [liveFeed, setLiveFeed] = useState<LiveFeedEvent[]>([]);
 
-  const game = useGameLogic(maxWinners);
+  const game = useGameLogic();
   
   const handleGift = useCallback((gift: Omit<GiftNotificationType, 'id'>) => {
       const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.nickname}` };
@@ -62,36 +67,36 @@ const App: React.FC = () => {
 
   // New function to restart the game without disconnecting from TikTok Live
   const handleRestartGame = useCallback(() => {
-    game.resetGame();
-    game.startGame();
+    game.startGame(GameStyle.Classic, maxWinners);
     setGameState(GameState.Playing);
-  }, [game]);
+  }, [game, maxWinners]);
 
   const handleComment = useCallback((message: ChatMessage) => {
     setLiveFeed(prev => [message, ...prev].slice(0,100));
     const commentText = message.comment.trim().toLowerCase();
     const isModerator = MODERATOR_USERNAMES.includes(message.nickname.toLowerCase());
 
-    // Moderator commands
     if (isModerator) {
-      if (gameState === GameState.Playing && commentText === '!skip') {
+      if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentText === '!skip') {
         game.skipRound();
         return;
       }
-      if (gameState === GameState.Playing && commentText === '!pause') {
+      if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentText === '!pause') {
         game.pauseGame();
         setGameState(GameState.Paused);
         return;
       }
       if (gameState === GameState.Paused && commentText === '!resume') {
         game.resumeGame();
-        setGameState(GameState.Playing);
+        // Return to correct playing state based on game style
+        setGameState(game.state.gameStyle === GameStyle.Knockout ? GameState.KnockoutPlaying : GameState.Playing);
         return;
       }
     }
 
-    // General commands
-    if (gameState === GameState.Playing) {
+    if (gameState === GameState.KnockoutRegistration && commentText === '!ikut') {
+      game.registerPlayer({ nickname: message.nickname, profilePictureUrl: message.profilePictureUrl });
+    } else if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
       game.processComment(message);
     } else if (gameState === GameState.Finished) {
       if (commentText === '!next') {
@@ -103,15 +108,21 @@ const App: React.FC = () => {
 
   const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
 
-  const handleStart = useCallback((tiktokUsername: string, winnersCount: number) => {
+  const handleStart = useCallback((tiktokUsername: string, winnersCount: number, selectedGameStyle: GameStyle) => {
     setLiveFeed([]);
     setConnectionError(null);
     setIsDisconnected(false);
     setUsername(tiktokUsername);
     setMaxWinners(winnersCount);
+    setGameStyle(selectedGameStyle);
     setGameState(GameState.Connecting);
     connect(tiktokUsername);
   }, [connect]);
+  
+  const handleBackToSetup = useCallback(() => {
+    game.resetGame();
+    setGameState(GameState.Setup);
+  }, [game]);
 
   const handleReconnect = useCallback(() => {
     setConnectionError(null);
@@ -122,8 +133,13 @@ const App: React.FC = () => {
   useEffect(() => {
     if (connectionStatus === 'connected') {
       if (gameState === GameState.Connecting) {
-        setGameState(GameState.Playing);
-        game.startGame();
+        if (gameStyle === GameStyle.Classic) {
+            game.startGame(GameStyle.Classic, maxWinners);
+            setGameState(GameState.Playing);
+        } else {
+            game.startGame(GameStyle.Knockout, maxWinners);
+            // useGameLogic will transition to KnockoutRegistration
+        }
       }
       setIsDisconnected(false);
     }
@@ -132,50 +148,51 @@ const App: React.FC = () => {
       const errorMessage = error || "Koneksi terputus. Silakan coba lagi.";
       setConnectionError(errorMessage);
       
-      if (gameState === GameState.Playing) {
+      if (gameState !== GameState.Setup && gameState !== GameState.Connecting) {
         setIsDisconnected(true);
       } else if (gameState === GameState.Connecting) {
         setGameState(GameState.Setup);
-        disconnect(); // Full cleanup if initial connection fails
+        disconnect();
       }
     }
-  }, [connectionStatus, gameState, error, game, disconnect]);
+  }, [connectionStatus, gameState, gameStyle, error, game, disconnect, maxWinners]);
 
-  // Transition: Playing -> Champion
+  // Game logic state transitions
   useEffect(() => {
-    if (game.state.isGameOver && gameState === GameState.Playing) {
-      setGameState(GameState.Champion);
-    }
-  }, [game.state.isGameOver, gameState]);
+    setGameState(game.state.gameState);
+  }, [game.state.gameState]);
 
-  // Transition: Champion -> Finished
+
+  // Transition: Champion -> Finished (for Classic) or back to Setup (for Knockout)
   useEffect(() => {
     let timeoutId: number;
     if (gameState === GameState.Champion) {
       timeoutId = window.setTimeout(() => {
-        setGameState(GameState.Finished);
+        if (game.state.gameStyle === GameStyle.Classic) {
+            setGameState(GameState.Finished);
+        } else {
+            // After knockout champion is shown, go back to setup
+            handleBackToSetup();
+        }
       }, CHAMPION_SCREEN_TIMEOUT_MS);
     }
     return () => window.clearTimeout(timeoutId);
-  }, [gameState]);
+  }, [gameState, game.state.gameStyle, handleBackToSetup]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Prevent shortcut when typing in an input field
       if (document.activeElement?.tagName.toLowerCase() === 'input') {
         return;
       }
-      if (event.key.toLowerCase() === 's' && gameState === GameState.Playing) {
+      if (event.key.toLowerCase() === 's' && (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying)) {
         game.skipRound();
       }
       if (event.key.toLowerCase() === 'p') {
-        if (gameState === GameState.Playing) {
+        if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
           game.pauseGame();
-          setGameState(GameState.Paused);
         } else if (gameState === GameState.Paused) {
           game.resumeGame();
-          setGameState(GameState.Playing);
         }
       }
     };
@@ -189,35 +206,31 @@ const App: React.FC = () => {
 
   const champion = game.state.sessionLeaderboard?.length > 0 ? game.state.sessionLeaderboard[0] : undefined;
 
-  return (
-    <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
-        <div className="absolute top-4 right-4 z-10">
-            <ThemeToggle />
-        </div>
-      <div className="w-full max-w-5xl mx-auto flex flex-row items-start justify-center gap-4">
-        {/* Left Column: Game Screen */}
-        <div className="w-full max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
-          <AnimatePresence mode="wait">
-            {(gameState === GameState.Setup || gameState === GameState.Connecting) && (
-               <motion.div
-                key="setup-connecting"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="h-full"
-               >
-                {gameState === GameState.Setup && <SetupScreen onStart={handleStart} error={connectionError} />}
-                {gameState === GameState.Connecting && (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-4">
-                      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-sky-400"></div>
-                      <p className="mt-4 text-sky-500 dark:text-sky-300">Menghubungkan ke live @{username}...</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Pastikan username benar dan streamer sedang live.</p>
-                  </div>
-                )}
-               </motion.div>
-            )}
-
-            {gameState === GameState.Playing && (
+  const renderContent = () => {
+    switch (gameState) {
+        case GameState.Setup:
+        case GameState.Connecting:
+            return (
+                <motion.div
+                    key="setup-connecting"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="h-full"
+                >
+                    {gameState === GameState.Setup && <SetupScreen onStart={handleStart} error={connectionError} />}
+                    {gameState === GameState.Connecting && (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-sky-400"></div>
+                            <p className="mt-4 text-sky-500 dark:text-sky-300">Menghubungkan ke live @{username}...</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Pastikan username benar dan streamer sedang live.</p>
+                        </div>
+                    )}
+                </motion.div>
+            );
+        case GameState.Playing:
+        case GameState.KnockoutPlaying:
+             return (
               <motion.div
                 key="playing"
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -233,9 +246,13 @@ const App: React.FC = () => {
                   currentGift={currentGift}
                 />
               </motion.div>
-            )}
-
-            {gameState === GameState.Paused && (
+            );
+        case GameState.KnockoutRegistration:
+            return <KnockoutRegistrationScreen players={game.state.knockoutPlayers} timeRemaining={game.state.roundTimer} />;
+        case GameState.KnockoutDrawing:
+            return <KnockoutBracketScreen bracket={game.state.knockoutBracket} />;
+        case GameState.Paused:
+            return (
               <motion.div
                 key="paused"
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -245,9 +262,9 @@ const App: React.FC = () => {
               >
                 <PauseScreen />
               </motion.div>
-            )}
-
-            {gameState === GameState.Champion && (
+            );
+        case GameState.Champion:
+            return (
               <motion.div
                 key="champion"
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -255,11 +272,11 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, scale: 1.2 }}
                 className="h-full"
               >
-                <ChampionScreen champion={champion} />
+                <ChampionScreen champion={champion} isKnockout={game.state.gameStyle === GameStyle.Knockout} />
               </motion.div>
-            )}
-
-            {gameState === GameState.Finished && (
+            );
+        case GameState.Finished:
+             return (
               <motion.div
                 key="finished"
                 initial={{ opacity: 0, y: 50 }}
@@ -267,9 +284,26 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, y: -50 }}
                 className="h-full"
               >
-                <GameOverScreen leaderboard={game.state.leaderboard} />
+                <GameOverScreen leaderboard={game.state.leaderboard} onRestart={handleBackToSetup} />
               </motion.div>
-            )}
+            );
+        default:
+            return null;
+    }
+  }
+
+
+  return (
+    <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            <SoundToggle />
+            <ThemeToggle />
+        </div>
+      <div className="w-full max-w-5xl mx-auto flex flex-row items-start justify-center gap-4">
+        {/* Left Column: Game Screen */}
+        <div className="w-full max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
+          <AnimatePresence mode="wait">
+            {renderContent()}
           </AnimatePresence>
         </div>
         
