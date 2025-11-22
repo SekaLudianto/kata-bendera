@@ -150,8 +150,10 @@ const App: React.FC = () => {
 
   // Game logic state transitions
   useEffect(() => {
-    // Only listen to game logic state changes if we are not in a connection/setup phase
-    if (gameState !== GameState.Setup && gameState !== GameState.Connecting && gameState !== GameState.ModeSelection) {
+    // Sync App's state with the game logic's state, but only after the game has officially started.
+    // The App component controls Setup, Connecting, and ModeSelection states.
+    // The useGameLogic hook controls all other game-related states.
+    if (game.state.gameState !== GameState.Setup && game.state.gameState !== gameState) {
         setGameState(game.state.gameState);
     }
   }, [game.state.gameState, gameState]);
