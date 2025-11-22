@@ -178,6 +178,33 @@ const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
     return bracket;
 };
 
+const advanceWinnerInBracket = (bracket: KnockoutBracket, winner: KnockoutPlayer, roundIndex: number, matchIndex: number): { newBracket: KnockoutBracket, isTournamentOver: boolean } => {
+    const newBracket = JSON.parse(JSON.stringify(bracket));
+    const currentMatch = newBracket[roundIndex][matchIndex];
+    currentMatch.winner = winner;
+
+    const isLastRound = roundIndex === newBracket.length - 1;
+    if (isLastRound) {
+        return { newBracket, isTournamentOver: true };
+    }
+
+    // Advance winner to the next round
+    const nextRoundIndex = roundIndex + 1;
+    if (newBracket[nextRoundIndex]) {
+        const nextMatchIndex = Math.floor(currentMatch.matchIndex / 2);
+        if (newBracket[nextRoundIndex][nextMatchIndex]) {
+            const nextMatch = newBracket[nextRoundIndex][nextMatchIndex];
+            if (!nextMatch.player1) {
+                nextMatch.player1 = winner;
+            } else if (!nextMatch.player2) {
+                nextMatch.player2 = winner;
+            }
+        }
+    }
+
+    return { newBracket, isTournamentOver: false };
+};
+
 
 const gameReducer = (state: InternalGameState, action: GameAction): InternalGameState => {
   switch (action.type) {
@@ -415,13 +442,10 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { winner } = action.payload;
         const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
         if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
-        
-        const newBracket = JSON.parse(JSON.stringify(knockoutBracket));
-        const currentMatch = newBracket[currentBracketRoundIndex][currentMatchIndex];
-        currentMatch.winner = winner;
 
-        const lastRound = newBracket[newBracket.length - 1];
-        if (lastRound[0].winner) {
+        const { newBracket, isTournamentOver } = advanceWinnerInBracket(knockoutBracket, winner, currentBracketRoundIndex, currentMatchIndex);
+
+        if (isTournamentOver) {
              return { 
                 ...state, 
                 isRoundActive: false,
@@ -430,26 +454,33 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                 gameState: GameState.Champion,
             };
         }
-
-        // Advance winner to the next round
-        const nextRoundIndex = currentBracketRoundIndex + 1;
-        if (newBracket[nextRoundIndex]) {
-            const nextMatchIndex = Math.floor(currentMatch.matchIndex / 2);
-            if (newBracket[nextRoundIndex][nextMatchIndex]) {
-                const nextMatch = newBracket[nextRoundIndex][nextMatchIndex];
-                if (!nextMatch.player1) {
-                    nextMatch.player1 = winner;
-                } else if (!nextMatch.player2) {
-                    nextMatch.player2 = winner;
-                }
-            }
-        }
         
         return { 
             ...state,
             isRoundActive: false,
             knockoutBracket: newBracket, 
             gameState: GameState.KnockoutShowWinner,
+        };
+    }
+    case 'DECLARE_WALKOVER_WINNER': {
+        const { roundIndex, matchIndex, winner } = action.payload;
+        if (!state.knockoutBracket) return state;
+
+        const { newBracket, isTournamentOver } = advanceWinnerInBracket(state.knockoutBracket, winner, roundIndex, matchIndex);
+        
+        if (isTournamentOver) {
+            return {
+                ...state,
+                knockoutBracket: newBracket,
+                sessionLeaderboard: [{ ...winner, score: 1, profilePictureUrl: winner.profilePictureUrl }],
+                gameState: GameState.Champion,
+            };
+        }
+
+        return {
+            ...state,
+            knockoutBracket: newBracket,
+            gameState: GameState.KnockoutReadyToPlay, // Go back to bracket view immediately
         };
     }
     case 'SET_READY_TO_PLAY': {
@@ -625,6 +656,10 @@ export const useGameLogic = () => {
       }
   }, [state.gameState]);
   
+  const declareWalkoverWinner = useCallback((payload: GameActionPayloads['DECLARE_WALKOVER_WINNER']) => {
+    dispatch({ type: 'DECLARE_WALKOVER_WINNER', payload });
+  }, []);
+  
   const returnToBracket = useCallback(() => dispatch({ type: 'RETURN_TO_BRACKET' }), []);
   const redrawBracket = useCallback(() => dispatch({ type: 'REDRAW_BRACKET' }), []);
 
@@ -733,5 +768,5 @@ export const useGameLogic = () => {
       }
   }, [state.showWinnerModal, state.round]);
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner };
 };

@@ -1,7 +1,6 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KnockoutBracket, KnockoutMatch } from '../types';
+import { KnockoutBracket, KnockoutMatch, KnockoutPlayer } from '../types';
 
 interface KnockoutBracketScreenProps {
   bracket: KnockoutBracket | null;
@@ -10,12 +9,32 @@ interface KnockoutBracketScreenProps {
   onStartMatch: (payload: { roundIndex: number; matchIndex: number }) => void;
   onRedrawBracket: () => void;
   onRestartCompetition: () => void;
+  onDeclareWalkoverWinner: (payload: { roundIndex: number; matchIndex: number; winner: KnockoutPlayer }) => void;
 }
 
-const MatchCard: React.FC<{ match: KnockoutMatch, isCurrent: boolean, bracket: KnockoutBracket, isReadyToPlay: boolean, onStartMatch: (payload: { roundIndex: number; matchIndex: number }) => void; isTournamentOver: boolean; }> = ({ match, isCurrent, bracket, isReadyToPlay, onStartMatch, isTournamentOver }) => {
+const MatchCard: React.FC<{ 
+    match: KnockoutMatch, 
+    isCurrent: boolean, 
+    bracket: KnockoutBracket, 
+    isReadyToPlay: boolean, 
+    onStartMatch: (payload: { roundIndex: number; matchIndex: number }) => void; 
+    isTournamentOver: boolean;
+    onDeclareWalkoverWinner: (payload: { roundIndex: number; matchIndex: number; winner: KnockoutPlayer }) => void;
+}> = ({ match, isCurrent, bracket, isReadyToPlay, onStartMatch, isTournamentOver, onDeclareWalkoverWinner }) => {
+    const [isSelectingWinner, setIsSelectingWinner] = useState(false);
+    
     const getWinnerLayoutId = (player: any) => `winner-${player.nickname}-${match.roundIndex}-${match.matchIndex}`;
 
     const isMatchReady = match.player1 && match.player2 && !match.winner;
+
+    const handleDeclareWinner = (winner: KnockoutPlayer) => {
+        onDeclareWalkoverWinner({
+            roundIndex: match.roundIndex,
+            matchIndex: match.matchIndex,
+            winner,
+        });
+        setIsSelectingWinner(false); // Reset UI state
+    };
 
     return (
         <div className="flex flex-col items-center gap-1">
@@ -64,21 +83,48 @@ const MatchCard: React.FC<{ match: KnockoutMatch, isCurrent: boolean, bracket: K
             </motion.div>
             
             {isReadyToPlay && isMatchReady && !isTournamentOver && (
-                 <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onStartMatch({ roundIndex: match.roundIndex, matchIndex: match.matchIndex })}
-                    className="mt-1 px-3 py-1 bg-green-500 text-white text-[10px] font-bold rounded-md shadow-md shadow-green-500/20 hover:bg-green-600 transition-all"
-                >
-                    Mulai
-                </motion.button>
+                 <div className="mt-1 flex flex-col items-center w-full gap-1">
+                    {isSelectingWinner ? (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col gap-1">
+                            <p className="text-center text-[10px] text-gray-500 dark:text-gray-400">Pilih pemenang WO:</p>
+                            <button onClick={() => handleDeclareWinner(match.player1!)} className="w-full text-center truncate px-2 py-1 bg-sky-500 text-white text-[10px] font-bold rounded-md hover:bg-sky-600">
+                                {match.player1!.nickname}
+                            </button>
+                            <button onClick={() => handleDeclareWinner(match.player2!)} className="w-full text-center truncate px-2 py-1 bg-sky-500 text-white text-[10px] font-bold rounded-md hover:bg-sky-600">
+                                {match.player2!.nickname}
+                            </button>
+                            <button onClick={() => setIsSelectingWinner(false)} className="w-full text-center px-2 py-1 bg-gray-400 text-white text-[10px] font-bold rounded-md hover:bg-gray-500">
+                                Batal
+                            </button>
+                        </motion.div>
+                    ) : (
+                        <div className="flex items-center gap-1">
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => onStartMatch({ roundIndex: match.roundIndex, matchIndex: match.matchIndex })}
+                                className="px-3 py-1 bg-green-500 text-white text-[10px] font-bold rounded-md shadow-md shadow-green-500/20 hover:bg-green-600 transition-all"
+                            >
+                                Mulai
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setIsSelectingWinner(true)}
+                                className="px-2 py-1 bg-amber-500 text-white text-[10px] font-bold rounded-md shadow-md shadow-amber-500/20 hover:bg-amber-600 transition-all"
+                            >
+                                WO
+                            </motion.button>
+                        </div>
+                    )}
+                </div>
             )}
         </div>
     )
 }
 
 
-const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, currentMatchId, isReadyToPlay, onStartMatch, onRedrawBracket, onRestartCompetition }) => {
+const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, currentMatchId, isReadyToPlay, onStartMatch, onRedrawBracket, onRestartCompetition, onDeclareWalkoverWinner }) => {
   if (!bracket || bracket.length === 0) {
     return (
       <div className="flex flex-col h-full items-center justify-center p-4 bg-white dark:bg-gray-800 rounded-3xl">
@@ -119,6 +165,7 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
                     isReadyToPlay={isReadyToPlay}
                     onStartMatch={onStartMatch}
                     isTournamentOver={isTournamentOver}
+                    onDeclareWalkoverWinner={onDeclareWalkoverWinner}
                 />
               ))}
             </div>
@@ -137,7 +184,7 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
                 Drawing Kembali
             </button>
             <button onClick={onRestartCompetition} className="flex-1 px-3 py-2 bg-gray-500 text-white text-xs font-bold rounded-md shadow-md shadow-gray-500/20 hover:bg-gray-600 transition-all">
-                Ulang Kompetisi
+                Mulai Kompetisi Baru
             </button>
         </motion.div>
       )}

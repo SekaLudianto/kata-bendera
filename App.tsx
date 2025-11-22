@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
@@ -11,6 +10,7 @@ import SoundToggle from './components/SoundToggle';
 import KnockoutRegistrationScreen from './components/KnockoutRegistrationScreen';
 import KnockoutBracketScreen from './components/KnockoutBracketScreen';
 import KnockoutPrepareMatchScreen from './components/KnockoutPrepareMatchScreen';
+import ModeSelectionScreen from './components/ModeSelectionScreen';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
@@ -24,7 +24,6 @@ const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
 const App: React.FC = () => {
   useTheme(); // Initialize theme logic
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
-  const [gameStyle, setGameStyle] = useState<GameStyle>(GameStyle.Classic);
   const [username, setUsername] = useState<string>('');
   const [maxWinners, setMaxWinners] = useState<number>(DEFAULT_MAX_WINNERS_PER_ROUND);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -56,7 +55,6 @@ const App: React.FC = () => {
         }, 5000); // gift shows for 5s
         return () => clearTimeout(timer);
     } else if (giftQueue.current.length > 0) {
-        // if a gift just cleared, and there's another in queue, show it
         const nextGift = giftQueue.current.shift();
         if (nextGift) {
             const timer = setTimeout(() => {
@@ -66,12 +64,6 @@ const App: React.FC = () => {
         }
     }
   }, [currentGift]);
-
-  // New function to restart the game without disconnecting from TikTok Live
-  const handleRestartGame = useCallback(() => {
-    game.startGame(GameStyle.Classic, maxWinners);
-    setGameState(GameState.Playing);
-  }, [game, maxWinners]);
 
   const handleComment = useCallback((message: ChatMessage) => {
     setLiveFeed(prev => [message, ...prev].slice(0,100));
@@ -85,13 +77,10 @@ const App: React.FC = () => {
       }
       if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentText === '!pause') {
         game.pauseGame();
-        setGameState(GameState.Paused);
         return;
       }
       if (gameState === GameState.Paused && commentText === '!resume') {
         game.resumeGame();
-        // Return to correct playing state based on game style
-        setGameState(game.state.gameStyle === GameStyle.Knockout ? GameState.KnockoutPlaying : GameState.Playing);
         return;
       }
     }
@@ -102,29 +91,35 @@ const App: React.FC = () => {
       game.processComment(message);
     } else if (gameState === GameState.Finished) {
       if (commentText === '!next') {
-        handleRestartGame();
+        setGameState(GameState.ModeSelection);
       }
     }
-  }, [gameState, game, handleRestartGame]);
+  }, [gameState, game]);
 
 
   const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
 
-  const handleStart = useCallback((tiktokUsername: string, winnersCount: number, selectedGameStyle: GameStyle) => {
+  const handleConnect = useCallback((tiktokUsername: string) => {
     setLiveFeed([]);
     setConnectionError(null);
     setIsDisconnected(false);
     setUsername(tiktokUsername);
-    setMaxWinners(winnersCount);
-    setGameStyle(selectedGameStyle);
     setGameState(GameState.Connecting);
     connect(tiktokUsername);
   }, [connect]);
-  
-  const handleBackToSetup = useCallback(() => {
-    game.resetGame();
-    setGameState(GameState.Setup);
+
+  const handleStartClassic = useCallback((winnersCount: number) => {
+    setMaxWinners(winnersCount);
+    game.startGame(GameStyle.Classic, winnersCount);
   }, [game]);
+
+  const handleStartKnockout = useCallback(() => {
+    game.startGame(GameStyle.Knockout, maxWinners);
+  }, [game, maxWinners]);
+  
+  const handleBackToModeSelection = useCallback(() => {
+    setGameState(GameState.ModeSelection);
+  }, []);
 
   const handleReconnect = useCallback(() => {
     setConnectionError(null);
@@ -135,13 +130,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (connectionStatus === 'connected') {
       if (gameState === GameState.Connecting) {
-        if (gameStyle === GameStyle.Classic) {
-            game.startGame(GameStyle.Classic, maxWinners);
-            setGameState(GameState.Playing);
-        } else {
-            game.startGame(GameStyle.Knockout, maxWinners);
-            // useGameLogic will transition to KnockoutRegistration
-        }
+        setGameState(GameState.ModeSelection);
       }
       setIsDisconnected(false);
     }
@@ -157,13 +146,15 @@ const App: React.FC = () => {
         disconnect();
       }
     }
-  }, [connectionStatus, gameState, gameStyle, error, game, disconnect, maxWinners]);
+  }, [connectionStatus, gameState, error, disconnect]);
 
   // Game logic state transitions
   useEffect(() => {
-    setGameState(game.state.gameState);
-  }, [game.state.gameState]);
-
+    // Only listen to game logic state changes if we are not in a connection/setup phase
+    if (gameState !== GameState.Setup && gameState !== GameState.Connecting && gameState !== GameState.ModeSelection) {
+        setGameState(game.state.gameState);
+    }
+  }, [game.state.gameState, gameState]);
 
   // Transition: Champion -> Finished (for Classic) or back to bracket (for Knockout)
   useEffect(() => {
@@ -173,7 +164,6 @@ const App: React.FC = () => {
         if (game.state.gameStyle === GameStyle.Classic) {
           setGameState(GameState.Finished);
         } else {
-          // After knockout champion is shown, go back to the bracket screen
           game.returnToBracket();
         }
       }, CHAMPION_SCREEN_TIMEOUT_MS);
@@ -220,7 +210,7 @@ const App: React.FC = () => {
                     exit={{ opacity: 0 }}
                     className="h-full"
                 >
-                    {gameState === GameState.Setup && <SetupScreen onStart={handleStart} error={connectionError} />}
+                    {gameState === GameState.Setup && <SetupScreen onStart={handleConnect} error={connectionError} />}
                     {gameState === GameState.Connecting && (
                         <div className="h-full flex flex-col items-center justify-center text-center p-4">
                             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-sky-400"></div>
@@ -230,6 +220,11 @@ const App: React.FC = () => {
                     )}
                 </motion.div>
             );
+        case GameState.ModeSelection:
+            return <ModeSelectionScreen 
+                      onStartClassic={handleStartClassic}
+                      onStartKnockout={handleStartKnockout}
+                   />;
         case GameState.Playing:
         case GameState.KnockoutPlaying:
              return (
@@ -260,7 +255,8 @@ const App: React.FC = () => {
                         isReadyToPlay={gameState === GameState.KnockoutReadyToPlay}
                         onStartMatch={game.prepareNextMatch}
                         onRedrawBracket={game.redrawBracket}
-                        onRestartCompetition={handleBackToSetup}
+                        onRestartCompetition={handleBackToModeSelection}
+                        onDeclareWalkoverWinner={game.declareWalkoverWinner}
                     />;
         case GameState.KnockoutPrepareMatch:
             return <KnockoutPrepareMatchScreen 
@@ -283,8 +279,8 @@ const App: React.FC = () => {
             return (
               <motion.div
                 key="champion"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
                 exit={{ opacity: 0, scale: 1.2 }}
                 className="h-full"
               >
@@ -300,7 +296,7 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, y: -50 }}
                 className="h-full"
               >
-                <GameOverScreen leaderboard={game.state.leaderboard} onRestart={handleBackToSetup} />
+                <GameOverScreen leaderboard={game.state.sessionLeaderboard} onRestart={handleBackToModeSelection} />
               </motion.div>
             );
         default:

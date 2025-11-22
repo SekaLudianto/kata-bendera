@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LeaderboardEntry } from '../types';
@@ -84,7 +83,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, onRestart 
             onClick={onRestart}
             className="w-full mt-2 px-4 py-2.5 bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-all"
         >
-          Kembali ke Awal
+          Pilih Mode Lain
         </motion.button>
     </div>
     </div>

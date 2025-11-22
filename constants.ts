@@ -2,7 +2,6 @@
 export const TOTAL_ROUNDS = 15;
 export const ROUND_TIMER_SECONDS = 180;
 export const DEFAULT_MAX_WINNERS_PER_ROUND = 5;
-export const ABSOLUTE_MAX_WINNERS = 10; // Batas atas untuk input kustom
 export const WINNER_MODAL_TIMEOUT_MS = 5000;
 export const CHAMPION_SCREEN_TIMEOUT_MS = 5000;
 export const FLAG_ROUNDS_COUNT = 10;

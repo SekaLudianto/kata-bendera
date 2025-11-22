@@ -51,6 +51,7 @@ export enum GameStyle {
 export enum GameState {
     Setup = 'setup',
     Connecting = 'connecting',
+    ModeSelection = 'mode_selection',
     Playing = 'playing',
     Paused = 'paused',
     Champion = 'champion',
@@ -68,6 +69,7 @@ export enum GameMode {
   GuessTheFlag = 'guess_the_flag',
   ABC5Dasar = 'abc_5_dasar',
   GuessTheWord = 'guess_the_word',
+  GuessTheCountry = 'guess_the_country',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -110,4 +112,5 @@ export interface GameActionPayloads {
     'SET_KNOCKOUT_COUNTRY': { country: Country };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer };
+    'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };
 }
