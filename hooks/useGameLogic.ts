@@ -61,7 +61,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 const scrambleWord = (name: string): LetterObject[][] => {
   const words = name.toUpperCase().split(' ');
   return words.map(word => {
-    const mappedLetters = shuffleArray(word.split('').filter(char => char.trim() !== '').map((char, index) => ({
+    const mappedLetters = shuffleArray(word.split('').filter(char => char.trim() !== '' && !['(', ')', '&', '-'].includes(char)).map((char, index) => ({
       id: `${word}-${index}-${char}`,
       letter: char,
     })));
@@ -260,7 +260,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         
         let isCorrect = false;
         let foundAnswer = '';
-        if (state.gameMode === GameMode.GuessTheFlag && state.currentCountry) {
+        if ((state.gameMode === GameMode.GuessTheFlag || state.gameMode === GameMode.GuessTheWord) && state.currentCountry) {
             if (comment === state.currentCountry.name.toLowerCase()) {
                 isCorrect = true;
                 foundAnswer = state.currentCountry.name;
@@ -386,6 +386,14 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
     }
     case 'PREPARE_NEXT_MATCH': {
         const { roundIndex, matchIndex } = action.payload;
+        const bracket = state.knockoutBracket;
+        const matchToStart = bracket?.[roundIndex]?.[matchIndex];
+
+        if (!matchToStart || !matchToStart.player1 || !matchToStart.player2) {
+            console.error("BUG PREVENTED: Attempted to start an incomplete match.", matchToStart);
+            return state; 
+        }
+
         return {
             ...state,
             gameState: GameState.KnockoutPrepareMatch,
@@ -523,7 +531,12 @@ export const useGameLogic = () => {
     usedAbcCombinations.current.clear();
   }, []);
 
-  const getNextCountry = useCallback(() => countryDeck.current.pop() as Country, []);
+  const getNextCountry = useCallback(() => {
+    if(countryDeck.current.length === 0) {
+        countryDeck.current = shuffleArray(countries);
+    }
+    return countryDeck.current.pop() as Country
+  }, []);
 
   const getNewKnockoutCountry = useCallback(() => {
     if (knockoutCountryDeck.current.length === 0) {

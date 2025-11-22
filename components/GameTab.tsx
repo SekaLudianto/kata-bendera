@@ -156,11 +156,18 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
     
   const getRoundTitle = () => {
     if (gameStyle === GameStyle.Knockout) {
-        if(currentBracketRoundIndex === null || !knockoutBracket) return "Knockout";
-        const totalRounds = knockoutBracket.length;
-        if(currentBracketRoundIndex === totalRounds - 1) return "Babak Final";
-        if(currentBracketRoundIndex === totalRounds - 2) return "Babak Semi-Final";
-        return `Babak Penyisihan`;
+        if (currentBracketRoundIndex === null || !knockoutBracket || !knockoutBracket[currentBracketRoundIndex]) {
+            return "Knockout";
+        }
+        
+        const currentRoundMatchCount = knockoutBracket[currentBracketRoundIndex].length;
+
+        if (currentRoundMatchCount === 1) return "Babak Final";
+        if (currentRoundMatchCount === 2) return "Babak Semi-Final";
+        if (currentRoundMatchCount === 4) return "Babak Perempat Final";
+        if (currentRoundMatchCount === 8) return "Babak 16 Besar";
+        
+        return `Babak Penyisihan`; // Fallback
     }
     // Classic Mode Titles
     if (gameMode === GameMode.GuessTheFlag) return 'Tebak Bendera';
