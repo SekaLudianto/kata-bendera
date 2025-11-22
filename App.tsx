@@ -10,6 +10,7 @@ import ThemeToggle from './components/ThemeToggle';
 import SoundToggle from './components/SoundToggle';
 import KnockoutRegistrationScreen from './components/KnockoutRegistrationScreen';
 import KnockoutBracketScreen from './components/KnockoutBracketScreen';
+import KnockoutPrepareMatchScreen from './components/KnockoutPrepareMatchScreen';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
@@ -250,7 +251,19 @@ const App: React.FC = () => {
         case GameState.KnockoutRegistration:
             return <KnockoutRegistrationScreen players={game.state.knockoutPlayers} timeRemaining={game.state.roundTimer} />;
         case GameState.KnockoutDrawing:
-            return <KnockoutBracketScreen bracket={game.state.knockoutBracket} />;
+        case GameState.KnockoutReadyToPlay:
+        case GameState.KnockoutShowWinner:
+            return <KnockoutBracketScreen 
+                        bracket={game.state.knockoutBracket} 
+                        currentMatchId={game.getCurrentKnockoutMatch()?.id ?? null}
+                        isReadyToPlay={gameState === GameState.KnockoutReadyToPlay}
+                        onStartMatch={game.prepareNextMatch}
+                    />;
+        case GameState.KnockoutPrepareMatch:
+            return <KnockoutPrepareMatchScreen 
+                        match={game.getCurrentKnockoutMatch()}
+                        timeRemaining={game.state.countdownValue}
+                    />
         case GameState.Paused:
             return (
               <motion.div

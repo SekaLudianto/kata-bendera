@@ -4,6 +4,11 @@ export interface Country {
   code: string;
 }
 
+export interface WorldCity {
+  name: string;
+  country: string;
+}
+
 export interface ChatMessage {
   id: string;
   nickname: string;
@@ -56,15 +61,20 @@ export enum GameState {
     Paused = 'paused',
     Champion = 'champion',
     Finished = 'finished',
+    // Knockout Specific States
     KnockoutRegistration = 'knockout_registration',
     KnockoutDrawing = 'knockout_drawing',
+    KnockoutReadyToPlay = 'knockout_ready_to_play',
+    KnockoutPrepareMatch = 'knockout_prepare_match',
     KnockoutPlaying = 'knockout_playing',
+    KnockoutShowWinner = 'knockout_show_winner',
 }
 
 export enum GameMode {
   GuessTheFlag = 'guess_the_flag',
   ABC5Dasar = 'abc_5_dasar',
   GuessTheWord = 'guess_the_word',
+  GuessTheCity = 'guess_the_city',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -104,6 +114,6 @@ export interface GameActionPayloads {
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
+    'SET_KNOCKOUT_CITY': { city: WorldCity };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer };
-    'SET_KNOCKOUT_WORD': { word: string; category: WordCategory };
 }

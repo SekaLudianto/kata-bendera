@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS } from '../constants';
+// FIX: Imported KNOCKOUT_TARGET_SCORE to be used in the component.
+import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 import GiftNotification from './GiftNotification';
 import { GiftNotification as GiftNotificationType, GameMode, GameStyle } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
@@ -86,6 +87,37 @@ const GuessTheFlagContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
     );
 };
 
+const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { currentWorldCity, scrambledCountryName, isRoundActive } = gameState;
+    if (!currentWorldCity) return null;
+
+    return (
+        <>
+            <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
+                Tebak nama kota di dunia:
+            </h2>
+            <ScrambledWordDisplay scrambledName={scrambledCountryName} isRoundActive={isRoundActive} />
+            
+            <AnimatePresence>
+            {!isRoundActive && (
+                 <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 text-center"
+                 >
+                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
+                        {currentWorldCity.name}
+                    </p>
+                    <p className="text-md text-slate-500 dark:text-gray-400">
+                        ({currentWorldCity.country})
+                    </p>
+                 </motion.div>
+            )}
+            </AnimatePresence>
+        </>
+    );
+}
+
 const ABC5DasarContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
     const { currentLetter, currentCategory } = gameState;
     return (
@@ -116,10 +148,12 @@ const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
 };
 
 const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
-  const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex } = gameState;
+  const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints } = gameState;
   const progressPercentage = (round / TOTAL_ROUNDS) * 100;
   const firstWinner = roundWinners.length > 0 ? roundWinners[0] : null;
-  const timerProgress = (roundTimer / ROUND_TIMER_SECONDS) * 100;
+
+  const timerDuration = gameStyle === GameStyle.Knockout ? KNOCKOUT_ROUND_TIMER_SECONDS : ROUND_TIMER_SECONDS;
+  const timerProgress = (roundTimer / timerDuration) * 100;
 
   const maxWinnersForThisRound = gameMode === GameMode.ABC5Dasar && availableAnswersCount != null
     ? Math.min(maxWinners, availableAnswersCount)
@@ -131,12 +165,13 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
         const totalRounds = knockoutBracket.length;
         if(currentBracketRoundIndex === totalRounds - 1) return "Babak Final";
         if(currentBracketRoundIndex === totalRounds - 2) return "Babak Semi-Final";
-        return `Babak ${currentBracketRoundIndex + 1}`;
+        return `Babak Penyisihan`;
     }
     // Classic Mode Titles
     if (gameMode === GameMode.GuessTheFlag) return 'Tebak Bendera';
     if (gameMode === GameMode.ABC5Dasar) return `ABC 5 Dasar`;
     if (gameMode === GameMode.GuessTheWord) return `Tebak Kata Acak`;
+    if (gameMode === GameMode.GuessTheCity) return `Tebak Kota Dunia`;
     return '';
   }
 
@@ -146,7 +181,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
 
   return (
     <motion.div 
-      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}`}
+      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
@@ -160,7 +195,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
       </div>
       
       <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
-        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : 'VS'}</span>
+        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `Rally Point (Best of ${KNOCKOUT_TARGET_SCORE})`}</span>
         <span className='font-semibold'>{getRoundTitle()}</span>
       </div>
 
@@ -188,7 +223,12 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
                     <img src={currentMatch.player1.profilePictureUrl} alt={currentMatch.player1.nickname} className="w-16 h-16 rounded-full border-4 border-sky-400"/>
                     <p className="font-bold text-sm mt-1 truncate">{currentMatch.player1.nickname}</p>
                 </div>
-                <p className="text-3xl font-bold text-red-500">VS</p>
+                <div className="text-center">
+                    <p className="text-4xl font-bold text-red-500">
+                        {knockoutMatchPoints.player1} - {knockoutMatchPoints.player2}
+                    </p>
+                    <p className="text-xs text-gray-500">Skor</p>
+                </div>
                 <div className="flex flex-col items-center text-center w-2/5">
                     <img src={currentMatch.player2.profilePictureUrl} alt={currentMatch.player2.nickname} className="w-16 h-16 rounded-full border-4 border-gray-400"/>
                     <p className="font-bold text-sm mt-1 truncate">{currentMatch.player2.nickname}</p>
@@ -197,10 +237,19 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
         )}
         
         {/* Main game content */}
+        {gameState.gameMode === GameMode.GuessTheCity && <GuessTheCityContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheWord && <GuessTheWordContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheFlag && <GuessTheFlagContent gameState={gameState} />}
         {gameState.gameMode === GameMode.ABC5Dasar && <ABC5DasarContent gameState={gameState} />}
 
+        {gameStyle === GameStyle.Knockout && gameState.isRoundActive && (
+             <div className="mt-3 p-2 w-full max-w-xs bg-yellow-100 border border-yellow-300 dark:bg-yellow-500/10 dark:border-yellow-500/30 rounded-lg text-center">
+                <p className="text-xs font-bold text-yellow-800 dark:text-yellow-300">PERINGATAN!</p>
+                <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                    Hanya pemain yang bertanding yang boleh menjawab. Penonton lain yang menjawab berisiko di-mute!
+                </p>
+            </div>
+        )}
 
         <div className="mt-3 w-full text-center min-h-[50px] shrink-0">
           <AnimatePresence mode="wait">
