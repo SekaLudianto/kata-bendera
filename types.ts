@@ -1,12 +1,6 @@
-
 export interface Country {
   name: string;
   code: string;
-}
-
-export interface WorldCity {
-  name: string;
-  country: string;
 }
 
 export interface ChatMessage {
@@ -74,7 +68,6 @@ export enum GameMode {
   GuessTheFlag = 'guess_the_flag',
   ABC5Dasar = 'abc_5_dasar',
   GuessTheWord = 'guess_the_word',
-  GuessTheCity = 'guess_the_city',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -103,7 +96,7 @@ export type KnockoutBracket = KnockoutRound[];
 // This will be used in useGameLogic.ts to set the word for a knockout match
 export interface GameActionPayloads {
     'START_GAME': { gameStyle: GameStyle, maxWinners: number };
-    'START_CLASSIC_MODE': { deck: Country[] };
+    'START_CLASSIC_MODE': { firstCountry: Country };
     'NEXT_ROUND': { 
       nextCountry?: Country, 
       nextLetter?: string, 
@@ -114,6 +107,7 @@ export interface GameActionPayloads {
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
-    'SET_KNOCKOUT_CITY': { city: WorldCity };
+    'SET_KNOCKOUT_COUNTRY': { country: Country };
+    'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer };
 }

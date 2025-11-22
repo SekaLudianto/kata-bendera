@@ -1,7 +1,5 @@
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// FIX: Imported KNOCKOUT_TARGET_SCORE to be used in the component.
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 import GiftNotification from './GiftNotification';
 import { GiftNotification as GiftNotificationType, GameMode, GameStyle } from '../types';
@@ -87,14 +85,14 @@ const GuessTheFlagContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
     );
 };
 
-const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentWorldCity, scrambledCountryName, isRoundActive } = gameState;
-    if (!currentWorldCity) return null;
+const GuessTheCountryKnockoutContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { currentCountry, scrambledCountryName, isRoundActive } = gameState;
+    if (!currentCountry) return null;
 
     return (
         <>
             <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
-                Tebak nama kota di dunia:
+                Tebak Nama Negara:
             </h2>
             <ScrambledWordDisplay scrambledName={scrambledCountryName} isRoundActive={isRoundActive} />
             
@@ -106,10 +104,7 @@ const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
                     className="mt-3 text-center"
                  >
                     <p className="text-lg font-bold text-green-600 dark:text-green-300">
-                        {currentWorldCity.name}
-                    </p>
-                    <p className="text-md text-slate-500 dark:text-gray-400">
-                        ({currentWorldCity.country})
+                        {currentCountry.name}
                     </p>
                  </motion.div>
             )}
@@ -171,7 +166,6 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
     if (gameMode === GameMode.GuessTheFlag) return 'Tebak Bendera';
     if (gameMode === GameMode.ABC5Dasar) return `ABC 5 Dasar`;
     if (gameMode === GameMode.GuessTheWord) return `Tebak Kata Acak`;
-    if (gameMode === GameMode.GuessTheCity) return `Tebak Kota Dunia`;
     return '';
   }
 
@@ -181,7 +175,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
 
   return (
     <motion.div 
-      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}`}
+      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}-${gameState.currentCountry?.name}`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
@@ -195,7 +189,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
       </div>
       
       <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
-        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `Rally Point (Best of ${KNOCKOUT_TARGET_SCORE})`}</span>
+        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
         <span className='font-semibold'>{getRoundTitle()}</span>
       </div>
 
@@ -224,7 +218,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
                     <p className="font-bold text-sm mt-1 truncate">{currentMatch.player1.nickname}</p>
                 </div>
                 <div className="text-center">
-                    <p className="text-4xl font-bold text-red-500">
+                    <p className="text-3xl font-bold text-red-500">
                         {knockoutMatchPoints.player1} - {knockoutMatchPoints.player2}
                     </p>
                     <p className="text-xs text-gray-500">Skor</p>
@@ -237,9 +231,12 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
         )}
         
         {/* Main game content */}
-        {gameState.gameMode === GameMode.GuessTheCity && <GuessTheCityContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheWord && <GuessTheWordContent gameState={gameState} />}
-        {gameState.gameMode === GameMode.GuessTheFlag && <GuessTheFlagContent gameState={gameState} />}
+        {gameState.gameMode === GameMode.GuessTheFlag && (
+          gameState.gameStyle === GameStyle.Classic 
+            ? <GuessTheFlagContent gameState={gameState} /> 
+            : <GuessTheCountryKnockoutContent gameState={gameState} />
+        )}
         {gameState.gameMode === GameMode.ABC5Dasar && <ABC5DasarContent gameState={gameState} />}
 
         {gameStyle === GameStyle.Knockout && gameState.isRoundActive && (

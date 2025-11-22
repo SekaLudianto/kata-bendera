@@ -164,21 +164,21 @@ const App: React.FC = () => {
   }, [game.state.gameState]);
 
 
-  // Transition: Champion -> Finished (for Classic) or back to Setup (for Knockout)
+  // Transition: Champion -> Finished (for Classic) or back to bracket (for Knockout)
   useEffect(() => {
     let timeoutId: number;
     if (gameState === GameState.Champion) {
       timeoutId = window.setTimeout(() => {
         if (game.state.gameStyle === GameStyle.Classic) {
-            setGameState(GameState.Finished);
+          setGameState(GameState.Finished);
         } else {
-            // After knockout champion is shown, go back to setup
-            handleBackToSetup();
+          // After knockout champion is shown, go back to the bracket screen
+          game.returnToBracket();
         }
       }, CHAMPION_SCREEN_TIMEOUT_MS);
     }
     return () => window.clearTimeout(timeoutId);
-  }, [gameState, game.state.gameStyle, handleBackToSetup]);
+  }, [gameState, game.state.gameStyle, game]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -258,6 +258,8 @@ const App: React.FC = () => {
                         currentMatchId={game.getCurrentKnockoutMatch()?.id ?? null}
                         isReadyToPlay={gameState === GameState.KnockoutReadyToPlay}
                         onStartMatch={game.prepareNextMatch}
+                        onRedrawBracket={game.redrawBracket}
+                        onRestartCompetition={handleBackToSetup}
                     />;
         case GameState.KnockoutPrepareMatch:
             return <KnockoutPrepareMatchScreen 

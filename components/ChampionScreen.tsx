@@ -17,32 +17,33 @@ const ChampionScreen: React.FC<ChampionScreenProps> = ({ champion, isKnockout = 
   const { playSound } = useSound();
 
   useEffect(() => {
-    if (champion && typeof confetti === 'function') {
+    if (champion) {
       playSound('champion');
       
-      // Confetti animations
-      const duration = 3 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+      // Only run confetti if not in knockout mode
+      if (!isKnockout && typeof confetti === 'function') {
+        const duration = 3 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-      const interval: number = window.setInterval(() => {
-        const timeLeft = animationEnd - Date.now();
+        const interval: number = window.setInterval(() => {
+          const timeLeft = animationEnd - Date.now();
 
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
+          if (timeLeft <= 0) {
+            return clearInterval(interval);
+          }
 
-        const particleCount = 50 * (timeLeft / duration);
-        // since particles fall down, start a bit higher than random
-        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
-        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
-      }, 250);
+          const particleCount = 50 * (timeLeft / duration);
+          confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+          confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+        }, 250);
 
-      return () => clearInterval(interval);
+        return () => clearInterval(interval);
+      }
     }
-  }, [champion, playSound]);
+  }, [champion, isKnockout, playSound]);
 
   return (
     <div className="flex flex-col h-full p-4 bg-gradient-to-b from-white to-sky-100 dark:from-gray-800 dark:to-gray-700 rounded-3xl items-center justify-center text-center transition-colors duration-300">
