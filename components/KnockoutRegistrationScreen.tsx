@@ -4,11 +4,11 @@ import { KnockoutPlayer, KnockoutChampions } from '../types';
 
 interface KnockoutRegistrationScreenProps {
   players: KnockoutPlayer[];
-  timeRemaining: number;
+  onEndRegistration: () => void;
   champions: KnockoutChampions;
 }
 
-const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, timeRemaining, champions }) => {
+const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, onEndRegistration, champions }) => {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -20,11 +20,8 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
         <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500">
           Mode Knockout!
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Pendaftaran akan ditutup dalam...</p>
-        <div className="text-6xl font-bold text-red-500 my-2">
-            {timeRemaining}
-        </div>
-        <p className="text-sky-500 dark:text-sky-300 font-semibold animate-pulse text-lg">
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Pendaftaran dibuka!</p>
+        <p className="text-sky-500 dark:text-sky-300 font-semibold animate-pulse text-lg my-2">
             Ketik <code className="bg-sky-100 text-sky-800 dark:bg-gray-700 dark:text-white px-2 py-1 rounded">!ikut</code> untuk bergabung!
         </p>
       </div>
@@ -58,6 +55,19 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
         {players.length === 0 && (
              <p className="text-center text-gray-500 pt-10 text-sm">Belum ada pemain yang mendaftar...</p>
         )}
+      </div>
+
+      <div className="shrink-0 mt-auto pt-4 border-t border-sky-100 dark:border-gray-700">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onEndRegistration}
+          disabled={players.length < 2}
+          className="w-full px-4 py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
+        >
+          Mulai Drawing Bagan
+        </motion.button>
+        <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">Minimal 2 pemain untuk memulai.</p>
       </div>
     </motion.div>
   );

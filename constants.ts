@@ -7,7 +7,6 @@ export const CHAMPION_SCREEN_TIMEOUT_MS = 5000;
 export const FLAG_ROUNDS_COUNT = 10;
 
 // Knockout Mode Constants
-export const KNOCKOUT_REGISTRATION_SECONDS = 15;
 export const KNOCKOUT_TARGET_SCORE = 2;
 export const KNOCKOUT_PREPARE_SECONDS = 5;
 export const KNOCKOUT_WINNER_VIEW_SECONDS = 5;

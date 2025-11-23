@@ -11,6 +11,7 @@ import KnockoutRegistrationScreen from './components/KnockoutRegistrationScreen'
 import KnockoutBracketScreen from './components/KnockoutBracketScreen';
 import KnockoutPrepareMatchScreen from './components/KnockoutPrepareMatchScreen';
 import ModeSelectionScreen from './components/ModeSelectionScreen';
+import SimulationPanel from './components/SimulationPanel';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   useTheme(); // Initialize theme logic
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
   const [username, setUsername] = useState<string>('');
+  const [isSimulation, setIsSimulation] = useState<boolean>(false);
   const [maxWinners, setMaxWinners] = useState<number>(DEFAULT_MAX_WINNERS_PER_ROUND);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isDisconnected, setIsDisconnected] = useState(false);
@@ -101,13 +103,19 @@ const App: React.FC = () => {
 
   const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
 
-  const handleConnect = useCallback((tiktokUsername: string) => {
+  const handleConnect = useCallback((tiktokUsername: string, isSimulating: boolean) => {
     setLiveFeed([]);
     setConnectionError(null);
     setIsDisconnected(false);
     setUsername(tiktokUsername);
-    setGameState(GameState.Connecting);
-    connect(tiktokUsername);
+    setIsSimulation(isSimulating);
+    
+    if (isSimulating) {
+        setGameState(GameState.ModeSelection);
+    } else {
+        setGameState(GameState.Connecting);
+        connect(tiktokUsername);
+    }
   }, [connect]);
 
   const handleStartClassic = useCallback((winnersCount: number) => {
@@ -130,6 +138,8 @@ const App: React.FC = () => {
   }, [connect, username]);
 
   useEffect(() => {
+    if (isSimulation) return; // Don't run connection effects in simulation mode
+
     if (connectionStatus === 'connected') {
       if (gameState === GameState.Connecting) {
         setGameState(GameState.ModeSelection);
@@ -148,13 +158,10 @@ const App: React.FC = () => {
         disconnect();
       }
     }
-  }, [connectionStatus, gameState, error, disconnect]);
+  }, [connectionStatus, gameState, error, disconnect, isSimulation]);
 
   // Game logic state transitions
   useEffect(() => {
-    // Sync App's state with the game logic's state, but only after the game has officially started.
-    // The App component controls Setup, Connecting, and ModeSelection states.
-    // The useGameLogic hook controls all other game-related states.
     if (game.state.gameState !== GameState.Setup && game.state.gameState !== gameState) {
         setGameState(game.state.gameState);
     }
@@ -261,7 +268,11 @@ const App: React.FC = () => {
               </motion.div>
             );
         case GameState.KnockoutRegistration:
-            return <KnockoutRegistrationScreen players={game.state.knockoutPlayers} timeRemaining={game.state.roundTimer} champions={champions} />;
+            return <KnockoutRegistrationScreen 
+                      players={game.state.knockoutPlayers} 
+                      onEndRegistration={game.endRegistrationAndDrawBracket} 
+                      champions={champions} 
+                    />;
         case GameState.KnockoutDrawing:
         case GameState.KnockoutReadyToPlay:
         case GameState.KnockoutShowWinner:
@@ -323,6 +334,7 @@ const App: React.FC = () => {
   }
 
   const showSkipButton = gameState === GameState.Playing || gameState === GameState.KnockoutPlaying;
+  const showLiveFeed = !isSimulation && (gameState !== GameState.Setup && gameState !== GameState.Connecting);
 
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
@@ -353,8 +365,13 @@ const App: React.FC = () => {
           </AnimatePresence>
         </div>
         
-        {/* Right Column: Live Feed Panel (Desktop only) */}
-        <LiveFeedPanel feed={liveFeed} />
+        {/* Right Column: Feed or Simulation Panel */}
+        <AnimatePresence>
+        {showLiveFeed && <LiveFeedPanel feed={liveFeed} />}
+        {isSimulation && gameState !== GameState.Setup && (
+            <SimulationPanel onComment={handleComment} currentAnswer={game.currentAnswer} />
+        )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ import { plants } from '../data/plants';
 import { footballPlayers } from '../data/football_players';
 import { footballClubs } from '../data/football_clubs';
 import { triviaQuestions } from '../data/trivia';
-import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, FLAG_ROUNDS_COUNT, UNIQUENESS_BONUS_POINTS, KNOCKOUT_REGISTRATION_SECONDS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS } from '../constants';
+import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, FLAG_ROUNDS_COUNT, UNIQUENESS_BONUS_POINTS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS } from '../constants';
 
 interface LetterObject {
   id: string;
@@ -215,7 +215,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         maxWinners: action.payload.maxWinners,
         knockoutCategory: action.payload.knockoutCategory || null,
         gameState: action.payload.gameStyle === GameStyle.Classic ? GameState.Playing : GameState.KnockoutRegistration,
-        roundTimer: action.payload.gameStyle === GameStyle.Knockout ? KNOCKOUT_REGISTRATION_SECONDS : ROUND_TIMER_SECONDS,
+        roundTimer: ROUND_TIMER_SECONDS,
       };
     case 'START_CLASSIC_MODE': {
       const firstCountry = action.payload.firstCountry;
@@ -362,7 +362,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         return { ...state, chatMessages: newChatMessages };
     }
     case 'TICK_TIMER': {
-        if (!state.isRoundActive && state.gameState !== GameState.KnockoutRegistration) return state;
+        if (!state.isRoundActive) return state;
         if (state.roundTimer > 0) {
             return { ...state, roundTimer: state.roundTimer - 1 };
         }
@@ -450,8 +450,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
         if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
 
-        const isFinalMatch = currentBracketRoundIndex === knockoutBracket.length - 1;
         const newBracket = advanceWinnerInBracket(knockoutBracket, winner, currentBracketRoundIndex, currentMatchIndex);
+        const isFinalMatch = currentBracketRoundIndex === newBracket.length - 1;
 
         if (isFinalMatch) {
             const champion = newBracket[currentBracketRoundIndex][currentMatchIndex].winner;
@@ -475,8 +475,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { roundIndex, matchIndex, winner } = action.payload;
         if (!state.knockoutBracket) return state;
 
-        const isFinalMatch = roundIndex === state.knockoutBracket.length - 1;
         const newBracket = advanceWinnerInBracket(state.knockoutBracket, winner, roundIndex, matchIndex);
+        const isFinalMatch = roundIndex === newBracket.length - 1;
         
         if (isFinalMatch) {
             const champion = newBracket[roundIndex][matchIndex].winner;
@@ -691,6 +691,12 @@ export const useGameLogic = () => {
     }
   }, [state.gameState]);
 
+  const endRegistrationAndDrawBracket = useCallback(() => {
+    if(state.gameState === GameState.KnockoutRegistration) {
+        dispatch({ type: 'END_REGISTRATION_AND_DRAW_BRACKET' });
+    }
+  }, [state.gameState]);
+
   const prepareNextMatch = useCallback((payload: { roundIndex: number; matchIndex: number }) => {
       if(state.gameState === GameState.KnockoutReadyToPlay) {
           dispatch({ type: 'PREPARE_NEXT_MATCH', payload });
@@ -721,12 +727,10 @@ export const useGameLogic = () => {
   // Timers for timed transitions
   useEffect(() => {
     let timerId: number;
-    if ((state.isRoundActive || state.gameState === GameState.KnockoutRegistration) && state.roundTimer > 0) {
+    if (state.isRoundActive && state.roundTimer > 0) {
       timerId = window.setInterval(() => dispatch({ type: 'TICK_TIMER' }), 1000);
     } else if (state.roundTimer <= 0) {
-      if (state.gameState === GameState.KnockoutRegistration) {
-          dispatch({ type: 'END_REGISTRATION_AND_DRAW_BRACKET' });
-      } else if (state.gameStyle === GameStyle.Classic && state.isRoundActive) {
+      if (state.gameStyle === GameStyle.Classic && state.isRoundActive) {
           dispatch({ type: 'END_ROUND' });
       } else if (state.gameStyle === GameStyle.Knockout && state.isRoundActive) {
           dispatch({ type: 'KNOCKOUT_QUESTION_TIMEOUT' });
@@ -820,5 +824,20 @@ export const useGameLogic = () => {
       }
   }, [state.showWinnerModal, state.round]);
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame };
+  const getCurrentAnswer = () => {
+    switch (state.gameMode) {
+      case GameMode.GuessTheFlag:
+        return state.currentCountry?.name || '';
+      case GameMode.GuessTheWord:
+        return state.currentWord || '';
+      case GameMode.ABC5Dasar:
+        return `(Jawaban Kategori ${state.currentCategory} diawali huruf ${state.currentLetter})`;
+      case GameMode.Trivia:
+        return state.currentTriviaQuestion?.answer || '';
+      default:
+        return 'Tidak ada soal aktif';
+    }
+  };
+
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, currentAnswer: getCurrentAnswer() };
 };

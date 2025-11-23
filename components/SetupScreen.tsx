@@ -3,26 +3,27 @@ import { motion } from 'framer-motion';
 import { GlobeIcon } from './IconComponents';
 
 interface SetupScreenProps {
-  onStart: (username: string) => void;
+  onStart: (username: string, isSimulation: boolean) => void;
   error: string | null;
 }
 
 const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
   const [username, setUsername] = useState(() => localStorage.getItem('tiktok-quiz-username') || '');
+  const [isSimulation, setIsSimulation] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('tiktok-quiz-username', username);
   }, [username]);
 
-  const handleStartConnection = () => {
-    if (username.trim()) {
-      onStart(username.trim().replace(/^@/, ''));
+  const handleStart = () => {
+    if (isSimulation || username.trim()) {
+      onStart(username.trim().replace(/^@/, ''), isSimulation);
     }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleStartConnection();
+    handleStart();
   };
 
   return (
@@ -51,17 +52,32 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
               className="w-full px-4 py-2 bg-sky-100 border-2 border-sky-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 dark:focus:border-sky-500"
               aria-label="TikTok Username"
               aria-describedby="error-message"
+              disabled={isSimulation}
             />
+          </div>
+
+          <div className="flex items-center justify-center my-3">
+            <label htmlFor="simulation-mode" className="flex items-center cursor-pointer">
+                <div className="relative">
+                <input type="checkbox" id="simulation-mode" className="sr-only" checked={isSimulation} onChange={() => setIsSimulation(!isSimulation)} />
+                <div className="block bg-gray-200 dark:bg-gray-700 w-10 h-6 rounded-full"></div>
+                <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"></div>
+                </div>
+                <div className="ml-3 text-gray-700 dark:text-gray-300 font-medium text-sm">
+                Mode Simulasi (Testing)
+                </div>
+            </label>
+            <style>{`.dot { transform: translateX(0); } input:checked ~ .dot { transform: translateX(100%); }`}</style>
           </div>
           
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="submit"
-            disabled={!username.trim()}
-            className="w-full mt-4 px-4 py-2.5 bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
+            disabled={!username.trim() && !isSimulation}
+            className="w-full mt-2 px-4 py-2.5 bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
           >
-            Hubungkan ke Live
+            {isSimulation ? 'Mulai Simulasi' : 'Hubungkan ke Live'}
           </motion.button>
         </form>
         
