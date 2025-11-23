@@ -451,15 +451,17 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
 
         const newBracket = advanceWinnerInBracket(knockoutBracket, winner, currentBracketRoundIndex, currentMatchIndex);
-        const isFinalMatch = currentBracketRoundIndex === newBracket.length - 1;
+        
+        const finalRound = newBracket[newBracket.length - 1];
+        const isTournamentOver = finalRound && finalRound.length === 1 && !!finalRound[0].winner;
 
-        if (isFinalMatch) {
-            const champion = newBracket[currentBracketRoundIndex][currentMatchIndex].winner;
+        if (isTournamentOver) {
+            const champion = finalRound[0].winner!;
             return {
                 ...state,
                 isRoundActive: false,
                 knockoutBracket: newBracket,
-                sessionLeaderboard: [{ ...champion!, score: 1, profilePictureUrl: champion!.profilePictureUrl }],
+                sessionLeaderboard: [{ ...champion, score: 1, profilePictureUrl: champion.profilePictureUrl }],
                 gameState: GameState.Champion,
             };
         } else {
@@ -476,14 +478,16 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         if (!state.knockoutBracket) return state;
 
         const newBracket = advanceWinnerInBracket(state.knockoutBracket, winner, roundIndex, matchIndex);
-        const isFinalMatch = roundIndex === newBracket.length - 1;
         
-        if (isFinalMatch) {
-            const champion = newBracket[roundIndex][matchIndex].winner;
+        const finalRound = newBracket[newBracket.length - 1];
+        const isTournamentOver = finalRound && finalRound.length === 1 && !!finalRound[0].winner;
+        
+        if (isTournamentOver) {
+            const champion = finalRound[0].winner!;
             return {
                 ...state,
                 knockoutBracket: newBracket,
-                sessionLeaderboard: [{ ...champion!, score: 1, profilePictureUrl: champion!.profilePictureUrl }],
+                sessionLeaderboard: [{ ...champion, score: 1, profilePictureUrl: champion.profilePictureUrl }],
                 gameState: GameState.Champion,
             };
         } else {

@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { ConnectionStatus, ChatMessage, GiftNotification, TikTokGiftEvent } from '../types';
 
 // The backend server is expected to run on localhost:8081
-const TIKTOK_LIVE_BACKEND_URL = 'https://tiktok-server-production-e9f4.up.railway.app';
+const TIKTOK_LIVE_BACKEND_URL = 'https://tiktok-server-production-e573.up.railway.app';
 
 // Define the shape of the chat data coming from the backend
 interface TikTokChatEvent {
