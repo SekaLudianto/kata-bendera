@@ -272,6 +272,7 @@ const App: React.FC = () => {
                       players={game.state.knockoutPlayers} 
                       onEndRegistration={game.endRegistrationAndDrawBracket} 
                       champions={champions} 
+                      onResetRegistration={game.resetKnockoutRegistration}
                     />;
         case GameState.KnockoutDrawing:
         case GameState.KnockoutReadyToPlay:

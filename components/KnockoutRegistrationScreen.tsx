@@ -5,10 +5,11 @@ import { KnockoutPlayer, KnockoutChampions } from '../types';
 interface KnockoutRegistrationScreenProps {
   players: KnockoutPlayer[];
   onEndRegistration: () => void;
+  onResetRegistration: () => void;
   champions: KnockoutChampions;
 }
 
-const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, onEndRegistration, champions }) => {
+const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, onEndRegistration, onResetRegistration, champions }) => {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -66,6 +67,14 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
           className="w-full px-4 py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
         >
           Mulai Drawing Bagan
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onResetRegistration}
+          className="w-full mt-2 px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all"
+        >
+          Ulang Pendaftaran (Kosongkan Daftar)
         </motion.button>
         <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">Minimal 2 pemain untuk memulai.</p>
       </div>

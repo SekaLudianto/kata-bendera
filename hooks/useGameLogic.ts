@@ -408,6 +408,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
     case 'REGISTER_PLAYER':
         if (state.knockoutPlayers.some(p => p.nickname === action.payload.nickname)) return state;
         return { ...state, knockoutPlayers: [...state.knockoutPlayers, action.payload] };
+    case 'RESET_KNOCKOUT_REGISTRATION':
+        return { ...state, knockoutPlayers: [] };
     case 'END_REGISTRATION_AND_DRAW_BRACKET': {
         if(state.knockoutPlayers.length < 2) return { ...createInitialState(), gameState: GameState.Setup };
         const bracket = generateBracket(state.knockoutPlayers);
@@ -687,6 +689,10 @@ export const useGameLogic = () => {
       dispatch({ type: 'REGISTER_PLAYER', payload: player });
     }
   }, [state.gameState]);
+  
+  const resetKnockoutRegistration = useCallback(() => {
+    dispatch({ type: 'RESET_KNOCKOUT_REGISTRATION' });
+  }, []);
 
   const endRegistrationAndDrawBracket = useCallback(() => {
     if(state.gameState === GameState.KnockoutRegistration) {
@@ -836,5 +842,5 @@ export const useGameLogic = () => {
     }
   };
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, currentAnswer: getCurrentAnswer() };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, currentAnswer: getCurrentAnswer() };
 };
