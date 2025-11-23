@@ -1,4 +1,3 @@
-
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads } from '../types';
 import { countries } from '../data/countries';
@@ -52,7 +51,7 @@ export interface InternalGameState {
 
 type GameAction = 
     | { [K in keyof GameActionPayloads]: { type: K; payload: GameActionPayloads[K] } }[keyof GameActionPayloads]
-    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' };
+    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' };
 
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -178,14 +177,14 @@ const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
     return bracket;
 };
 
-const advanceWinnerInBracket = (bracket: KnockoutBracket, winner: KnockoutPlayer, roundIndex: number, matchIndex: number): { newBracket: KnockoutBracket, isTournamentOver: boolean } => {
+const advanceWinnerInBracket = (bracket: KnockoutBracket, winner: KnockoutPlayer, roundIndex: number, matchIndex: number): KnockoutBracket => {
     const newBracket = JSON.parse(JSON.stringify(bracket));
     const currentMatch = newBracket[roundIndex][matchIndex];
     currentMatch.winner = winner;
 
     const isLastRound = roundIndex === newBracket.length - 1;
     if (isLastRound) {
-        return { newBracket, isTournamentOver: true };
+        return newBracket;
     }
 
     // Advance winner to the next round
@@ -202,7 +201,7 @@ const advanceWinnerInBracket = (bracket: KnockoutBracket, winner: KnockoutPlayer
         }
     }
 
-    return { newBracket, isTournamentOver: false };
+    return newBracket;
 };
 
 
@@ -443,14 +442,17 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
         if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
 
-        const { newBracket, isTournamentOver } = advanceWinnerInBracket(knockoutBracket, winner, currentBracketRoundIndex, currentMatchIndex);
+        const newBracket = advanceWinnerInBracket(knockoutBracket, winner, currentBracketRoundIndex, currentMatchIndex);
+        
+        const finalRound = newBracket[newBracket.length - 1];
+        const tournamentChampion = finalRound.length === 1 ? finalRound[0].winner : null;
 
-        if (isTournamentOver) {
-             return { 
+        if (tournamentChampion) {
+            return { 
                 ...state, 
                 isRoundActive: false,
                 knockoutBracket: newBracket, 
-                sessionLeaderboard: [{ ...winner, score: 1, profilePictureUrl: winner.profilePictureUrl }], 
+                sessionLeaderboard: [{ ...tournamentChampion, score: 1, profilePictureUrl: tournamentChampion.profilePictureUrl }], 
                 gameState: GameState.Champion,
             };
         }
@@ -466,13 +468,16 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { roundIndex, matchIndex, winner } = action.payload;
         if (!state.knockoutBracket) return state;
 
-        const { newBracket, isTournamentOver } = advanceWinnerInBracket(state.knockoutBracket, winner, roundIndex, matchIndex);
+        const newBracket = advanceWinnerInBracket(state.knockoutBracket, winner, roundIndex, matchIndex);
         
-        if (isTournamentOver) {
+        const finalRound = newBracket[newBracket.length - 1];
+        const tournamentChampion = finalRound.length === 1 ? finalRound[0].winner : null;
+
+        if (tournamentChampion) {
             return {
                 ...state,
                 knockoutBracket: newBracket,
-                sessionLeaderboard: [{ ...winner, score: 1, profilePictureUrl: winner.profilePictureUrl }],
+                sessionLeaderboard: [{ ...tournamentChampion, score: 1, profilePictureUrl: tournamentChampion.profilePictureUrl }],
                 gameState: GameState.Champion,
             };
         }
@@ -480,7 +485,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         return {
             ...state,
             knockoutBracket: newBracket,
-            gameState: GameState.KnockoutReadyToPlay, // Go back to bracket view immediately
+            gameState: GameState.KnockoutReadyToPlay,
         };
     }
     case 'SET_READY_TO_PLAY': {
@@ -527,6 +532,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
     case 'KNOCKOUT_QUESTION_TIMEOUT': {
         return { ...state, isRoundActive: false };
     }
+    case 'FINISH_GAME':
+        return { ...state, gameState: GameState.Finished };
     default:
       return state;
   }
@@ -662,6 +669,7 @@ export const useGameLogic = () => {
   
   const returnToBracket = useCallback(() => dispatch({ type: 'RETURN_TO_BRACKET' }), []);
   const redrawBracket = useCallback(() => dispatch({ type: 'REDRAW_BRACKET' }), []);
+  const finishGame = useCallback(() => dispatch({ type: 'FINISH_GAME' }), []);
 
   const pauseGame = useCallback(() => dispatch({ type: 'PAUSE_GAME' }), []);
   const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
@@ -768,5 +776,5 @@ export const useGameLogic = () => {
       }
   }, [state.showWinnerModal, state.round]);
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame };
 };

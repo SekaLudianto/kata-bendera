@@ -164,7 +164,7 @@ const App: React.FC = () => {
     if (gameState === GameState.Champion) {
       timeoutId = window.setTimeout(() => {
         if (game.state.gameStyle === GameStyle.Classic) {
-          setGameState(GameState.Finished);
+          game.finishGame();
         } else {
           game.returnToBracket();
         }
