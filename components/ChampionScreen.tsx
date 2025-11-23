@@ -1,7 +1,6 @@
-
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LeaderboardEntry } from '../types';
+import { LeaderboardEntry, KnockoutChampions } from '../types';
 import { TrophyIcon } from './IconComponents';
 import { useSound } from '../hooks/useSound';
 
@@ -11,9 +10,10 @@ declare var confetti: any;
 interface ChampionScreenProps {
   champion: LeaderboardEntry | undefined;
   isKnockout?: boolean;
+  champions: KnockoutChampions;
 }
 
-const ChampionScreen: React.FC<ChampionScreenProps> = ({ champion, isKnockout = false }) => {
+const ChampionScreen: React.FC<ChampionScreenProps> = ({ champion, isKnockout = false, champions }) => {
   const { playSound } = useSound();
 
   useEffect(() => {
@@ -76,6 +76,12 @@ const ChampionScreen: React.FC<ChampionScreenProps> = ({ champion, isKnockout = 
               className="w-24 h-24 rounded-full border-4 border-amber-400 shadow-lg shadow-amber-500/30"
             />
             <p className="mt-3 text-xl font-bold text-slate-800 dark:text-white">{champion.nickname}</p>
+            {isKnockout && champions[champion.nickname] && (
+                <div className="flex items-center gap-1.5 mt-1 text-amber-500 dark:text-amber-400">
+                    <span className="text-lg">🏆</span>
+                    <span className="text-lg font-bold">Total Kemenangan: {champions[champion.nickname]}</span>
+                </div>
+            )}
             {!isKnockout && (
                  <p className="mt-1 text-lg text-sky-500 dark:text-sky-400 font-semibold">{champion.score.toLocaleString()} Poin</p>
             )}

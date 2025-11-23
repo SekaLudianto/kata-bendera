@@ -1,14 +1,14 @@
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KnockoutPlayer } from '../types';
+import { KnockoutPlayer, KnockoutChampions } from '../types';
 
 interface KnockoutRegistrationScreenProps {
   players: KnockoutPlayer[];
   timeRemaining: number;
+  champions: KnockoutChampions;
 }
 
-const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, timeRemaining }) => {
+const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, timeRemaining, champions }) => {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -43,8 +43,14 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
                 layout
                 className="flex items-center gap-2 p-1.5 bg-sky-50 dark:bg-gray-700/60 rounded-md"
               >
-                <img src={player.profilePictureUrl} alt={player.nickname} className="w-6 h-6 rounded-full" />
-                <span className="truncate font-medium">{player.nickname}</span>
+                <img src={player.profilePictureUrl} alt={player.nickname} className="w-6 h-6 rounded-full shrink-0" />
+                <span className="truncate font-medium flex-1 min-w-0">{player.nickname}</span>
+                {champions[player.nickname] && (
+                    <div className="flex items-center gap-0.5 text-amber-500 shrink-0">
+                        <span className="text-xs">🏆</span>
+                        <span className="text-xs font-bold">{champions[player.nickname]}</span>
+                    </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>

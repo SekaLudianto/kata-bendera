@@ -14,7 +14,8 @@ import ModeSelectionScreen from './components/ModeSelectionScreen';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent } from './types';
+import { useKnockoutChampions } from './hooks/useKnockoutChampions';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { SkipForwardIcon } from './components/IconComponents';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
   const [liveFeed, setLiveFeed] = useState<LiveFeedEvent[]>([]);
 
   const game = useGameLogic();
+  const { champions, addChampion } = useKnockoutChampions();
   
   const handleGift = useCallback((gift: Omit<GiftNotificationType, 'id'>) => {
       const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.nickname}` };
@@ -113,8 +115,8 @@ const App: React.FC = () => {
     game.startGame(GameStyle.Classic, winnersCount);
   }, [game]);
 
-  const handleStartKnockout = useCallback(() => {
-    game.startGame(GameStyle.Knockout, maxWinners);
+  const handleStartKnockout = useCallback((category: KnockoutCategory) => {
+    game.startGame(GameStyle.Knockout, maxWinners, category);
   }, [game, maxWinners]);
   
   const handleBackToModeSelection = useCallback(() => {
@@ -157,6 +159,18 @@ const App: React.FC = () => {
         setGameState(game.state.gameState);
     }
   }, [game.state.gameState, gameState]);
+
+  // Champion effect
+  useEffect(() => {
+    if (gameState === GameState.Champion) {
+        if (game.state.gameStyle === GameStyle.Knockout) {
+            const knockoutChampion = game.state.sessionLeaderboard?.[0];
+            if (knockoutChampion) {
+                addChampion(knockoutChampion.nickname);
+            }
+        }
+    }
+  }, [gameState, game.state.gameStyle, game.state.sessionLeaderboard, addChampion]);
 
   // Transition: Champion -> Finished (for Classic) or back to bracket (for Knockout)
   useEffect(() => {
@@ -247,7 +261,7 @@ const App: React.FC = () => {
               </motion.div>
             );
         case GameState.KnockoutRegistration:
-            return <KnockoutRegistrationScreen players={game.state.knockoutPlayers} timeRemaining={game.state.roundTimer} />;
+            return <KnockoutRegistrationScreen players={game.state.knockoutPlayers} timeRemaining={game.state.roundTimer} champions={champions} />;
         case GameState.KnockoutDrawing:
         case GameState.KnockoutReadyToPlay:
         case GameState.KnockoutShowWinner:
@@ -259,11 +273,13 @@ const App: React.FC = () => {
                         onRedrawBracket={game.redrawBracket}
                         onRestartCompetition={handleBackToModeSelection}
                         onDeclareWalkoverWinner={game.declareWalkoverWinner}
+                        champions={champions}
                     />;
         case GameState.KnockoutPrepareMatch:
             return <KnockoutPrepareMatchScreen 
                         match={game.getCurrentKnockoutMatch()}
                         timeRemaining={game.state.countdownValue}
+                        champions={champions}
                     />
         case GameState.Paused:
             return (
@@ -286,7 +302,7 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, scale: 1.2 }}
                 className="h-full"
               >
-                <ChampionScreen champion={champion} isKnockout={game.state.gameStyle === GameStyle.Knockout} />
+                <ChampionScreen champion={champion} isKnockout={game.state.gameStyle === GameStyle.Knockout} champions={champions} />
               </motion.div>
             );
         case GameState.Finished:

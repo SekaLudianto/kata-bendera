@@ -1,14 +1,14 @@
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KnockoutMatch } from '../types';
+import { KnockoutMatch, KnockoutChampions } from '../types';
 
 interface KnockoutPrepareMatchScreenProps {
   match: KnockoutMatch | null;
   timeRemaining: number | null;
+  champions: KnockoutChampions;
 }
 
-const KnockoutPrepareMatchScreen: React.FC<KnockoutPrepareMatchScreenProps> = ({ match, timeRemaining }) => {
+const KnockoutPrepareMatchScreen: React.FC<KnockoutPrepareMatchScreenProps> = ({ match, timeRemaining, champions }) => {
   if (!match || !match.player1 || !match.player2) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -35,7 +35,15 @@ const KnockoutPrepareMatchScreen: React.FC<KnockoutPrepareMatchScreenProps> = ({
             className="flex flex-col items-center"
         >
           <img src={match.player1.profilePictureUrl} alt={match.player1.nickname} className="w-24 h-24 rounded-full border-4 border-sky-400 shadow-lg" />
-          <p className="font-bold text-lg mt-2 truncate max-w-[120px]">{match.player1.nickname}</p>
+           <div className="flex items-center gap-1 mt-2">
+              <p className="font-bold text-lg truncate max-w-[120px]">{match.player1.nickname}</p>
+              {champions[match.player1.nickname] && (
+                  <div className="flex items-center gap-0.5 text-amber-500">
+                      <span className="text-sm">🏆</span>
+                      <span className="text-sm font-bold">{champions[match.player1.nickname]}</span>
+                  </div>
+              )}
+          </div>
         </motion.div>
 
         <motion.p 
@@ -54,7 +62,15 @@ const KnockoutPrepareMatchScreen: React.FC<KnockoutPrepareMatchScreenProps> = ({
             className="flex flex-col items-center"
         >
           <img src={match.player2.profilePictureUrl} alt={match.player2.nickname} className="w-24 h-24 rounded-full border-4 border-gray-400 dark:border-gray-500 shadow-lg" />
-          <p className="font-bold text-lg mt-2 truncate max-w-[120px]">{match.player2.nickname}</p>
+          <div className="flex items-center gap-1 mt-2">
+            <p className="font-bold text-lg truncate max-w-[120px]">{match.player2.nickname}</p>
+             {champions[match.player2.nickname] && (
+                <div className="flex items-center gap-0.5 text-amber-500">
+                    <span className="text-sm">🏆</span>
+                    <span className="text-sm font-bold">{champions[match.player2.nickname]}</span>
+                </div>
+            )}
+          </div>
         </motion.div>
       </div>
       <p className="text-lg text-gray-500 dark:text-gray-400">Match akan dimulai dalam:</p>

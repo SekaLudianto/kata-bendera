@@ -142,8 +142,35 @@ const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
     );
 };
 
+const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { currentTriviaQuestion, isRoundActive } = gameState;
+    if (!currentTriviaQuestion) return null;
+  
+    return (
+      <div className="text-center px-2">
+        <h2 className="text-lg sm:text-xl font-bold text-sky-600 dark:text-sky-300 leading-tight">
+            {currentTriviaQuestion.question}
+        </h2>
+        <AnimatePresence>
+        {!isRoundActive && (
+             <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-3"
+             >
+                <p className="text-sm text-gray-500 dark:text-gray-400">Jawabannya adalah:</p>
+                <p className="text-lg font-bold text-green-600 dark:text-green-300">
+                    {currentTriviaQuestion.answer}
+                </p>
+             </motion.div>
+        )}
+        </AnimatePresence>
+      </div>
+    );
+};
+
 const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
-  const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints } = gameState;
+  const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / TOTAL_ROUNDS) * 100;
   const firstWinner = roundWinners.length > 0 ? roundWinners[0] : null;
 
@@ -157,7 +184,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
   const getRoundTitle = () => {
     if (gameStyle === GameStyle.Knockout) {
         if (currentBracketRoundIndex === null || !knockoutBracket || !knockoutBracket[currentBracketRoundIndex]) {
-            return "Knockout";
+            return knockoutCategory === 'Trivia' ? "Trivia Pengetahuan Umum" : "Tebak Negara";
         }
         
         const currentRoundMatchCount = knockoutBracket[currentBracketRoundIndex].length;
@@ -182,7 +209,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
 
   return (
     <motion.div 
-      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}-${gameState.currentCountry?.name}`}
+      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}-${gameState.currentCountry?.name}-${gameState.currentTriviaQuestion?.question}`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
@@ -245,6 +272,8 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
             : <GuessTheCountryKnockoutContent gameState={gameState} />
         )}
         {gameState.gameMode === GameMode.ABC5Dasar && <ABC5DasarContent gameState={gameState} />}
+        {gameState.gameMode === GameMode.Trivia && <TriviaContent gameState={gameState} />}
+
 
         {gameStyle === GameStyle.Knockout && gameState.isRoundActive && (
              <div className="mt-3 p-2 w-full max-w-xs bg-yellow-100 border border-yellow-300 dark:bg-yellow-500/10 dark:border-yellow-500/30 rounded-lg text-center">

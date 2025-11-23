@@ -1,5 +1,5 @@
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
-import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads } from '../types';
+import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction } from '../types';
 import { countries } from '../data/countries';
 import { fruits } from '../data/fruits';
 import { animals } from '../data/animals';
@@ -9,6 +9,7 @@ import { indonesianCities } from '../data/indonesian_cities';
 import { plants } from '../data/plants';
 import { footballPlayers } from '../data/football_players';
 import { footballClubs } from '../data/football_clubs';
+import { triviaQuestions } from '../data/trivia';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, FLAG_ROUNDS_COUNT, UNIQUENESS_BONUS_POINTS, KNOCKOUT_REGISTRATION_SECONDS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS } from '../constants';
 
 interface LetterObject {
@@ -26,6 +27,7 @@ export interface InternalGameState {
   currentCategory: AbcCategory | null;
   currentWord: string | null;
   currentWordCategory: WordCategory | null;
+  currentTriviaQuestion: TriviaQuestion | null;
   usedAnswers: string[];
   scrambledCountryName: LetterObject[][];
   leaderboard: LeaderboardEntry[];
@@ -42,16 +44,13 @@ export interface InternalGameState {
   chatMessages: ChatMessage[]; // Added for ChatTab
 
   // Knockout state
+  knockoutCategory: KnockoutCategory | null;
   knockoutPlayers: KnockoutPlayer[];
   knockoutBracket: KnockoutBracket | null;
   currentBracketRoundIndex: number | null;
   currentMatchIndex: number | null;
   knockoutMatchPoints: { player1: number; player2: number };
 }
-
-type GameAction = 
-    | { [K in keyof GameActionPayloads]: { type: K; payload: GameActionPayloads[K] } }[keyof GameActionPayloads]
-    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' };
 
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -79,6 +78,7 @@ const createInitialState = (): InternalGameState => ({
   currentCategory: null,
   currentWord: null,
   currentWordCategory: null,
+  currentTriviaQuestion: null,
   usedAnswers: [],
   scrambledCountryName: [],
   leaderboard: JSON.parse(localStorage.getItem('leaderboard') || '[]'),
@@ -93,6 +93,7 @@ const createInitialState = (): InternalGameState => ({
   isPausedByAdmin: false,
   countdownValue: null,
   chatMessages: [],
+  knockoutCategory: null,
   knockoutPlayers: [],
   knockoutBracket: null,
   currentBracketRoundIndex: null,
@@ -212,6 +213,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         ...createInitialState(),
         gameStyle: action.payload.gameStyle,
         maxWinners: action.payload.maxWinners,
+        knockoutCategory: action.payload.knockoutCategory || null,
         gameState: action.payload.gameStyle === GameStyle.Classic ? GameState.Playing : GameState.KnockoutRegistration,
         roundTimer: action.payload.gameStyle === GameStyle.Knockout ? KNOCKOUT_REGISTRATION_SECONDS : ROUND_TIMER_SECONDS,
       };
@@ -287,7 +289,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         
         let isCorrect = false;
         let foundAnswer = '';
-        if ((state.gameMode === GameMode.GuessTheFlag || state.gameMode === GameMode.GuessTheWord) && state.currentCountry) {
+        if (state.gameMode === GameMode.GuessTheFlag && state.currentCountry) {
             if (comment === state.currentCountry.name.toLowerCase()) {
                 isCorrect = true;
                 foundAnswer = state.currentCountry.name;
@@ -305,6 +307,11 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                     isCorrect = true;
                     foundAnswer = validItem;
                 }
+            }
+        } else if (state.gameMode === GameMode.Trivia && state.currentTriviaQuestion) {
+            if (comment === state.currentTriviaQuestion.answer.toLowerCase()) {
+                isCorrect = true;
+                foundAnswer = state.currentTriviaQuestion.answer;
             }
         }
 
@@ -435,6 +442,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameState: GameState.KnockoutPlaying,
             knockoutMatchPoints: { player1: 0, player2: 0 },
             currentCountry: null,
+            currentTriviaQuestion: null,
         };
     }
     case 'FINISH_KNOCKOUT_MATCH': {
@@ -522,15 +530,34 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
     case 'SET_KNOCKOUT_COUNTRY': {
         return {
             ...state,
-            gameMode: GameMode.GuessTheFlag, // Re-use GuessTheFlag mode for logic
+            gameMode: GameMode.GuessTheFlag,
             currentCountry: action.payload.country,
             scrambledCountryName: scrambleWord(action.payload.country.name),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
     }
+    case 'SET_KNOCKOUT_TRIVIA': {
+        return {
+            ...state,
+            gameMode: GameMode.Trivia,
+            currentTriviaQuestion: action.payload.question,
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
+        };
+    }
     case 'KNOCKOUT_QUESTION_TIMEOUT': {
         return { ...state, isRoundActive: false };
+    }
+    case 'SKIP_KNOCKOUT_MATCH': {
+        return {
+            ...state,
+            isRoundActive: false,
+            gameState: GameState.KnockoutReadyToPlay,
+            knockoutMatchPoints: { player1: 0, player2: 0 },
+            currentCountry: null,
+            currentTriviaQuestion: null,
+        };
     }
     case 'FINISH_GAME':
         return { ...state, gameState: GameState.Finished };
@@ -557,6 +584,7 @@ export const useGameLogic = () => {
   const [state, dispatch] = useReducer(gameReducer, createInitialState());
   const countryDeck = useRef<Country[]>([]);
   const knockoutCountryDeck = useRef<Country[]>([]);
+  const triviaDeck = useRef<TriviaQuestion[]>([]);
   const footballPlayerDeck = useRef<string[]>([]);
   const footballClubDeck = useRef<string[]>([]);
   const usedAbcCombinations = useRef<Set<string>>(new Set());
@@ -565,6 +593,7 @@ export const useGameLogic = () => {
   const prepareNewDecks = useCallback(() => {
     countryDeck.current = shuffleArray(countries);
     knockoutCountryDeck.current = shuffleArray(countries);
+    triviaDeck.current = shuffleArray(triviaQuestions);
     footballPlayerDeck.current = shuffleArray(footballPlayers);
     footballClubDeck.current = shuffleArray(footballClubs);
     usedAbcCombinations.current.clear();
@@ -583,10 +612,17 @@ export const useGameLogic = () => {
     }
     return knockoutCountryDeck.current.pop()!;
   }, []);
+
+  const getNewKnockoutTriviaQuestion = useCallback(() => {
+    if (triviaDeck.current.length === 0) {
+        triviaDeck.current = shuffleArray(triviaQuestions);
+    }
+    return triviaDeck.current.pop()!;
+  }, []);
   
-  const startGame = useCallback((gameStyle: GameStyle, maxWinners: number) => {
+  const startGame = useCallback((gameStyle: GameStyle, maxWinners: number, knockoutCategory?: KnockoutCategory) => {
     prepareNewDecks();
-    dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners } });
+    dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory } });
     if (gameStyle === GameStyle.Classic) {
         const firstCountry = getNextCountry();
         dispatch({ type: 'START_CLASSIC_MODE', payload: { firstCountry } });
@@ -642,14 +678,14 @@ export const useGameLogic = () => {
   }, []);
 
   const skipRound = useCallback(() => {
-    if (state.isRoundActive) {
+    if (state.isRoundActive || state.gameState === GameState.KnockoutPlaying) {
         if (state.gameStyle === GameStyle.Classic) {
             dispatch({ type: 'END_ROUND' });
         } else if (state.gameStyle === GameStyle.Knockout) {
-            dispatch({ type: 'KNOCKOUT_QUESTION_TIMEOUT' });
+            dispatch({ type: 'SKIP_KNOCKOUT_MATCH' });
         }
     }
-  }, [state.isRoundActive, state.gameStyle]);
+  }, [state.isRoundActive, state.gameStyle, state.gameState]);
 
   const registerPlayer = useCallback((player: KnockoutPlayer) => {
     if(state.gameState === GameState.KnockoutRegistration) {
@@ -724,15 +760,20 @@ export const useGameLogic = () => {
 
   // Logic triggers based on state changes
   useEffect(() => {
-    if (state.gameState === GameState.KnockoutPlaying && !state.currentCountry) {
-        const country = getNewKnockoutCountry();
-        dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
+    if (state.gameState === GameState.KnockoutPlaying && !state.currentCountry && !state.currentTriviaQuestion) {
+        if(state.knockoutCategory === 'GuessTheCountry') {
+            const country = getNewKnockoutCountry();
+            dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
+        } else if (state.knockoutCategory === 'Trivia') {
+            const question = getNewKnockoutTriviaQuestion();
+            dispatch({ type: 'SET_KNOCKOUT_TRIVIA', payload: { question } });
+        }
     }
-  }, [state.gameState, state.currentCountry, getNewKnockoutCountry]);
+  }, [state.gameState, state.currentCountry, state.currentTriviaQuestion, state.knockoutCategory, getNewKnockoutCountry, getNewKnockoutTriviaQuestion]);
 
   // This effect handles advancing the knockout game after a question is finished
   useEffect(() => {
-    if (state.gameState === GameState.KnockoutPlaying && !state.isRoundActive && state.currentCountry) {
+    if (state.gameState === GameState.KnockoutPlaying && !state.isRoundActive && (state.currentCountry || state.currentTriviaQuestion)) {
       const timeoutId = setTimeout(() => {
         const { player1, player2 } = state.knockoutMatchPoints;
         const match = getCurrentKnockoutMatch();
@@ -741,14 +782,19 @@ export const useGameLogic = () => {
           dispatch({ type: 'FINISH_KNOCKOUT_MATCH', payload: { winner } });
         } else {
           // Start next question
-          const country = getNewKnockoutCountry();
-          dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
+          if(state.knockoutCategory === 'GuessTheCountry') {
+              const country = getNewKnockoutCountry();
+              dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
+          } else if (state.knockoutCategory === 'Trivia') {
+              const question = getNewKnockoutTriviaQuestion();
+              dispatch({ type: 'SET_KNOCKOUT_TRIVIA', payload: { question } });
+          }
         }
       }, 3000); // 3-second delay to show the answer
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.isRoundActive, state.gameState, state.knockoutMatchPoints, state.currentCountry, getCurrentKnockoutMatch, getNewKnockoutCountry]);
+  }, [state.isRoundActive, state.gameState, state.knockoutMatchPoints, state.currentCountry, state.currentTriviaQuestion, state.knockoutCategory, getCurrentKnockoutMatch, getNewKnockoutCountry, getNewKnockoutTriviaQuestion]);
   
   useEffect(() => {
     if (state.gameStyle === GameStyle.Classic && state.isRoundActive) {

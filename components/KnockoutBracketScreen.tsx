@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KnockoutBracket, KnockoutMatch, KnockoutPlayer } from '../types';
+import { KnockoutBracket, KnockoutMatch, KnockoutPlayer, KnockoutChampions } from '../types';
 
 interface KnockoutBracketScreenProps {
   bracket: KnockoutBracket | null;
@@ -10,6 +10,7 @@ interface KnockoutBracketScreenProps {
   onRedrawBracket: () => void;
   onRestartCompetition: () => void;
   onDeclareWalkoverWinner: (payload: { roundIndex: number; matchIndex: number; winner: KnockoutPlayer }) => void;
+  champions: KnockoutChampions;
 }
 
 const MatchCard: React.FC<{ 
@@ -20,7 +21,8 @@ const MatchCard: React.FC<{
     onStartMatch: (payload: { roundIndex: number; matchIndex: number }) => void; 
     isTournamentOver: boolean;
     onDeclareWalkoverWinner: (payload: { roundIndex: number; matchIndex: number; winner: KnockoutPlayer }) => void;
-}> = ({ match, isCurrent, bracket, isReadyToPlay, onStartMatch, isTournamentOver, onDeclareWalkoverWinner }) => {
+    champions: KnockoutChampions;
+}> = ({ match, isCurrent, bracket, isReadyToPlay, onStartMatch, isTournamentOver, onDeclareWalkoverWinner, champions }) => {
     const [isSelectingWinner, setIsSelectingWinner] = useState(false);
     
     const getWinnerLayoutId = (player: any) => `winner-${player.nickname}-${match.roundIndex}-${match.matchIndex}`;
@@ -35,6 +37,23 @@ const MatchCard: React.FC<{
         });
         setIsSelectingWinner(false); // Reset UI state
     };
+    
+    const PlayerDisplay: React.FC<{ player: KnockoutPlayer | null }> = ({ player }) => {
+        if (!player) return <span className="truncate">...</span>;
+        
+        return (
+            <div className="flex items-center gap-1.5 w-full min-w-0">
+                <motion.img layoutId={getWinnerLayoutId(player)} src={player.profilePictureUrl} className="w-4 h-4 rounded-full shrink-0" alt="" />
+                <span className="truncate flex-1">{player.nickname}</span>
+                {champions[player.nickname] && (
+                    <div className="flex items-center gap-0.5 text-amber-500 shrink-0">
+                        <span className="text-xs">🏆</span>
+                        <span className="text-xs font-bold">{champions[player.nickname]}</span>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col items-center gap-1">
@@ -46,21 +65,12 @@ const MatchCard: React.FC<{
                 className={`bg-sky-50 dark:bg-gray-700 rounded-lg p-1.5 text-xs h-14 flex flex-col justify-center relative border-2 w-full ${isCurrent ? 'border-amber-500' : 'border-transparent'}`}
             >
                 <div className={`flex items-center gap-1 relative ${match.winner && match.winner.nickname === match.player1?.nickname ? 'font-bold' : ''}`}>
-                    {match.player1 && (
-                        <>
-                            <motion.img layoutId={getWinnerLayoutId(match.player1)} src={match.player1.profilePictureUrl} className="w-4 h-4 rounded-full" alt="" />
-                            <span className="truncate">{match.player1.nickname}</span>
-                        </>
-                    )}
-                    {!match.player1 && <span className="truncate">...</span>}
+                    <PlayerDisplay player={match.player1} />
                 </div>
                 <div className="border-t border-dashed border-sky-200 dark:border-gray-600 my-1"></div>
                 <div className={`flex items-center gap-1 relative ${match.winner && match.winner.nickname === match.player2?.nickname ? 'font-bold' : ''}`}>
                 {match.player2 ? (
-                    <>
-                        <motion.img layoutId={getWinnerLayoutId(match.player2)} src={match.player2.profilePictureUrl} className="w-4 h-4 rounded-full" alt="" />
-                        <span className="truncate">{match.player2.nickname}</span>
-                    </>
+                    <PlayerDisplay player={match.player2} />
                 ) : match.player1 ? (
                     <span className="text-green-500 italic">BYE</span>
                 ) : <span className="truncate">...</span>}
@@ -124,7 +134,7 @@ const MatchCard: React.FC<{
 }
 
 
-const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, currentMatchId, isReadyToPlay, onStartMatch, onRedrawBracket, onRestartCompetition, onDeclareWalkoverWinner }) => {
+const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, currentMatchId, isReadyToPlay, onStartMatch, onRedrawBracket, onRestartCompetition, onDeclareWalkoverWinner, champions }) => {
   if (!bracket || bracket.length === 0) {
     return (
       <div className="flex flex-col h-full items-center justify-center p-4 bg-white dark:bg-gray-800 rounded-3xl">
@@ -166,6 +176,7 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
                     onStartMatch={onStartMatch}
                     isTournamentOver={isTournamentOver}
                     onDeclareWalkoverWinner={onDeclareWalkoverWinner}
+                    champions={champions}
                 />
               ))}
             </div>

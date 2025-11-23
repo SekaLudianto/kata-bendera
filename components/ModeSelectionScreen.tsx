@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GamepadIcon } from './IconComponents';
 import { DEFAULT_MAX_WINNERS_PER_ROUND } from '../constants';
-import { GameStyle } from '../types';
+import { GameStyle, KnockoutCategory } from '../types';
 
 interface ModeSelectionScreenProps {
   onStartClassic: (maxWinners: number) => void;
-  onStartKnockout: () => void;
+  onStartKnockout: (category: KnockoutCategory) => void;
 }
 
 const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassic, onStartKnockout }) => {
@@ -15,6 +15,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     return saved ? parseInt(saved, 10) : DEFAULT_MAX_WINNERS_PER_ROUND;
   });
   const [gameStyle, setGameStyle] = useState<GameStyle>(GameStyle.Classic);
+  const [knockoutCategory, setKnockoutCategory] = useState<KnockoutCategory>('GuessTheCountry');
 
 
   useEffect(() => {
@@ -34,7 +35,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     if (gameStyle === GameStyle.Classic) {
       onStartClassic(maxWinners);
     } else {
-      onStartKnockout();
+      onStartKnockout(knockoutCategory);
     }
   }
 
@@ -59,16 +60,25 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
 
         <form onSubmit={handleSubmit} className="w-full max-w-xs mt-6">
           
+          <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setGameStyle(GameStyle.Classic)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Classic ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                  Klasik
+              </button>
+               <button type="button" onClick={() => setGameStyle(GameStyle.Knockout)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Knockout ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                  Knockout
+              </button>
+          </div>
+
           <AnimatePresence mode="wait">
           {gameStyle === GameStyle.Classic && (
             <motion.div
               key="max-winners"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto', transition: { duration: 0.3 } }}
-              exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginTop: '0.75rem', transition: { duration: 0.3 } }}
+              exit={{ opacity: 0, height: 0, marginTop: 0, transition: { duration: 0.2 } }}
               className="overflow-hidden"
             >
-              <div className="relative mb-3">
+              <div className="relative">
                  <label htmlFor="max-winners" className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1">Jumlah Pemenang per Ronde</label>
                 <input
                   type="number"
@@ -82,16 +92,30 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
               </div>
             </motion.div>
           )}
+
+          {gameStyle === GameStyle.Knockout && (
+             <motion.div
+              key="knockout-category"
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginTop: '0.75rem', transition: { duration: 0.3 } }}
+              exit={{ opacity: 0, height: 0, marginTop: 0, transition: { duration: 0.2 } }}
+              className="overflow-hidden"
+            >
+              <div className="relative">
+                 <label className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1">Pilih Kategori Soal Knockout</label>
+                 <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setKnockoutCategory('GuessTheCountry')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'GuessTheCountry' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                        Tebak Negara
+                    </button>
+                    <button type="button" onClick={() => setKnockoutCategory('Trivia')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'Trivia' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                        Trivia Umum
+                    </button>
+                 </div>
+              </div>
+            </motion.div>
+          )}
           </AnimatePresence>
 
-          <div className="grid grid-cols-2 gap-2 mt-4">
-              <button type="button" onClick={() => setGameStyle(GameStyle.Classic)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Classic ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
-                  Klasik
-              </button>
-               <button type="button" onClick={() => setGameStyle(GameStyle.Knockout)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Knockout ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
-                  Knockout
-              </button>
-          </div>
 
           <motion.button
             whileHover={{ scale: 1.05 }}

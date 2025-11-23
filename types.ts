@@ -69,7 +69,7 @@ export enum GameMode {
   GuessTheFlag = 'guess_the_flag',
   ABC5Dasar = 'abc_5_dasar',
   GuessTheWord = 'guess_the_word',
-  GuessTheCountry = 'guess_the_country',
+  Trivia = 'trivia',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -78,6 +78,13 @@ export type WordCategory = 'Pemain Bola' | 'Klub Bola';
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 // --- Knockout Mode Types ---
+export type KnockoutCategory = 'GuessTheCountry' | 'Trivia';
+
+export interface TriviaQuestion {
+  question: string;
+  answer: string;
+}
+
 export interface KnockoutPlayer {
   nickname: string;
   profilePictureUrl?: string;
@@ -95,9 +102,11 @@ export interface KnockoutMatch {
 export type KnockoutRound = KnockoutMatch[];
 export type KnockoutBracket = KnockoutRound[];
 
+export type KnockoutChampions = Record<string, number>;
+
 // This will be used in useGameLogic.ts to set the word for a knockout match
 export interface GameActionPayloads {
-    'START_GAME': { gameStyle: GameStyle, maxWinners: number };
+    'START_GAME': { gameStyle: GameStyle, maxWinners: number, knockoutCategory?: KnockoutCategory };
     'START_CLASSIC_MODE': { firstCountry: Country };
     'NEXT_ROUND': { 
       nextCountry?: Country, 
@@ -110,7 +119,12 @@ export interface GameActionPayloads {
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
     'SET_KNOCKOUT_COUNTRY': { country: Country };
+    'SET_KNOCKOUT_TRIVIA': { question: TriviaQuestion };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };
 }
+
+export type GameAction =
+    | { [K in keyof GameActionPayloads]: { type: K; payload: GameActionPayloads[K] } }[keyof GameActionPayloads]
+    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'SKIP_KNOCKOUT_MATCH' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' };
