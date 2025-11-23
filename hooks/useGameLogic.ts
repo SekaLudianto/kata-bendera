@@ -143,8 +143,9 @@ const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
 
     let currentRoundMatches = nextPowerOfTwo / 2;
     let roundIndex = 1;
-    while (currentRoundMatches > 1) { // Changed from >= to >
+    while (currentRoundMatches >= 1) {
         const nextRound: KnockoutMatch[] = [];
+        if (currentRoundMatches < 1) break;
         for (let i = 0; i < currentRoundMatches / 2; i++) {
             nextRound.push({
                 id: `r${roundIndex}-m${i}`,
@@ -445,7 +446,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
         if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
 
-        const isFinalMatch = currentBracketRoundIndex === knockoutBracket.length - 1;
+        const isFinalMatch = currentBracketRoundIndex === knockoutBracket.length - 1 && knockoutBracket[currentBracketRoundIndex].length === 1;
 
         if (isFinalMatch) {
             const newBracket = JSON.parse(JSON.stringify(knockoutBracket));
@@ -471,7 +472,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { roundIndex, matchIndex, winner } = action.payload;
         if (!state.knockoutBracket) return state;
         
-        const isFinalMatch = roundIndex === state.knockoutBracket.length - 1;
+        const isFinalMatch = roundIndex === state.knockoutBracket.length - 1 && state.knockoutBracket[roundIndex].length === 1;
 
         if (isFinalMatch) {
             const newBracket = JSON.parse(JSON.stringify(state.knockoutBracket));
@@ -556,6 +557,12 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
     }
     case 'FINISH_GAME':
         return { ...state, gameState: GameState.Finished };
+    case 'RETURN_TO_MODE_SELECTION':
+        return {
+            ...createInitialState(),
+            leaderboard: state.leaderboard, // Keep global leaderboard
+            gameState: GameState.ModeSelection,
+        };
     default:
       return state;
   }
@@ -712,6 +719,7 @@ export const useGameLogic = () => {
   const redrawBracket = useCallback(() => dispatch({ type: 'REDRAW_BRACKET' }), []);
   const finishGame = useCallback(() => dispatch({ type: 'FINISH_GAME' }), []);
   const restartKnockoutCompetition = useCallback(() => dispatch({ type: 'RESTART_KNOCKOUT_COMPETITION' }), []);
+  const returnToModeSelection = useCallback(() => dispatch({ type: 'RETURN_TO_MODE_SELECTION' }), []);
 
   const pauseGame = useCallback(() => dispatch({ type: 'PAUSE_GAME' }), []);
   const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
@@ -845,5 +853,5 @@ export const useGameLogic = () => {
     }
   };
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, currentAnswer: getCurrentAnswer() };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, currentAnswer: getCurrentAnswer() };
 };
