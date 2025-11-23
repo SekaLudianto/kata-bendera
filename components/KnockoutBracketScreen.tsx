@@ -151,6 +151,10 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
     if (isReadyToPlay) return "Pilih Match";
     return "Bagan Turnamen";
   }
+  
+  const sortedChampions = Object.entries(champions)
+    .sort(([, a], [, b]) => b - a)
+    .map(([nickname, wins]) => ({ nickname, wins }));
 
   return (
     <div className="flex flex-col h-full p-2 bg-white dark:bg-gray-800 rounded-3xl overflow-hidden">
@@ -184,21 +188,41 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
         </div>
       </div>
       
+      <AnimatePresence>
       {isTournamentOver && isReadyToPlay && (
         <motion.div 
-            className="shrink-0 p-2 flex items-center justify-center gap-2 border-t border-sky-100 dark:border-gray-700"
+            className="shrink-0 p-2 border-t border-sky-100 dark:border-gray-700"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
         >
-            <button onClick={onRedrawBracket} className="flex-1 px-3 py-2 bg-sky-500 text-white text-xs font-bold rounded-md shadow-md shadow-sky-500/20 hover:bg-sky-600 transition-all">
-                Drawing Kembali
-            </button>
-            <button onClick={onRestartCompetition} className="flex-1 px-3 py-2 bg-gray-500 text-white text-xs font-bold rounded-md shadow-md shadow-gray-500/20 hover:bg-gray-600 transition-all">
-                Mulai Kompetisi Baru
-            </button>
+          <div className="flex items-center justify-center gap-2">
+              <button onClick={onRedrawBracket} className="flex-1 px-3 py-2 bg-sky-500 text-white text-xs font-bold rounded-md shadow-md shadow-sky-500/20 hover:bg-sky-600 transition-all">
+                  Drawing Kembali
+              </button>
+              <button onClick={onRestartCompetition} className="flex-1 px-3 py-2 bg-gray-500 text-white text-xs font-bold rounded-md shadow-md shadow-gray-500/20 hover:bg-gray-600 transition-all">
+                  Mulai Kompetisi Baru
+              </button>
+          </div>
+          {sortedChampions.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dashed border-sky-200 dark:border-gray-600">
+              <h3 className="text-center text-sm font-bold text-slate-600 dark:text-gray-300 mb-2">Histori Juara</h3>
+              <div className="max-h-24 overflow-y-auto space-y-1 text-xs px-1">
+                  {sortedChampions.map(({ nickname, wins }) => (
+                      <div key={nickname} className="flex items-center justify-between bg-sky-50 dark:bg-gray-700/60 p-1.5 rounded-md">
+                          <span className="font-semibold truncate">{nickname}</span>
+                          <div className="flex items-center gap-1 text-amber-500 font-bold">
+                              <span>🏆</span>
+                              <span>{wins}x</span>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };
