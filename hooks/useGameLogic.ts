@@ -450,51 +450,49 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
         if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
 
+        const isFinalMatch = currentBracketRoundIndex === knockoutBracket.length - 1;
         const newBracket = advanceWinnerInBracket(knockoutBracket, winner, currentBracketRoundIndex, currentMatchIndex);
-        
-        const finalRound = newBracket[newBracket.length - 1];
-        const tournamentChampion = finalRound.length === 1 ? finalRound[0].winner : null;
 
-        if (tournamentChampion) {
-            return { 
-                ...state, 
+        if (isFinalMatch) {
+            const champion = newBracket[currentBracketRoundIndex][currentMatchIndex].winner;
+            return {
+                ...state,
                 isRoundActive: false,
-                knockoutBracket: newBracket, 
-                sessionLeaderboard: [{ ...tournamentChampion, score: 1, profilePictureUrl: tournamentChampion.profilePictureUrl }], 
+                knockoutBracket: newBracket,
+                sessionLeaderboard: [{ ...champion!, score: 1, profilePictureUrl: champion!.profilePictureUrl }],
                 gameState: GameState.Champion,
             };
+        } else {
+            return {
+                ...state,
+                isRoundActive: false,
+                knockoutBracket: newBracket,
+                gameState: GameState.KnockoutShowWinner,
+            };
         }
-        
-        return { 
-            ...state,
-            isRoundActive: false,
-            knockoutBracket: newBracket, 
-            gameState: GameState.KnockoutShowWinner,
-        };
     }
     case 'DECLARE_WALKOVER_WINNER': {
         const { roundIndex, matchIndex, winner } = action.payload;
         if (!state.knockoutBracket) return state;
 
+        const isFinalMatch = roundIndex === state.knockoutBracket.length - 1;
         const newBracket = advanceWinnerInBracket(state.knockoutBracket, winner, roundIndex, matchIndex);
         
-        const finalRound = newBracket[newBracket.length - 1];
-        const tournamentChampion = finalRound.length === 1 ? finalRound[0].winner : null;
-
-        if (tournamentChampion) {
+        if (isFinalMatch) {
+            const champion = newBracket[roundIndex][matchIndex].winner;
             return {
                 ...state,
                 knockoutBracket: newBracket,
-                sessionLeaderboard: [{ ...tournamentChampion, score: 1, profilePictureUrl: tournamentChampion.profilePictureUrl }],
+                sessionLeaderboard: [{ ...champion!, score: 1, profilePictureUrl: champion!.profilePictureUrl }],
                 gameState: GameState.Champion,
             };
+        } else {
+            return {
+                ...state,
+                knockoutBracket: newBracket,
+                gameState: GameState.KnockoutReadyToPlay,
+            };
         }
-
-        return {
-            ...state,
-            knockoutBracket: newBracket,
-            gameState: GameState.KnockoutReadyToPlay,
-        };
     }
     case 'SET_READY_TO_PLAY': {
         const { knockoutBracket } = state;
