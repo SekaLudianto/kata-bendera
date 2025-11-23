@@ -511,6 +511,17 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameState: GameState.KnockoutDrawing,
         };
     }
+    case 'RESTART_KNOCKOUT_COMPETITION':
+      return {
+        ...state,
+        gameState: GameState.KnockoutRegistration,
+        knockoutPlayers: [],
+        knockoutBracket: null,
+        currentBracketRoundIndex: null,
+        currentMatchIndex: null,
+        knockoutMatchPoints: { player1: 0, player2: 0 },
+        sessionLeaderboard: [],
+      };
     case 'SET_KNOCKOUT_COUNTRY': {
         return {
             ...state,
@@ -700,6 +711,7 @@ export const useGameLogic = () => {
   const returnToBracket = useCallback(() => dispatch({ type: 'RETURN_TO_BRACKET' }), []);
   const redrawBracket = useCallback(() => dispatch({ type: 'REDRAW_BRACKET' }), []);
   const finishGame = useCallback(() => dispatch({ type: 'FINISH_GAME' }), []);
+  const restartKnockoutCompetition = useCallback(() => dispatch({ type: 'RESTART_KNOCKOUT_COMPETITION' }), []);
 
   const pauseGame = useCallback(() => dispatch({ type: 'PAUSE_GAME' }), []);
   const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
@@ -833,5 +845,5 @@ export const useGameLogic = () => {
     }
   };
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, currentAnswer: getCurrentAnswer() };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, currentAnswer: getCurrentAnswer() };
 };

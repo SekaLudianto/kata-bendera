@@ -283,7 +283,7 @@ const App: React.FC = () => {
                         isReadyToPlay={gameState === GameState.KnockoutReadyToPlay || gameState === GameState.KnockoutDrawing}
                         onStartMatch={game.prepareNextMatch}
                         onRedrawBracket={game.redrawBracket}
-                        onRestartCompetition={handleBackToModeSelection}
+                        onRestartCompetition={game.restartKnockoutCompetition}
                         onDeclareWalkoverWinner={game.declareWalkoverWinner}
                         champions={champions}
                     />;
