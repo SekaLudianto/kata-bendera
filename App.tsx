@@ -280,7 +280,7 @@ const App: React.FC = () => {
             return <KnockoutBracketScreen 
                         bracket={game.state.knockoutBracket} 
                         currentMatchId={game.getCurrentKnockoutMatch()?.id ?? null}
-                        isReadyToPlay={gameState === GameState.KnockoutReadyToPlay}
+                        isReadyToPlay={gameState === GameState.KnockoutReadyToPlay || gameState === GameState.KnockoutDrawing}
                         onStartMatch={game.prepareNextMatch}
                         onRedrawBracket={game.redrawBracket}
                         onRestartCompetition={handleBackToModeSelection}

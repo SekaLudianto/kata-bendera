@@ -143,7 +143,7 @@ const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
 
     let currentRoundMatches = nextPowerOfTwo / 2;
     let roundIndex = 1;
-    while (currentRoundMatches >= 1) {
+    while (currentRoundMatches > 1) { // Changed from >= to >
         const nextRound: KnockoutMatch[] = [];
         for (let i = 0; i < currentRoundMatches / 2; i++) {
             nextRound.push({
@@ -183,7 +183,6 @@ const advanceWinnerInBracket = (bracket: KnockoutBracket, winner: KnockoutPlayer
     const currentMatch = newBracket[roundIndex][matchIndex];
     currentMatch.winner = winner;
 
-    // This function assumes it is NOT the final round. The caller MUST check this.
     const nextRoundIndex = roundIndex + 1;
     if (newBracket[nextRoundIndex]) {
         const nextMatchIndex = Math.floor(currentMatch.matchIndex / 2);
@@ -210,7 +209,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         maxWinners: action.payload.maxWinners,
         knockoutCategory: action.payload.knockoutCategory || null,
         gameState: action.payload.gameStyle === GameStyle.Classic ? GameState.Playing : GameState.KnockoutRegistration,
-        roundTimer: ROUND_TIMER_SECONDS,
       };
     case 'START_CLASSIC_MODE': {
       const firstCountry = action.payload.firstCountry;
@@ -411,9 +409,9 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
     case 'RESET_KNOCKOUT_REGISTRATION':
         return { ...state, knockoutPlayers: [] };
     case 'END_REGISTRATION_AND_DRAW_BRACKET': {
-        if(state.knockoutPlayers.length < 2) return { ...createInitialState(), gameState: GameState.Setup };
+        if(state.knockoutPlayers.length < 2) return state; // Do nothing if not enough players
         const bracket = generateBracket(state.knockoutPlayers);
-        return { ...state, gameState: GameState.KnockoutReadyToPlay, knockoutBracket: bracket, roundTimer: 0 };
+        return { ...state, gameState: GameState.KnockoutDrawing, knockoutBracket: bracket };
     }
     case 'PREPARE_NEXT_MATCH': {
         const { roundIndex, matchIndex } = action.payload;
@@ -494,17 +492,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         }
     }
     case 'SET_READY_TO_PLAY': {
-        const { knockoutBracket } = state;
-        if (knockoutBracket) {
-            const lastRound = knockoutBracket[knockoutBracket.length - 1];
-            if (lastRound && lastRound[0].winner) {
-                 return { 
-                    ...state, 
-                    gameState: GameState.Champion,
-                    sessionLeaderboard: [{ ...lastRound[0].winner, score: 1, profilePictureUrl: lastRound[0].winner.profilePictureUrl }],
-                };
-            }
-        }
         return { ...state, gameState: GameState.KnockoutReadyToPlay };
     }
     case 'RETURN_TO_BRACKET': {
@@ -521,7 +508,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentBracketRoundIndex: null,
             currentMatchIndex: null,
             knockoutMatchPoints: { player1: 0, player2: 0 },
-            gameState: GameState.KnockoutReadyToPlay,
+            gameState: GameState.KnockoutDrawing,
         };
     }
     case 'SET_KNOCKOUT_COUNTRY': {
@@ -757,6 +744,10 @@ export const useGameLogic = () => {
   }, [state.countdownValue, state.gameState, nextRound]);
   
   useEffect(() => {
+    if(state.gameState === GameState.KnockoutDrawing) {
+        const timer = setTimeout(() => dispatch({ type: 'SET_READY_TO_PLAY' }), 2000); // 2 seconds to view the bracket
+        return () => clearTimeout(timer);
+    }
     if(state.gameState === GameState.KnockoutShowWinner) {
         const timer = setTimeout(() => dispatch({ type: 'SET_READY_TO_PLAY' }), KNOCKOUT_WINNER_VIEW_SECONDS * 1000);
         return () => clearTimeout(timer);

@@ -245,21 +245,21 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="w-full flex justify-around items-center mb-4 px-2"
+                className="w-full flex justify-between items-center mb-4 px-2 gap-2"
              >
-                <div className="flex flex-col items-center text-center w-2/5">
+                <div className="flex flex-col items-center text-center flex-1 min-w-0">
                     <img src={currentMatch.player1.profilePictureUrl} alt={currentMatch.player1.nickname} className="w-16 h-16 rounded-full border-4 border-sky-400"/>
-                    <p className="font-bold text-sm mt-1 truncate">{currentMatch.player1.nickname}</p>
+                    <p className="font-bold text-sm mt-1 truncate w-full">{currentMatch.player1.nickname}</p>
                 </div>
-                <div className="text-center">
+                <div className="text-center flex-shrink-0 px-2">
                     <p className="text-3xl font-bold text-red-500">
                         {knockoutMatchPoints.player1} - {knockoutMatchPoints.player2}
                     </p>
                     <p className="text-xs text-gray-500">Skor</p>
                 </div>
-                <div className="flex flex-col items-center text-center w-2/5">
+                <div className="flex flex-col items-center text-center flex-1 min-w-0">
                     <img src={currentMatch.player2.profilePictureUrl} alt={currentMatch.player2.nickname} className="w-16 h-16 rounded-full border-4 border-gray-400"/>
-                    <p className="font-bold text-sm mt-1 truncate">{currentMatch.player2.nickname}</p>
+                    <p className="font-bold text-sm mt-1 truncate w-full">{currentMatch.player2.nickname}</p>
                 </div>
              </motion.div>
         )}
