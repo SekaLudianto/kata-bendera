@@ -7,9 +7,10 @@ import { GameStyle, KnockoutCategory } from '../types';
 interface ModeSelectionScreenProps {
   onStartClassic: (maxWinners: number) => void;
   onStartKnockout: (category: KnockoutCategory) => void;
+  onShowLeaderboard: () => void;
 }
 
-const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassic, onStartKnockout }) => {
+const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassic, onStartKnockout, onShowLeaderboard }) => {
   const [maxWinners, setMaxWinners] = useState(() => {
     const saved = localStorage.getItem('tiktok-quiz-maxwinners');
     return saved ? parseInt(saved, 10) : DEFAULT_MAX_WINNERS_PER_ROUND;
@@ -103,12 +104,15 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
             >
               <div className="relative">
                  <label className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1">Pilih Kategori Soal Knockout</label>
-                 <div className="grid grid-cols-2 gap-2">
+                 <div className="grid grid-cols-3 gap-2">
                     <button type="button" onClick={() => setKnockoutCategory('GuessTheCountry')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'GuessTheCountry' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                         Tebak Negara
                     </button>
                     <button type="button" onClick={() => setKnockoutCategory('Trivia')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'Trivia' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                         Trivia Umum
+                    </button>
+                    <button type="button" onClick={() => setKnockoutCategory('ZonaBola')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'ZonaBola' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                        Zona Bola
                     </button>
                  </div>
               </div>
@@ -126,6 +130,12 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
             Mulai Permainan
           </motion.button>
         </form>
+          <button 
+            onClick={onShowLeaderboard}
+            className="mt-2 text-sm text-sky-500 dark:text-sky-400 font-semibold hover:underline"
+          >
+            Lihat Peringkat Global
+          </button>
       </div>
     </div>
   );

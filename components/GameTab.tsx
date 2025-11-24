@@ -2,13 +2,11 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 import GiftNotification from './GiftNotification';
-import { GiftNotification as GiftNotificationType, GameMode, GameStyle } from '../types';
+// FIX: Import LetterObject from types.ts instead of defining it locally.
+import { GiftNotification as GiftNotificationType, GameMode, GameStyle, LetterObject } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
 
-interface LetterObject {
-  id: string;
-  letter: string;
-}
+// FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
 interface GameTabProps {
   gameState: InternalGameState;
@@ -33,13 +31,13 @@ const getLetterBoxSizeClasses = (totalLetters: number): string => {
   return 'w-9 h-11 text-2xl gap-1.5';
 };
 
-const ScrambledWordDisplay: React.FC<{ scrambledName: LetterObject[][], isRoundActive: boolean }> = ({ scrambledName, isRoundActive }) => {
-    const totalLetters = scrambledName.flat().length;
+const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundActive: boolean }> = ({ scrambledWord, isRoundActive }) => {
+    const totalLetters = scrambledWord.flat().length;
     const sizeClasses = getLetterBoxSizeClasses(totalLetters);
 
     return (
         <div className="flex flex-col items-center gap-1 px-2">
-            {scrambledName.map((word, wordIndex) => (
+            {scrambledWord.map((word, wordIndex) => (
                 <div key={wordIndex} className={`flex flex-wrap justify-center ${sizeClasses.split(' ')[2]}`}>
                     {word.map((item: LetterObject, letterIndex: number) => (
                         <motion.div
@@ -65,7 +63,7 @@ const ScrambledWordDisplay: React.FC<{ scrambledName: LetterObject[][], isRoundA
 };
 
 const GuessTheFlagContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentCountry, scrambledCountryName, isRoundActive } = gameState;
+    const { currentCountry, scrambledWord, isRoundActive } = gameState;
     if (!currentCountry) return null;
 
     return (
@@ -80,13 +78,13 @@ const GuessTheFlagContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
                     className="h-24 mx-auto rounded-lg shadow-md border border-gray-200 dark:border-gray-600" 
                 />
             </div>
-            <ScrambledWordDisplay scrambledName={scrambledCountryName} isRoundActive={isRoundActive} />
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
         </>
     );
 };
 
 const GuessTheCountryKnockoutContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentCountry, scrambledCountryName, isRoundActive } = gameState;
+    const { currentCountry, scrambledWord, isRoundActive } = gameState;
     if (!currentCountry) return null;
 
     return (
@@ -94,7 +92,7 @@ const GuessTheCountryKnockoutContent: React.FC<{ gameState: InternalGameState }>
             <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
                 Tebak Nama Negara:
             </h2>
-            <ScrambledWordDisplay scrambledName={scrambledCountryName} isRoundActive={isRoundActive} />
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
             
             <AnimatePresence>
             {!isRoundActive && (
@@ -130,27 +128,30 @@ const ABC5DasarContent: React.FC<{ gameState: InternalGameState }> = ({ gameStat
 
 
 const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentWordCategory, scrambledCountryName, isRoundActive } = gameState;
+    const { currentWordCategory, scrambledWord, isRoundActive } = gameState;
   
     return (
       <>
         <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
             Kategori: {currentWordCategory}
         </h2>
-        <ScrambledWordDisplay scrambledName={scrambledCountryName} isRoundActive={isRoundActive} />
+        <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
       </>
     );
 };
 
 const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentTriviaQuestion, isRoundActive } = gameState;
+    const { currentTriviaQuestion, isRoundActive, scrambledWord } = gameState;
     if (!currentTriviaQuestion) return null;
   
     return (
-      <div className="text-center px-2">
+      <div className="text-center px-2 flex flex-col items-center justify-center gap-3">
         <h2 className="text-lg sm:text-xl font-bold text-sky-600 dark:text-sky-300 leading-tight">
             {currentTriviaQuestion.question}
         </h2>
+        
+        <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+
         <AnimatePresence>
         {!isRoundActive && (
              <motion.div
@@ -169,6 +170,71 @@ const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }
     );
 };
 
+const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { currentCity, scrambledWord, isRoundActive } = gameState;
+    if (!currentCity) return null;
+
+    return (
+        <>
+            <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
+                Tebak Nama Kota:
+            </h2>
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+            
+            <AnimatePresence>
+            {!isRoundActive && (
+                 <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 text-center"
+                 >
+                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
+                        {currentCity.name}
+                    </p>
+                    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                        ({currentCity.region})
+                    </p>
+                 </motion.div>
+            )}
+            </AnimatePresence>
+        </>
+    );
+};
+
+const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { currentWord, currentWordCategory, currentStadium, scrambledWord, isRoundActive } = gameState;
+    const answer = currentWord || currentStadium?.name;
+    const location = currentStadium?.location;
+
+    return (
+        <>
+            <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
+                Tebak: <span className="text-amber-500">{currentWordCategory}</span>
+            </h2>
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+            
+            <AnimatePresence>
+            {!isRoundActive && answer && (
+                 <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 text-center"
+                 >
+                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
+                        {answer}
+                    </p>
+                    {location && (
+                        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                            ({location})
+                        </p>
+                    )}
+                 </motion.div>
+            )}
+            </AnimatePresence>
+        </>
+    );
+};
+
 const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
   const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / TOTAL_ROUNDS) * 100;
@@ -183,8 +249,12 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
     
   const getRoundTitle = () => {
     if (gameStyle === GameStyle.Knockout) {
+        if (knockoutCategory === 'Trivia') return "Trivia Pengetahuan Umum";
+        if (knockoutCategory === 'GuessTheCountry') return "Tebak Negara";
+        if (knockoutCategory === 'ZonaBola') return "Zona Bola";
+
         if (currentBracketRoundIndex === null || !knockoutBracket || !knockoutBracket[currentBracketRoundIndex]) {
-            return knockoutCategory === 'Trivia' ? "Trivia Pengetahuan Umum" : "Tebak Negara";
+            return "Mode Knockout";
         }
         
         const currentRoundMatchCount = knockoutBracket[currentBracketRoundIndex].length;
@@ -198,8 +268,10 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
     }
     // Classic Mode Titles
     if (gameMode === GameMode.GuessTheFlag) return 'Tebak Bendera';
+    if (gameMode === GameMode.GuessTheCity) return 'Tebak Kota';
     if (gameMode === GameMode.ABC5Dasar) return `ABC 5 Dasar`;
     if (gameMode === GameMode.GuessTheWord) return `Tebak Kata Acak`;
+    if (gameMode === GameMode.Trivia) return 'Trivia Umum';
     return '';
   }
 
@@ -209,7 +281,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
 
   return (
     <motion.div 
-      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}-${gameState.currentCountry?.name}-${gameState.currentTriviaQuestion?.question}`}
+      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}-${gameState.currentCountry?.name}-${gameState.currentTriviaQuestion?.question}-${gameState.currentCity?.name}-${gameState.currentStadium?.name}`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
@@ -273,6 +345,8 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
         )}
         {gameState.gameMode === GameMode.ABC5Dasar && <ABC5DasarContent gameState={gameState} />}
         {gameState.gameMode === GameMode.Trivia && <TriviaContent gameState={gameState} />}
+        {gameState.gameMode === GameMode.GuessTheCity && <GuessTheCityContent gameState={gameState} />}
+        {gameState.gameMode === GameMode.ZonaBola && <ZonaBolaContent gameState={gameState} />}
 
 
         {gameStyle === GameStyle.Knockout && gameState.isRoundActive && (

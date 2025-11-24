@@ -1,5 +1,6 @@
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
-import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction } from '../types';
+// FIX: The type `LetterObject` is now correctly exported from `types.ts`.
+import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject } from '../types';
 import { countries } from '../data/countries';
 import { fruits } from '../data/fruits';
 import { animals } from '../data/animals';
@@ -9,13 +10,10 @@ import { indonesianCities } from '../data/indonesian_cities';
 import { plants } from '../data/plants';
 import { footballPlayers } from '../data/football_players';
 import { footballClubs } from '../data/football_clubs';
+import { footballStadiums } from '../data/football_stadiums';
 import { triviaQuestions } from '../data/trivia';
-import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, FLAG_ROUNDS_COUNT, UNIQUENESS_BONUS_POINTS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS } from '../constants';
-
-interface LetterObject {
-  id: string;
-  letter: string;
-}
+import { cities } from '../data/cities';
+import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, UNIQUENESS_BONUS_POINTS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, ANSWER_REVEAL_DELAY_SECONDS } from '../constants';
 
 export interface InternalGameState {
   gameState: GameState;
@@ -28,8 +26,10 @@ export interface InternalGameState {
   currentWord: string | null;
   currentWordCategory: WordCategory | null;
   currentTriviaQuestion: TriviaQuestion | null;
+  currentCity: City | null;
+  currentStadium: FootballStadium | null;
   usedAnswers: string[];
-  scrambledCountryName: LetterObject[][];
+  scrambledWord: LetterObject[][];
   leaderboard: LeaderboardEntry[];
   sessionLeaderboard: LeaderboardEntry[];
   roundWinners: RoundWinner[];
@@ -42,6 +42,7 @@ export interface InternalGameState {
   isPausedByAdmin: boolean;
   countdownValue: number | null;
   chatMessages: ChatMessage[]; // Added for ChatTab
+  classicRoundDeck: GameMode[];
 
   // Knockout state
   knockoutCategory: KnockoutCategory | null;
@@ -60,13 +61,27 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 const scrambleWord = (name: string): LetterObject[][] => {
   const words = name.toUpperCase().split(' ');
   return words.map(word => {
-    const mappedLetters = shuffleArray(word.split('').filter(char => char.trim() !== '' && !['(', ')', '&', '-'].includes(char)).map((char, index) => ({
+    const lettersToScramble = word.split('').filter(char => /^[A-Z0-9]$/i.test(char));
+    const mappedLetters = shuffleArray(lettersToScramble.map((char, index) => ({
       id: `${word}-${index}-${char}`,
       letter: char,
     })));
-    return mappedLetters;
+    
+    // Re-insert special characters in their original places
+    let scrambledIndex = 0;
+    return word.split('').map((originalChar, originalIndex) => {
+      if (/^[A-Z0-9]$/i.test(originalChar)) {
+        return mappedLetters[scrambledIndex++];
+      } else {
+        return {
+          id: `${word}-${originalIndex}-${originalChar}`,
+          letter: originalChar,
+        };
+      }
+    });
   });
 };
+
 
 const createInitialState = (): InternalGameState => ({
   gameState: GameState.Setup,
@@ -79,8 +94,10 @@ const createInitialState = (): InternalGameState => ({
   currentWord: null,
   currentWordCategory: null,
   currentTriviaQuestion: null,
+  currentCity: null,
+  currentStadium: null,
   usedAnswers: [],
-  scrambledCountryName: [],
+  scrambledWord: [],
   leaderboard: JSON.parse(localStorage.getItem('leaderboard') || '[]'),
   sessionLeaderboard: [],
   roundWinners: [],
@@ -93,6 +110,7 @@ const createInitialState = (): InternalGameState => ({
   isPausedByAdmin: false,
   countdownValue: null,
   chatMessages: [],
+  classicRoundDeck: [],
   knockoutCategory: null,
   knockoutPlayers: [],
   knockoutBracket: null,
@@ -101,7 +119,7 @@ const createInitialState = (): InternalGameState => ({
   knockoutMatchPoints: { player1: 0, player2: 0 },
 });
 
-// --- KNOCKOUT HELPER ---
+// --- KNOCKOUT HELPERS ---
 const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
     const shuffledPlayers = shuffleArray(players);
     const numPlayers = shuffledPlayers.length;
@@ -141,12 +159,12 @@ const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
 
     bracket.push(firstRound);
 
-    let currentRoundMatches = nextPowerOfTwo / 2;
+    let currentRoundWinners = numFirstRoundMatches + numByes;
     let roundIndex = 1;
-    while (currentRoundMatches >= 1) {
+    while (currentRoundWinners > 1) {
+        const numMatchesInNextRound = currentRoundWinners / 2;
         const nextRound: KnockoutMatch[] = [];
-        if (currentRoundMatches < 1) break;
-        for (let i = 0; i < currentRoundMatches / 2; i++) {
+        for (let i = 0; i < numMatchesInNextRound; i++) {
             nextRound.push({
                 id: `r${roundIndex}-m${i}`,
                 player1: null,
@@ -157,7 +175,7 @@ const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
             });
         }
         if(nextRound.length > 0) bracket.push(nextRound);
-        currentRoundMatches /= 2;
+        currentRoundWinners /= 2;
         roundIndex++;
     }
     
@@ -181,12 +199,9 @@ const generateBracket = (players: KnockoutPlayer[]): KnockoutBracket => {
 
 const advanceWinnerInBracket = (bracket: KnockoutBracket, winner: KnockoutPlayer, roundIndex: number, matchIndex: number): KnockoutBracket => {
     const newBracket = JSON.parse(JSON.stringify(bracket));
-    const currentMatch = newBracket[roundIndex][matchIndex];
-    currentMatch.winner = winner;
-
     const nextRoundIndex = roundIndex + 1;
     if (newBracket[nextRoundIndex]) {
-        const nextMatchIndex = Math.floor(currentMatch.matchIndex / 2);
+        const nextMatchIndex = Math.floor(matchIndex / 2);
         if (newBracket[nextRoundIndex][nextMatchIndex]) {
             const nextMatch = newBracket[nextRoundIndex][nextMatchIndex];
             if (!nextMatch.player1) {
@@ -196,10 +211,14 @@ const advanceWinnerInBracket = (bracket: KnockoutBracket, winner: KnockoutPlayer
             }
         }
     }
-
     return newBracket;
 };
 
+const isTournamentOver = (bracket: KnockoutBracket, roundIndex: number): boolean => {
+    if (!bracket || bracket.length === 0) return false;
+    // The tournament is over if the current round is the last round
+    return roundIndex === bracket.length - 1;
+};
 
 const gameReducer = (state: InternalGameState, action: GameAction): InternalGameState => {
   switch (action.type) {
@@ -208,47 +227,51 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         ...createInitialState(),
         gameStyle: action.payload.gameStyle,
         maxWinners: action.payload.maxWinners,
+        classicRoundDeck: action.payload.classicRoundDeck || [],
         knockoutCategory: action.payload.knockoutCategory || null,
         gameState: action.payload.gameStyle === GameStyle.Classic ? GameState.Playing : GameState.KnockoutRegistration,
       };
-    case 'START_CLASSIC_MODE': {
-      const firstCountry = action.payload.firstCountry;
-      return {
-        ...state,
-        round: 1,
-        gameMode: GameMode.GuessTheFlag,
-        currentCountry: firstCountry,
-        scrambledCountryName: scrambleWord(firstCountry.name),
-        isRoundActive: true,
-        roundTimer: ROUND_TIMER_SECONDS,
-      };
+    case 'START_FIRST_ROUND': {
+        const { gameMode, country, letter, category, availableAnswersCount, word, wordCategory, triviaQuestion, city } = action.payload;
+        return {
+          ...state,
+          gameState: GameState.Playing,
+          round: 1,
+          gameMode,
+          currentCountry: country || null,
+          currentLetter: letter || null,
+          currentCategory: category || null,
+          currentWord: word || null,
+          currentWordCategory: wordCategory || null,
+          currentTriviaQuestion: triviaQuestion || null,
+          currentCity: city || null,
+          availableAnswersCount: availableAnswersCount || null,
+          scrambledWord: country ? scrambleWord(country.name) : word ? scrambleWord(word) : triviaQuestion ? scrambleWord(triviaQuestion.answer) : city ? scrambleWord(city.name) : [],
+          isRoundActive: true,
+          roundTimer: ROUND_TIMER_SECONDS,
+        };
     }
     case 'NEXT_ROUND': {
       if (state.round >= TOTAL_ROUNDS) {
         return { ...state, gameState: GameState.Champion, isRoundActive: false };
       }
       const newRound = state.round + 1;
-      
-      let newGameMode: GameMode;
-      if (action.payload.nextCountry) newGameMode = GameMode.GuessTheFlag;
-      else if (action.payload.nextCategory) newGameMode = GameMode.ABC5Dasar;
-      else newGameMode = GameMode.GuessTheWord;
+      const { gameMode, nextCountry, nextLetter, nextCategory, availableAnswersCount, nextWord, nextWordCategory, nextTriviaQuestion, nextCity } = action.payload;
 
       return {
         ...state,
+        gameState: GameState.Playing,
         round: newRound,
-        gameMode: newGameMode,
-        currentCountry: newGameMode === GameMode.GuessTheFlag ? action.payload.nextCountry : null,
-        currentLetter: newGameMode === GameMode.ABC5Dasar ? action.payload.nextLetter : null,
-        currentCategory: newGameMode === GameMode.ABC5Dasar ? action.payload.nextCategory : null,
-        currentWord: newGameMode === GameMode.GuessTheWord ? action.payload.nextWord : null,
-        currentWordCategory: newGameMode === GameMode.GuessTheWord ? action.payload.nextWordCategory : null,
-        availableAnswersCount: newGameMode === GameMode.ABC5Dasar ? action.payload.availableAnswersCount : null,
-        scrambledCountryName: newGameMode === GameMode.GuessTheFlag && action.payload.nextCountry
-            ? scrambleWord(action.payload.nextCountry.name) 
-            : newGameMode === GameMode.GuessTheWord && action.payload.nextWord
-            ? scrambleWord(action.payload.nextWord)
-            : [],
+        gameMode: gameMode,
+        currentCountry: nextCountry || null,
+        currentLetter: nextLetter || null,
+        currentCategory: nextCategory || null,
+        currentWord: nextWord || null,
+        currentWordCategory: nextWordCategory || null,
+        currentTriviaQuestion: nextTriviaQuestion || null,
+        currentCity: nextCity || null,
+        availableAnswersCount: availableAnswersCount || null,
+        scrambledWord: nextCountry ? scrambleWord(nextCountry.name) : nextWord ? scrambleWord(nextWord) : nextTriviaQuestion ? scrambleWord(nextTriviaQuestion.answer) : nextCity ? scrambleWord(nextCity.name) : [],
         usedAnswers: [],
         isRoundActive: true,
         roundWinners: [],
@@ -263,8 +286,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const message = action.payload;
         const newChatMessages = [message, ...state.chatMessages].slice(0, 100);
         if (!state.isRoundActive) return { ...state, chatMessages: newChatMessages };
-        
-        const comment = message.comment.trim().toLowerCase();
         
         if (state.gameStyle === GameStyle.Classic) {
             if (state.roundWinners.some(w => w.nickname === message.nickname)) return { ...state, chatMessages: newChatMessages };
@@ -281,6 +302,9 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             }
         }
         
+        // FIX: The `comment` variable was not defined. Initialize it from the message payload.
+        const comment = message.comment.trim().toLowerCase();
+        
         let isCorrect = false;
         let foundAnswer = '';
         if (state.gameMode === GameMode.GuessTheFlag && state.currentCountry) {
@@ -292,6 +316,11 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             if (comment === state.currentWord.toLowerCase()) {
                 isCorrect = true;
                 foundAnswer = state.currentWord;
+            }
+        } else if (state.gameMode === GameMode.GuessTheCity && state.currentCity) {
+            if (comment === state.currentCity.name.toLowerCase()) {
+                isCorrect = true;
+                foundAnswer = state.currentCity.name;
             }
         } else if (state.gameMode === GameMode.ABC5Dasar && state.currentLetter && state.currentCategory) {
             if (comment.startsWith(state.currentLetter.toLowerCase())) {
@@ -306,6 +335,12 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             if (comment === state.currentTriviaQuestion.answer.toLowerCase()) {
                 isCorrect = true;
                 foundAnswer = state.currentTriviaQuestion.answer;
+            }
+        } else if (state.gameMode === GameMode.ZonaBola) {
+            const expectedAnswer = state.currentWord || state.currentStadium?.name || '';
+             if (comment === expectedAnswer.toLowerCase()) {
+                isCorrect = true;
+                foundAnswer = expectedAnswer;
             }
         }
 
@@ -362,25 +397,65 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         }
         return state;
     }
-    case 'END_ROUND': { 
-        if (!state.isRoundActive) return state;
-        let updatedWinners = [...state.roundWinners];
-        let updatedSessionLeaderboard = [...state.sessionLeaderboard];
-        if (state.gameMode === GameMode.ABC5Dasar) {
-            const answerCounts = new Map<string, number>();
-            updatedWinners.forEach(w => { if(w.answer) { answerCounts.set(w.answer.toLowerCase(), (answerCounts.get(w.answer.toLowerCase()) || 0) + 1); } });
-            updatedWinners = updatedWinners.map(w => {
-                if (w.answer && answerCounts.get(w.answer.toLowerCase()) === 1) {
-                    const newScore = w.score + UNIQUENESS_BONUS_POINTS;
-                    const sessionPlayer = updatedSessionLeaderboard.find(p => p.nickname === w.nickname);
-                    if(sessionPlayer) sessionPlayer.score += UNIQUENESS_BONUS_POINTS;
-                    return { ...w, score: newScore, bonus: UNIQUENESS_BONUS_POINTS };
-                }
-                return w;
-            });
-            updatedSessionLeaderboard.sort((a, b) => b.score - a.score);
-        }
-        return { ...state, isRoundActive: false, showWinnerModal: true, roundWinners: updatedWinners, sessionLeaderboard: updatedSessionLeaderboard };
+    case 'END_ROUND': {
+      if (!state.isRoundActive) return state;
+    
+      let correctAnswer = '';
+      switch (state.gameMode) {
+        case GameMode.GuessTheFlag:
+          correctAnswer = state.currentCountry?.name || '';
+          break;
+        case GameMode.GuessTheWord:
+          correctAnswer = state.currentWord || '';
+          break;
+        case GameMode.Trivia:
+          correctAnswer = state.currentTriviaQuestion?.answer || '';
+          break;
+        case GameMode.GuessTheCity:
+          correctAnswer = state.currentCity?.name || '';
+          break;
+      }
+    
+      let correctlyOrderedWord: LetterObject[][] = state.scrambledWord;
+      if (correctAnswer) {
+        const words = correctAnswer.toUpperCase().split(' ');
+        correctlyOrderedWord = words.map(word => 
+          word.split('').map((originalChar, originalIndex) => ({
+            id: `${word}-${originalIndex}-${originalChar}`,
+            letter: originalChar,
+          }))
+        );
+      }
+    
+      let updatedWinners = [...state.roundWinners];
+      let updatedSessionLeaderboard = [...state.sessionLeaderboard];
+      if (state.gameMode === GameMode.ABC5Dasar) {
+        const answerCounts = new Map<string, number>();
+        updatedWinners.forEach(w => {
+          if (w.answer) {
+            answerCounts.set(w.answer.toLowerCase(), (answerCounts.get(w.answer.toLowerCase()) || 0) + 1);
+          }
+        });
+        updatedWinners = updatedWinners.map(w => {
+          if (w.answer && answerCounts.get(w.answer.toLowerCase()) === 1) {
+            const newScore = w.score + UNIQUENESS_BONUS_POINTS;
+            const sessionPlayer = updatedSessionLeaderboard.find(p => p.nickname === w.nickname);
+            if (sessionPlayer) sessionPlayer.score += UNIQUENESS_BONUS_POINTS;
+            return { ...w, score: newScore, bonus: UNIQUENESS_BONUS_POINTS };
+          }
+          return w;
+        });
+        updatedSessionLeaderboard.sort((a, b) => b.score - a.score);
+      }
+    
+      return {
+        ...state,
+        isRoundActive: false,
+        gameState: GameState.ClassicAnswerReveal,
+        roundWinners: updatedWinners,
+        sessionLeaderboard: updatedSessionLeaderboard,
+        scrambledWord: correctlyOrderedWord,
+      };
     }
     case 'SHOW_WINNER_MODAL':
         return { ...state, showWinnerModal: true };
@@ -439,6 +514,9 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             knockoutMatchPoints: { player1: 0, player2: 0 },
             currentCountry: null,
             currentTriviaQuestion: null,
+            currentWord: null,
+            currentWordCategory: null,
+            currentStadium: null,
         };
     }
     case 'FINISH_KNOCKOUT_MATCH': {
@@ -446,11 +524,10 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
         if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
 
-        const isFinalMatch = currentBracketRoundIndex === knockoutBracket.length - 1 && knockoutBracket[currentBracketRoundIndex].length === 1;
+        let newBracket = JSON.parse(JSON.stringify(knockoutBracket));
+        newBracket[currentBracketRoundIndex][currentMatchIndex].winner = winner;
 
-        if (isFinalMatch) {
-            const newBracket = JSON.parse(JSON.stringify(knockoutBracket));
-            newBracket[currentBracketRoundIndex][currentMatchIndex].winner = winner;
+        if (isTournamentOver(newBracket, currentBracketRoundIndex)) {
             return {
                 ...state,
                 isRoundActive: false,
@@ -459,11 +536,11 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                 gameState: GameState.Champion,
             };
         } else {
-            const newBracket = advanceWinnerInBracket(knockoutBracket, winner, currentBracketRoundIndex, currentMatchIndex);
+            const advancedBracket = advanceWinnerInBracket(newBracket, winner, currentBracketRoundIndex, currentMatchIndex);
             return {
                 ...state,
                 isRoundActive: false,
-                knockoutBracket: newBracket,
+                knockoutBracket: advancedBracket,
                 gameState: GameState.KnockoutShowWinner,
             };
         }
@@ -472,11 +549,10 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const { roundIndex, matchIndex, winner } = action.payload;
         if (!state.knockoutBracket) return state;
         
-        const isFinalMatch = roundIndex === state.knockoutBracket.length - 1 && state.knockoutBracket[roundIndex].length === 1;
+        let newBracket = JSON.parse(JSON.stringify(state.knockoutBracket));
+        newBracket[roundIndex][matchIndex].winner = winner;
 
-        if (isFinalMatch) {
-            const newBracket = JSON.parse(JSON.stringify(state.knockoutBracket));
-            newBracket[roundIndex][matchIndex].winner = winner;
+        if (isTournamentOver(newBracket, roundIndex)) {
             return {
                 ...state,
                 knockoutBracket: newBracket,
@@ -484,10 +560,10 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                 gameState: GameState.Champion,
             };
         } else {
-            const newBracket = advanceWinnerInBracket(state.knockoutBracket, winner, roundIndex, matchIndex);
+            const advancedBracket = advanceWinnerInBracket(newBracket, winner, roundIndex, matchIndex);
             return {
                 ...state,
-                knockoutBracket: newBracket,
+                knockoutBracket: advancedBracket,
                 gameState: GameState.KnockoutReadyToPlay,
             };
         }
@@ -528,7 +604,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             ...state,
             gameMode: GameMode.GuessTheFlag,
             currentCountry: action.payload.country,
-            scrambledCountryName: scrambleWord(action.payload.country.name),
+            scrambledWord: scrambleWord(action.payload.country.name),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -538,6 +614,21 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             ...state,
             gameMode: GameMode.Trivia,
             currentTriviaQuestion: action.payload.question,
+            scrambledWord: scrambleWord(action.payload.question.answer),
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
+        };
+    }
+    case 'SET_KNOCKOUT_ZONA_BOLA': {
+        const { type, data } = action.payload;
+        const name = typeof data === 'string' ? data : data.name;
+        return {
+            ...state,
+            gameMode: GameMode.ZonaBola,
+            currentWordCategory: type,
+            currentWord: type !== 'Stadion Bola' ? name : null,
+            currentStadium: type === 'Stadion Bola' ? (data as FootballStadium) : null,
+            scrambledWord: scrambleWord(name),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -553,6 +644,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             knockoutMatchPoints: { player1: 0, player2: 0 },
             currentCountry: null,
             currentTriviaQuestion: null,
+            scrambledWord: [],
         };
     }
     case 'FINISH_GAME':
@@ -589,6 +681,8 @@ export const useGameLogic = () => {
   const triviaDeck = useRef<TriviaQuestion[]>([]);
   const footballPlayerDeck = useRef<string[]>([]);
   const footballClubDeck = useRef<string[]>([]);
+  const footballStadiumDeck = useRef<FootballStadium[]>([]);
+  const cityDeck = useRef<City[]>([]);
   const usedAbcCombinations = useRef<Set<string>>(new Set());
   const getRandomLetter = () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
 
@@ -598,80 +692,121 @@ export const useGameLogic = () => {
     triviaDeck.current = shuffleArray(triviaQuestions);
     footballPlayerDeck.current = shuffleArray(footballPlayers);
     footballClubDeck.current = shuffleArray(footballClubs);
+    footballStadiumDeck.current = shuffleArray(footballStadiums);
+    cityDeck.current = shuffleArray(cities);
     usedAbcCombinations.current.clear();
   }, []);
 
   const getNextCountry = useCallback(() => {
-    if(countryDeck.current.length === 0) {
-        countryDeck.current = shuffleArray(countries);
-    }
-    return countryDeck.current.pop() as Country
+    if(countryDeck.current.length === 0) countryDeck.current = shuffleArray(countries);
+    return countryDeck.current.pop()!
+  }, []);
+  
+  const getNextTrivia = useCallback(() => {
+    if (triviaDeck.current.length === 0) triviaDeck.current = shuffleArray(triviaQuestions);
+    return triviaDeck.current.pop()!;
   }, []);
 
+  const getNextCity = useCallback(() => {
+    if(cityDeck.current.length === 0) cityDeck.current = shuffleArray(cities);
+    return cityDeck.current.pop()!
+  }, []);
+  
+  const getNextAbcCombo = useCallback(() => {
+    let letter: string, category: AbcCategory, combo: string, attempts = 0;
+    do {
+        letter = getRandomLetter();
+        category = abcCategories[Math.floor(Math.random() * abcCategories.length)];
+        combo = `${letter}-${category}`;
+        attempts++;
+    } while (usedAbcCombinations.current.has(combo) && attempts < 100);
+    usedAbcCombinations.current.add(combo);
+    const validationList = getValidationList(category);
+    const availableAnswers = validationList.filter(item => item.toLowerCase().startsWith(letter.toLowerCase()));
+    
+    return { letter, category, availableAnswersCount: availableAnswers.length };
+  }, []);
+
+
   const getNewKnockoutCountry = useCallback(() => {
-    if (knockoutCountryDeck.current.length === 0) {
-        knockoutCountryDeck.current = shuffleArray(countries);
-    }
+    if (knockoutCountryDeck.current.length === 0) knockoutCountryDeck.current = shuffleArray(countries);
     return knockoutCountryDeck.current.pop()!;
   }, []);
 
   const getNewKnockoutTriviaQuestion = useCallback(() => {
-    if (triviaDeck.current.length === 0) {
-        triviaDeck.current = shuffleArray(triviaQuestions);
-    }
+    if (triviaDeck.current.length === 0) triviaDeck.current = shuffleArray(triviaQuestions);
     return triviaDeck.current.pop()!;
+  }, []);
+
+  const getNewKnockoutZonaBola = useCallback(() => {
+      const choice = Math.floor(Math.random() * 3);
+      if (choice === 0) { // Player
+          if (footballPlayerDeck.current.length === 0) footballPlayerDeck.current = shuffleArray(footballPlayers);
+          return { type: 'Pemain Bola' as const, data: footballPlayerDeck.current.pop()! };
+      } else if (choice === 1) { // Club
+          if (footballClubDeck.current.length === 0) footballClubDeck.current = shuffleArray(footballClubs);
+          return { type: 'Klub Bola' as const, data: footballClubDeck.current.pop()! };
+      } else { // Stadium
+          if (footballStadiumDeck.current.length === 0) footballStadiumDeck.current = shuffleArray(footballStadiums);
+          return { type: 'Stadion Bola' as const, data: footballStadiumDeck.current.pop()! };
+      }
   }, []);
   
   const startGame = useCallback((gameStyle: GameStyle, maxWinners: number, knockoutCategory?: KnockoutCategory) => {
     prepareNewDecks();
-    dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory } });
     if (gameStyle === GameStyle.Classic) {
-        const firstCountry = getNextCountry();
-        dispatch({ type: 'START_CLASSIC_MODE', payload: { firstCountry } });
+        // Create a shuffled deck of round types for classic mode
+        const roundDeck: GameMode[] = [
+            ...Array(5).fill(GameMode.GuessTheFlag),
+            ...Array(3).fill(GameMode.ABC5Dasar),
+            ...Array(3).fill(GameMode.Trivia),
+            ...Array(4).fill(GameMode.GuessTheCity),
+        ];
+        const classicRoundDeck = shuffleArray(roundDeck);
+
+        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, classicRoundDeck: shuffleArray(classicRoundDeck) } });
+
+        const firstRoundMode = classicRoundDeck[0];
+        const payload: Partial<GameActionPayloads['START_FIRST_ROUND']> = { gameMode: firstRoundMode };
+
+        if (firstRoundMode === GameMode.GuessTheFlag) payload.country = getNextCountry();
+        else if (firstRoundMode === GameMode.ABC5Dasar) {
+            const { letter, category, availableAnswersCount } = getNextAbcCombo();
+            payload.letter = letter;
+            payload.category = category;
+            payload.availableAnswersCount = availableAnswersCount;
+        } else if (firstRoundMode === GameMode.Trivia) {
+            payload.triviaQuestion = getNextTrivia();
+        } else if (firstRoundMode === GameMode.GuessTheCity) {
+            payload.city = getNextCity();
+        }
+        dispatch({ type: 'START_FIRST_ROUND', payload: payload as GameActionPayloads['START_FIRST_ROUND'] });
+    } else {
+        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory } });
     }
-  }, [prepareNewDecks, getNextCountry]);
+  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity]);
   
   const nextRound = useCallback(() => {
     const nextRoundNumber = state.round + 1;
-    if (nextRoundNumber > TOTAL_ROUNDS) return;
+    if (nextRoundNumber > TOTAL_ROUNDS || state.gameStyle !== GameStyle.Classic) return;
 
-    const nextPayload: Partial<GameActionPayloads['NEXT_ROUND']> = {};
+    const nextGameMode = state.classicRoundDeck[state.round]; // round is 1-based, deck is 0-based
+    const payload: Partial<GameActionPayloads['NEXT_ROUND']> = { gameMode: nextGameMode };
     
-    if (nextRoundNumber <= FLAG_ROUNDS_COUNT) {
-      nextPayload.nextCountry = getNextCountry();
-    } else {
-        const modeChoice = Math.random() < 0.5 ? GameMode.ABC5Dasar : GameMode.GuessTheWord;
-        if(modeChoice === GameMode.ABC5Dasar) {
-            let letter: string, category: AbcCategory, combo: string, attempts = 0;
-            do {
-                letter = getRandomLetter();
-                category = abcCategories[Math.floor(Math.random() * abcCategories.length)];
-                combo = `${letter}-${category}`;
-                attempts++;
-            } while (usedAbcCombinations.current.has(combo) && attempts < 100);
-            usedAbcCombinations.current.add(combo);
-            const validationList = getValidationList(category);
-            const availableAnswers = validationList.filter(item => item.toLowerCase().startsWith(letter.toLowerCase()));
-            
-            nextPayload.nextLetter = letter;
-            nextPayload.nextCategory = category;
-            nextPayload.availableAnswersCount = availableAnswers.length;
-        } else {
-            const category = Math.random() < 0.5 ? 'Pemain Bola' : 'Klub Bola';
-            let word: string;
-            if (category === 'Pemain Bola') {
-                if (footballPlayerDeck.current.length === 0) footballPlayerDeck.current = shuffleArray(footballPlayers);
-                word = footballPlayerDeck.current.pop()!;
-            } else {
-                if (footballClubDeck.current.length === 0) footballClubDeck.current = shuffleArray(footballClubs);
-                word = footballClubDeck.current.pop()!;
-            }
-            nextPayload.nextWord = word;
-            nextPayload.nextWordCategory = category;
-        }
+    if (nextGameMode === GameMode.GuessTheFlag) {
+      payload.nextCountry = getNextCountry();
+    } else if (nextGameMode === GameMode.ABC5Dasar) {
+        const { letter, category, availableAnswersCount } = getNextAbcCombo();
+        payload.nextLetter = letter;
+        payload.nextCategory = category;
+        payload.availableAnswersCount = availableAnswersCount;
+    } else if (nextGameMode === GameMode.Trivia) {
+        payload.nextTriviaQuestion = getNextTrivia();
+    } else if (nextGameMode === GameMode.GuessTheCity) {
+        payload.nextCity = getNextCity();
     }
-    dispatch({ type: 'NEXT_ROUND', payload: nextPayload as GameActionPayloads['NEXT_ROUND'] });
-  }, [state.round, getNextCountry]);
+    dispatch({ type: 'NEXT_ROUND', payload: payload as GameActionPayloads['NEXT_ROUND'] });
+  }, [state.round, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity]);
 
   const resetGame = useCallback(() => dispatch({ type: 'RESET_GAME' }), []);
   
@@ -772,24 +907,31 @@ export const useGameLogic = () => {
         const timer = setTimeout(() => dispatch({ type: 'SET_READY_TO_PLAY' }), KNOCKOUT_WINNER_VIEW_SECONDS * 1000);
         return () => clearTimeout(timer);
     }
+    if(state.gameState === GameState.ClassicAnswerReveal) {
+        const timer = setTimeout(() => dispatch({ type: 'SHOW_WINNER_MODAL' }), ANSWER_REVEAL_DELAY_SECONDS * 1000);
+        return () => clearTimeout(timer);
+    }
   }, [state.gameState]);
 
   // Logic triggers based on state changes
   useEffect(() => {
-    if (state.gameState === GameState.KnockoutPlaying && !state.currentCountry && !state.currentTriviaQuestion) {
+    if (state.gameState === GameState.KnockoutPlaying && !state.isRoundActive && !state.currentCountry && !state.currentTriviaQuestion && !state.currentWord && !state.currentStadium) {
         if(state.knockoutCategory === 'GuessTheCountry') {
             const country = getNewKnockoutCountry();
             dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
         } else if (state.knockoutCategory === 'Trivia') {
             const question = getNewKnockoutTriviaQuestion();
             dispatch({ type: 'SET_KNOCKOUT_TRIVIA', payload: { question } });
+        } else if (state.knockoutCategory === 'ZonaBola') {
+            const payload = getNewKnockoutZonaBola();
+            dispatch({ type: 'SET_KNOCKOUT_ZONA_BOLA', payload });
         }
     }
-  }, [state.gameState, state.currentCountry, state.currentTriviaQuestion, state.knockoutCategory, getNewKnockoutCountry, getNewKnockoutTriviaQuestion]);
+  }, [state.gameState, state.isRoundActive, state.knockoutCategory, getNewKnockoutCountry, getNewKnockoutTriviaQuestion, getNewKnockoutZonaBola]);
 
   // This effect handles advancing the knockout game after a question is finished
   useEffect(() => {
-    if (state.gameState === GameState.KnockoutPlaying && !state.isRoundActive && (state.currentCountry || state.currentTriviaQuestion)) {
+    if (state.gameState === GameState.KnockoutPlaying && !state.isRoundActive && (state.currentCountry || state.currentTriviaQuestion || state.currentCity || state.currentWord || state.currentStadium)) {
       const timeoutId = setTimeout(() => {
         const { player1, player2 } = state.knockoutMatchPoints;
         const match = getCurrentKnockoutMatch();
@@ -804,13 +946,16 @@ export const useGameLogic = () => {
           } else if (state.knockoutCategory === 'Trivia') {
               const question = getNewKnockoutTriviaQuestion();
               dispatch({ type: 'SET_KNOCKOUT_TRIVIA', payload: { question } });
+          } else if (state.knockoutCategory === 'ZonaBola') {
+              const payload = getNewKnockoutZonaBola();
+              dispatch({ type: 'SET_KNOCKOUT_ZONA_BOLA', payload });
           }
         }
       }, 3000); // 3-second delay to show the answer
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.isRoundActive, state.gameState, state.knockoutMatchPoints, state.currentCountry, state.currentTriviaQuestion, state.knockoutCategory, getCurrentKnockoutMatch, getNewKnockoutCountry, getNewKnockoutTriviaQuestion]);
+  }, [state.isRoundActive, state.gameState, state.knockoutMatchPoints, state.knockoutCategory, getCurrentKnockoutMatch, getNewKnockoutCountry, getNewKnockoutTriviaQuestion, getNewKnockoutZonaBola]);
   
   useEffect(() => {
     if (state.gameStyle === GameStyle.Classic && state.isRoundActive) {
@@ -830,7 +975,6 @@ export const useGameLogic = () => {
               if (state.round < TOTAL_ROUNDS) {
                   dispatch({ type: 'START_COUNTDOWN' });
               } else {
-                  // This ensures we transition to the Champion screen after the final round's modal
                   dispatch({ type: 'NEXT_ROUND', payload: {} as GameActionPayloads['NEXT_ROUND'] });
               }
           }, WINNER_MODAL_TIMEOUT_MS);
@@ -844,10 +988,14 @@ export const useGameLogic = () => {
         return state.currentCountry?.name || '';
       case GameMode.GuessTheWord:
         return state.currentWord || '';
+      case GameMode.GuessTheCity:
+        return state.currentCity?.name || '';
       case GameMode.ABC5Dasar:
         return `(Jawaban Kategori ${state.currentCategory} diawali huruf ${state.currentLetter})`;
       case GameMode.Trivia:
         return state.currentTriviaQuestion?.answer || '';
+      case GameMode.ZonaBola:
+        return state.currentWord || state.currentStadium?.name || '';
       default:
         return 'Tidak ada soal aktif';
     }

@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChatMessage } from '../types';
+import { ChatMessage, GameState, KnockoutPlayer } from '../types';
 
 interface SimulationPanelProps {
   onComment: (comment: ChatMessage) => void;
   currentAnswer: string;
+  gameState: GameState;
+  onRegisterPlayer: (player: KnockoutPlayer) => void;
 }
 
-const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAnswer }) => {
+const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAnswer, gameState, onRegisterPlayer }) => {
   const [username, setUsername] = useState('Tester');
   const [comment, setComment] = useState('');
   const [userCounter, setUserCounter] = useState(1);
+  const [fakePlayerCount, setFakePlayerCount] = useState(8);
 
   const generateRandomUser = () => {
     setUsername(`Pemain${userCounter}`);
@@ -44,6 +47,17 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAns
     });
   };
 
+  const handleAddFakePlayers = () => {
+    if (fakePlayerCount <= 0) return;
+    for (let i = 1; i <= fakePlayerCount; i++) {
+      const fakePlayerName = `Pemain${i}`;
+      onRegisterPlayer({
+        nickname: fakePlayerName,
+        profilePictureUrl: `https://i.pravatar.cc/40?u=${fakePlayerName}`
+      });
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 50 }}
@@ -55,6 +69,31 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAns
         <h2 className="text-md font-bold text-slate-700 dark:text-gray-300">Panel Simulasi</h2>
       </header>
       <div className="flex-grow overflow-y-auto p-4 space-y-4">
+        
+        {gameState === GameState.KnockoutRegistration && (
+            <div className="border-b border-dashed border-sky-200 dark:border-gray-600 pb-4">
+                <label htmlFor="sim-fake-players" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Pendaftaran Knockout Palsu
+                </label>
+                <div className="flex gap-2">
+                    <input
+                    type="number"
+                    id="sim-fake-players"
+                    value={fakePlayerCount}
+                    onChange={(e) => setFakePlayerCount(parseInt(e.target.value, 10) || 1)}
+                    min="1"
+                    className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <button
+                        onClick={handleAddFakePlayers}
+                        className="px-3 py-2 bg-sky-500 text-white text-xs font-bold rounded-md hover:bg-sky-600 transition-all"
+                    >
+                        Tambah
+                    </button>
+                </div>
+            </div>
+        )}
+
         <div>
           <label htmlFor="sim-username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Username

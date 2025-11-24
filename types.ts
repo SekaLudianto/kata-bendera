@@ -1,6 +1,22 @@
+// FIX: Export LetterObject interface to be used across multiple files.
+export interface LetterObject {
+  id: string;
+  letter: string;
+}
+
 export interface Country {
   name: string;
   code: string;
+}
+
+export interface City {
+  name: string;
+  region: string; // Province for Indonesia, Country for world cities
+}
+
+export interface FootballStadium {
+  name: string;
+  location: string; // Club or City
 }
 
 export interface ChatMessage {
@@ -53,6 +69,7 @@ export enum GameState {
     Connecting = 'connecting',
     ModeSelection = 'mode_selection',
     Playing = 'playing',
+    ClassicAnswerReveal = 'classic_answer_reveal',
     Paused = 'paused',
     Champion = 'champion',
     Finished = 'finished',
@@ -70,15 +87,17 @@ export enum GameMode {
   ABC5Dasar = 'abc_5_dasar',
   GuessTheWord = 'guess_the_word',
   Trivia = 'trivia',
+  GuessTheCity = 'guess_the_city',
+  ZonaBola = 'zona_bola',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
-export type WordCategory = 'Pemain Bola' | 'Klub Bola';
+export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 // --- Knockout Mode Types ---
-export type KnockoutCategory = 'GuessTheCountry' | 'Trivia';
+export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola';
 
 export interface TriviaQuestion {
   question: string;
@@ -106,20 +125,34 @@ export type KnockoutChampions = Record<string, number>;
 
 // This will be used in useGameLogic.ts to set the word for a knockout match
 export interface GameActionPayloads {
-    'START_GAME': { gameStyle: GameStyle, maxWinners: number, knockoutCategory?: KnockoutCategory };
-    'START_CLASSIC_MODE': { firstCountry: Country };
+    'START_GAME': { gameStyle: GameStyle; maxWinners: number; knockoutCategory?: KnockoutCategory; classicRoundDeck?: GameMode[] };
+    'START_FIRST_ROUND': { 
+        gameMode: GameMode,
+        country?: Country, 
+        letter?: string, 
+        category?: AbcCategory, 
+        availableAnswersCount?: number,
+        word?: string,
+        wordCategory?: WordCategory,
+        triviaQuestion?: TriviaQuestion,
+        city?: City,
+    };
     'NEXT_ROUND': { 
+      gameMode: GameMode,
       nextCountry?: Country, 
       nextLetter?: string, 
       nextCategory?: AbcCategory, 
       availableAnswersCount?: number,
       nextWord?: string,
       nextWordCategory?: WordCategory,
+      nextTriviaQuestion?: TriviaQuestion,
+      nextCity?: City,
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
     'SET_KNOCKOUT_COUNTRY': { country: Country };
     'SET_KNOCKOUT_TRIVIA': { question: TriviaQuestion };
+    'SET_KNOCKOUT_ZONA_BOLA': { type: 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola', data: string | FootballStadium };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };

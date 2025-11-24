@@ -12,6 +12,7 @@ import KnockoutBracketScreen from './components/KnockoutBracketScreen';
 import KnockoutPrepareMatchScreen from './components/KnockoutPrepareMatchScreen';
 import ModeSelectionScreen from './components/ModeSelectionScreen';
 import SimulationPanel from './components/SimulationPanel';
+import GlobalLeaderboardModal from './components/GlobalLeaderboardModal';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
@@ -31,6 +32,7 @@ const App: React.FC = () => {
   const [maxWinners, setMaxWinners] = useState<number>(DEFAULT_MAX_WINNERS_PER_ROUND);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isDisconnected, setIsDisconnected] = useState(false);
+  const [showGlobalLeaderboard, setShowGlobalLeaderboard] = useState(false);
   
   const [currentGift, setCurrentGift] = useState<GiftNotificationType | null>(null);
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
@@ -95,7 +97,7 @@ const App: React.FC = () => {
       game.processComment(message);
     } else if (gameState === GameState.Finished) {
       if (commentText === '!next') {
-        setGameState(GameState.ModeSelection);
+        game.returnToModeSelection();
       }
     }
   }, [gameState, game]);
@@ -128,8 +130,12 @@ const App: React.FC = () => {
   }, [game, maxWinners]);
   
   const handleBackToModeSelection = useCallback(() => {
-    setGameState(GameState.ModeSelection);
-  }, []);
+    game.returnToModeSelection();
+  }, [game]);
+  
+  const handleAutoRestart = useCallback(() => {
+    game.startGame(GameStyle.Classic, maxWinners);
+  }, [game, maxWinners]);
 
   const handleReconnect = useCallback(() => {
     setConnectionError(null);
@@ -253,9 +259,11 @@ const App: React.FC = () => {
             return <ModeSelectionScreen 
                       onStartClassic={handleStartClassic}
                       onStartKnockout={handleStartKnockout}
+                      onShowLeaderboard={() => setShowGlobalLeaderboard(true)}
                    />;
         case GameState.Playing:
         case GameState.KnockoutPlaying:
+        case GameState.ClassicAnswerReveal:
              return (
               <motion.div
                 key="playing"
@@ -292,6 +300,7 @@ const App: React.FC = () => {
                         onRestartCompetition={game.restartKnockoutCompetition}
                         onDeclareWalkoverWinner={game.declareWalkoverWinner}
                         champions={champions}
+                        onReturnToModeSelection={game.returnToModeSelection}
                     />;
         case GameState.KnockoutPrepareMatch:
             return <KnockoutPrepareMatchScreen 
@@ -332,7 +341,12 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, y: -50 }}
                 className="h-full"
               >
-                <GameOverScreen leaderboard={game.state.sessionLeaderboard} onRestart={handleBackToModeSelection} />
+                <GameOverScreen
+                    leaderboard={game.state.sessionLeaderboard}
+                    globalLeaderboard={game.state.leaderboard}
+                    onBackToMenu={handleBackToModeSelection}
+                    onAutoRestart={handleAutoRestart}
+                />
               </motion.div>
             );
         default:
@@ -345,6 +359,14 @@ const App: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
+      <AnimatePresence>
+        {showGlobalLeaderboard && (
+          <GlobalLeaderboardModal 
+            leaderboard={game.state.leaderboard} 
+            onClose={() => setShowGlobalLeaderboard(false)} 
+          />
+        )}
+      </AnimatePresence>
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
             <AnimatePresence>
               {showAdminButtons && (
@@ -389,7 +411,12 @@ const App: React.FC = () => {
         <AnimatePresence>
         {showLiveFeed && <LiveFeedPanel feed={liveFeed} />}
         {isSimulation && gameState !== GameState.Setup && (
-            <SimulationPanel onComment={handleComment} currentAnswer={game.currentAnswer} />
+            <SimulationPanel 
+                onComment={handleComment} 
+                currentAnswer={game.currentAnswer} 
+                gameState={gameState}
+                onRegisterPlayer={game.registerPlayer}
+            />
         )}
         </AnimatePresence>
       </div>
