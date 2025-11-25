@@ -17,12 +17,28 @@ import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { SkipForwardIcon, SwitchIcon } from './components/IconComponents';
 
 const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
+
+const infoTips: (() => React.ReactNode)[] = [
+  () => <>Ketik <b className="text-sky-300">!myrank</b> di chat untuk melihat peringkat & skormu!</>,
+  () => (
+    <div className="flex items-center justify-center gap-1">
+      Kirim
+      <img 
+        src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
+        alt="Mawar" 
+        className="w-5 h-5 inline-block" 
+      />
+      untuk skip soal!
+    </div>
+  ),
+];
+
 
 const App: React.FC = () => {
   useTheme(); // Initialize theme logic
@@ -36,6 +52,11 @@ const App: React.FC = () => {
   
   const [currentGift, setCurrentGift] = useState<GiftNotificationType | null>(null);
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
+  const [currentRank, setCurrentRank] = useState<RankNotificationType | null>(null);
+  const rankQueue = useRef<Omit<RankNotificationType, 'id'>[]>([]);
+  const [currentInfo, setCurrentInfo] = useState<InfoNotificationType | null>(null);
+  const infoTipIndex = useRef(0);
+
   const [liveFeed, setLiveFeed] = useState<LiveFeedEvent[]>([]);
 
   const game = useGameLogic();
@@ -52,7 +73,15 @@ const App: React.FC = () => {
             setCurrentGift({ ...nextGift, id: `${new Date().getTime()}-${nextGift.nickname}` });
         }
       }
-  }, [currentGift]);
+
+      // Gift-to-skip logic
+      const giftNameLower = gift.giftName.toLowerCase();
+      const isRoseGift = giftNameLower.includes('mawar') || giftNameLower.includes('rose') || gift.giftId === 5655;
+
+      if (isRoseGift && gameState === GameState.Playing) {
+          game.skipRound();
+      }
+  }, [currentGift, gameState, game]);
 
   useEffect(() => {
     if (currentGift) {
@@ -70,11 +99,94 @@ const App: React.FC = () => {
         }
     }
   }, [currentGift]);
+  
+  const handleRankCheck = useCallback((rankInfo: Omit<RankNotificationType, 'id'>) => {
+      rankQueue.current.push(rankInfo);
+      if (!currentRank) {
+        const nextRank = rankQueue.current.shift();
+        if (nextRank) {
+            setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.nickname}` });
+        }
+      }
+  }, [currentRank]);
+
+  useEffect(() => {
+    if (currentRank) {
+        const timer = setTimeout(() => {
+            setCurrentRank(null);
+        }, 5000); // rank notification shows for 5s
+        return () => clearTimeout(timer);
+    } else if (rankQueue.current.length > 0) {
+        const nextRank = rankQueue.current.shift();
+        if (nextRank) {
+            const timer = setTimeout(() => {
+              setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.nickname}` });
+            }, 300); // small delay between notifications
+            return () => clearTimeout(timer);
+        }
+    }
+  }, [currentRank]);
+
+  // Periodic Info Notification Logic
+  useEffect(() => {
+      const activeGameStates = [
+          GameState.Playing, 
+          GameState.KnockoutPlaying,
+          GameState.ClassicAnswerReveal,
+          GameState.KnockoutRegistration,
+          GameState.KnockoutReadyToPlay,
+      ];
+      if (!activeGameStates.includes(gameState)) {
+          setCurrentInfo(null); // Clear info when not in active game
+          return;
+      }
+
+      const infoInterval = setInterval(() => {
+          const tipContent = infoTips[infoTipIndex.current]();
+          setCurrentInfo({
+              id: `${new Date().getTime()}-info`,
+              content: tipContent,
+          });
+          infoTipIndex.current = (infoTipIndex.current + 1) % infoTips.length;
+      }, 25000); // Show an info tip every 25 seconds
+
+      return () => clearInterval(infoInterval);
+  }, [gameState]);
+
+  useEffect(() => {
+      if (currentInfo) {
+          const timer = setTimeout(() => {
+              setCurrentInfo(null);
+          }, 7000); // Info shows for 7s
+          return () => clearTimeout(timer);
+      }
+  }, [currentInfo]);
 
   const handleComment = useCallback((message: ChatMessage) => {
     setLiveFeed(prev => [message, ...prev].slice(0,100));
     const commentText = message.comment.trim().toLowerCase();
-    const isModerator = MODERATOR_USERNAMES.includes(message.nickname.toLowerCase());
+    const isModerator = MODERATOR_USERNAMES.includes(message.nickname.toLowerCase().replace(/^@/, ''));
+    
+    if (commentText === '!myrank') {
+      const playerRank = game.state.leaderboard.findIndex(p => p.nickname === message.nickname);
+      if (playerRank !== -1) {
+          const playerScore = game.state.leaderboard[playerRank].score;
+          handleRankCheck({
+              nickname: message.nickname,
+              profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.nickname}`,
+              rank: playerRank + 1,
+              score: playerScore,
+          });
+      } else {
+          handleRankCheck({
+              nickname: message.nickname,
+              profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.nickname}`,
+              rank: -1, // -1 indicates not ranked
+              score: 0,
+          });
+      }
+      return;
+    }
 
     if (isModerator) {
       if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentText === '!skip') {
@@ -95,12 +207,8 @@ const App: React.FC = () => {
       game.registerPlayer({ nickname: message.nickname, profilePictureUrl: message.profilePictureUrl });
     } else if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
       game.processComment(message);
-    } else if (gameState === GameState.Finished) {
-      if (commentText === '!next') {
-        game.returnToModeSelection();
-      }
     }
-  }, [gameState, game]);
+  }, [gameState, game, handleRankCheck]);
 
 
   const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
@@ -113,12 +221,12 @@ const App: React.FC = () => {
     setIsSimulation(isSimulating);
     
     if (isSimulating) {
-        setGameState(GameState.ModeSelection);
+        game.returnToModeSelection();
     } else {
         setGameState(GameState.Connecting);
         connect(tiktokUsername);
     }
-  }, [connect]);
+  }, [connect, game]);
 
   const handleStartClassic = useCallback((winnersCount: number) => {
     setMaxWinners(winnersCount);
@@ -174,10 +282,10 @@ const App: React.FC = () => {
 
   // Game logic state transitions
   useEffect(() => {
-    if (game.state.gameState !== GameState.Setup && game.state.gameState !== gameState) {
+    if (game.state.gameState !== gameState) {
         setGameState(game.state.gameState);
     }
-  }, [game.state.gameState, gameState]);
+  }, [game.state.gameState]);
 
   // Champion effect
   useEffect(() => {
@@ -278,6 +386,9 @@ const App: React.FC = () => {
                   onReconnect={handleReconnect}
                   connectionError={connectionError}
                   currentGift={currentGift}
+                  currentRank={currentRank}
+                  currentInfo={currentInfo}
+                  onFinishWinnerDisplay={game.finishWinnerDisplay}
                 />
               </motion.div>
             );
@@ -413,6 +524,7 @@ const App: React.FC = () => {
         {isSimulation && gameState !== GameState.Setup && (
             <SimulationPanel 
                 onComment={handleComment} 
+                onGift={handleGift}
                 currentAnswer={game.currentAnswer} 
                 gameState={gameState}
                 onRegisterPlayer={game.registerPlayer}

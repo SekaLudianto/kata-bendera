@@ -1,15 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { RoundWinner, GameMode } from '../types';
 import { PartyPopperIcon } from './IconComponents';
 import { useSound } from '../hooks/useSound';
-
+import { WINNER_MODAL_TIMEOUT_MS } from '../constants';
 
 interface RoundWinnerModalProps {
   winners: RoundWinner[];
   round: number;
   gameMode: GameMode;
   allAnswersFound: boolean;
+  onScrollComplete: () => void;
 }
 
 const getRankDisplay = (rank: number) => {
@@ -19,12 +20,56 @@ const getRankDisplay = (rank: number) => {
     return `${rank + 1}.`;
 };
 
-const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gameMode, allAnswersFound }) => {
+const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gameMode, allAnswersFound, onScrollComplete }) => {
   const { playSound } = useSound();
+  const listContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     playSound(winners.length > 0 ? 'roundEnd' : 'roundEndMuted');
   }, [playSound, winners.length]);
+
+  useEffect(() => {
+    const listElement = listContainerRef.current;
+    if (!listElement) return;
+
+    const controlTimeout = setTimeout(() => {
+        const isOverflowing = listElement.scrollHeight > listElement.clientHeight;
+
+        if (isOverflowing) {
+            const scrollDistance = listElement.scrollHeight - listElement.clientHeight;
+            const scrollDuration = (scrollDistance / 40) * 1000; // 40px/s, in ms
+
+            let start: number | undefined;
+            let animationFrameId: number;
+
+            const step = (timestamp: number) => {
+                if (start === undefined) {
+                    start = timestamp;
+                }
+                const elapsed = timestamp - start;
+                const progress = Math.min(elapsed / scrollDuration, 1);
+
+                listElement.scrollTop = progress * scrollDistance;
+                
+                if (progress < 1) {
+                    animationFrameId = requestAnimationFrame(step);
+                } else {
+                    setTimeout(onScrollComplete, 1500); // Wait at the end
+                }
+            };
+
+            animationFrameId = requestAnimationFrame(step);
+            
+            return () => cancelAnimationFrame(animationFrameId);
+
+        } else {
+            const timeoutId = setTimeout(onScrollComplete, WINNER_MODAL_TIMEOUT_MS);
+            return () => clearTimeout(timeoutId);
+        }
+    }, 3000); // Wait 3s at the start for users to see the top winners
+
+    return () => clearTimeout(controlTimeout);
+  }, [winners, onScrollComplete]);
 
   return (
     <motion.div
@@ -55,7 +100,7 @@ const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gam
                 Kerja bagus! Semua jawaban ditemukan!
             </motion.p>
         )}
-        <div className="mt-4 space-y-2 max-h-60 overflow-y-auto pr-2">
+        <div ref={listContainerRef} className="mt-4 space-y-2 max-h-60 overflow-y-auto pr-2 no-scrollbar">
             {winners.sort((a,b) => a.time - b.time).map((winner, index) => (
                 <motion.div 
                     key={winner.nickname}
@@ -75,9 +120,9 @@ const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gam
                         )}
                     </div>
                     <div className="text-right">
-                        <p className="font-bold text-green-500 dark:text-green-400">+{winner.score}</p>
+                        <p className="font-bold text-green-500 dark:text-green-400">+{winner.score} 🪙</p>
                         {winner.bonus && winner.bonus > 0 && (
-                            <p className="text-xs text-amber-500 dark:text-amber-400 font-semibold">(+{winner.bonus} unik)</p>
+                            <p className="text-xs text-amber-500 dark:text-amber-400 font-semibold">✨ (unik +{winner.bonus})</p>
                         )}
                     </div>
                 </motion.div>

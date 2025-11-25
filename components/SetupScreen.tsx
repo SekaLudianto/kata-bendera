@@ -73,7 +73,8 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            type="submit"
+            type="button"
+            onClick={handleStart}
             disabled={!username.trim() && !isSimulation}
             className="w-full mt-2 px-4 py-2.5 bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
           >

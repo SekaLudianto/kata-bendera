@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import GameTab from './GameTab';
 import ChatTab from './ChatTab';
@@ -9,8 +10,11 @@ import { AnimatePresence } from 'framer-motion';
 import RoundWinnerModal from './RoundWinnerModal';
 import ReconnectOverlay from './ReconnectOverlay';
 import { useSound } from '../hooks/useSound';
-import { GiftNotification as GiftNotificationType, GameMode, GameStyle } from '../types';
+import { GiftNotification as GiftNotificationType, RankNotification as RankNotificationType, GameMode, GameStyle, InfoNotification as InfoNotificationType } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
+import GiftNotification from './GiftNotification';
+import RankNotification from './RankNotification';
+import InfoNotification from './InfoNotification';
 
 type Tab = 'game' | 'chat' | 'leaderboard';
 
@@ -20,9 +24,12 @@ interface GameScreenProps {
   onReconnect: () => void;
   connectionError: string | null;
   currentGift: GiftNotificationType | null;
+  currentRank: RankNotificationType | null;
+  currentInfo: InfoNotificationType | null;
+  onFinishWinnerDisplay: () => void;
 }
 
-const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift }) => {
+const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay }) => {
   const [activeTab, setActiveTab] = useState<Tab>('game');
   const { playSound } = useSound();
 
@@ -62,6 +69,19 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
       </header>
 
       <main className="flex-grow overflow-hidden relative">
+        <div className="absolute top-2 left-0 right-0 px-3 z-50 pointer-events-none space-y-2">
+          <AnimatePresence>
+            {currentGift && <GiftNotification key={currentGift.id} {...currentGift} />}
+          </AnimatePresence>
+          <AnimatePresence>
+            {currentRank && <RankNotification key={currentRank.id} {...currentRank} />}
+          </AnimatePresence>
+          <AnimatePresence>
+             {/* FIX: The 'id' prop was missing, which is required by the 'InfoNotification' component's type definition. It is now correctly passed from 'currentInfo'. */}
+             {currentInfo && <InfoNotification key={currentInfo.id} id={currentInfo.id} content={currentInfo.content} />}
+          </AnimatePresence>
+        </div>
+
         <AnimatePresence>
           {gameState.countdownValue && gameState.countdownValue > 0 && (
             <CountdownOverlay count={gameState.countdownValue} />
@@ -69,7 +89,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
-            {activeTab === 'game' && <GameTab key="game" gameState={gameState} currentGift={currentGift} />}
+            {activeTab === 'game' && <GameTab key="game" gameState={gameState} />}
             {activeTab === 'chat' && <ChatTab key="chat" messages={gameState.chatMessages} />}
             {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} />}
         </AnimatePresence>
@@ -78,7 +98,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
               winners={gameState.roundWinners} 
               round={gameState.round} 
               gameMode={gameState.gameMode!}
-              allAnswersFound={gameState.allAnswersFoundInRound} 
+              allAnswersFound={gameState.allAnswersFoundInRound}
+              onScrollComplete={onFinishWinnerDisplay}
             />}
         </AnimatePresence>
         <AnimatePresence>

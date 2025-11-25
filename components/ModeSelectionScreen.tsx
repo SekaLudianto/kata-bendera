@@ -44,6 +44,15 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     e.preventDefault();
     handleStartGame();
   };
+  
+  const knockoutCategories: { id: KnockoutCategory, name: string }[] = [
+    { id: 'GuessTheCountry', name: 'Tebak Negara' },
+    { id: 'Trivia', name: 'Trivia Umum' },
+    { id: 'ZonaBola', name: 'Zona Bola' },
+    { id: 'GuessTheFruit', name: 'Tebak Buah' },
+    { id: 'GuessTheAnimal', name: 'Tebak Hewan' },
+    { id: 'KpopTrivia', name: 'Zona KPOP' },
+  ];
 
   return (
     <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
@@ -104,16 +113,16 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
             >
               <div className="relative">
                  <label className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1">Pilih Kategori Soal Knockout</label>
-                 <div className="grid grid-cols-3 gap-2">
-                    <button type="button" onClick={() => setKnockoutCategory('GuessTheCountry')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'GuessTheCountry' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
-                        Tebak Negara
-                    </button>
-                    <button type="button" onClick={() => setKnockoutCategory('Trivia')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'Trivia' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
-                        Trivia Umum
-                    </button>
-                    <button type="button" onClick={() => setKnockoutCategory('ZonaBola')} className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === 'ZonaBola' ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
-                        Zona Bola
-                    </button>
+                 <div className="grid grid-cols-2 gap-2">
+                    {knockoutCategories.map(cat => (
+                         <button 
+                            key={cat.id}
+                            type="button" 
+                            onClick={() => setKnockoutCategory(cat.id)} 
+                            className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === cat.id ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                            {cat.name}
+                        </button>
+                    ))}
                  </div>
               </div>
             </motion.div>

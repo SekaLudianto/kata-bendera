@@ -2,6 +2,7 @@
 export interface LetterObject {
   id: string;
   letter: string;
+  isDecoy?: boolean;
 }
 
 export interface Country {
@@ -45,6 +46,20 @@ export interface GiftNotification {
   profilePictureUrl: string;
   giftName: string;
   giftCount: number;
+  giftId: number;
+}
+
+export interface RankNotification {
+  id: string;
+  nickname: string;
+  profilePictureUrl: string;
+  rank: number;
+  score: number;
+}
+
+export interface InfoNotification {
+  id: string;
+  content: React.ReactNode;
 }
 
 // Raw event from backend
@@ -92,12 +107,12 @@ export enum GameMode {
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
-export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola';
+export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-buahan' | 'Hewan';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 // --- Knockout Mode Types ---
-export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola';
+export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia';
 
 export interface TriviaQuestion {
   question: string;
@@ -114,6 +129,7 @@ export interface KnockoutMatch {
   player1: KnockoutPlayer | null; // Null indicates a BYE or placeholder
   player2: KnockoutPlayer | null;
   winner: KnockoutPlayer | null;
+  score?: string; // e.g., "2-1" or "WO"
   roundIndex: number; // The round this match belongs to (0 for first round)
   matchIndex: number; // The index of the match within its round
 }
@@ -125,17 +141,20 @@ export type KnockoutChampions = Record<string, number>;
 
 // This will be used in useGameLogic.ts to set the word for a knockout match
 export interface GameActionPayloads {
-    'START_GAME': { gameStyle: GameStyle; maxWinners: number; knockoutCategory?: KnockoutCategory; classicRoundDeck?: GameMode[] };
-    'START_FIRST_ROUND': { 
+    'START_GAME': { 
+      gameStyle: GameStyle; 
+      maxWinners: number; 
+      knockoutCategory?: KnockoutCategory; 
+      classicRoundDeck?: GameMode[];
+      firstRoundData?: {
         gameMode: GameMode,
         country?: Country, 
         letter?: string, 
         category?: AbcCategory, 
         availableAnswersCount?: number,
-        word?: string,
-        wordCategory?: WordCategory,
         triviaQuestion?: TriviaQuestion,
         city?: City,
+      }
     };
     'NEXT_ROUND': { 
       gameMode: GameMode,
@@ -153,8 +172,11 @@ export interface GameActionPayloads {
     'SET_KNOCKOUT_COUNTRY': { country: Country };
     'SET_KNOCKOUT_TRIVIA': { question: TriviaQuestion };
     'SET_KNOCKOUT_ZONA_BOLA': { type: 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola', data: string | FootballStadium };
+    'SET_KNOCKOUT_GUESS_THE_FRUIT': { fruit: string };
+    'SET_KNOCKOUT_GUESS_THE_ANIMAL': { animal: string };
+    'SET_KNOCKOUT_KPOP_TRIVIA': { question: TriviaQuestion };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
-    'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer };
+    'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer; score: string; };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };
 }
 

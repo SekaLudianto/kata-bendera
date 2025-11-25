@@ -63,7 +63,15 @@ const MatchCard: React.FC<{
                 className={`bg-sky-50 dark:bg-gray-700 rounded-lg p-2 text-sm h-[72px] flex flex-col justify-center relative border-2 w-full transition-all duration-300 ${isCurrent ? 'border-amber-500 shadow-lg shadow-amber-500/20' : 'border-transparent'}`}
             >
                 <PlayerDisplay player={match.player1} isWinner={!!match.winner && match.winner.nickname === match.player1?.nickname} isLoser={!!match.winner && match.winner.nickname !== match.player1?.nickname} />
-                <div className="border-t border-dashed border-sky-200 dark:border-gray-600 my-1.5"></div>
+                
+                {match.winner && match.score ? (
+                    <div className="text-center font-bold text-sky-500 dark:text-sky-400 my-1 text-xs">
+                        {match.score}
+                    </div>
+                ) : (
+                    <div className="border-t border-dashed border-sky-200 dark:border-gray-600 my-1.5"></div>
+                )}
+
                 {match.player2 ? (
                      <PlayerDisplay player={match.player2} isWinner={!!match.winner && match.winner.nickname === match.player2?.nickname} isLoser={!!match.winner && match.winner.nickname !== match.player2?.nickname} />
                 ) : match.player1 ? (
@@ -214,11 +222,13 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
           {bracket.map((round, roundIndex) => (
             <div 
                 key={roundIndex} 
-                ref={el => (roundRefs.current[roundIndex] = el)} 
+                // FIX: Ref callbacks should not return a value. Changed implicit return to a function body.
+                ref={el => { roundRefs.current[roundIndex] = el; }} 
                 className="flex flex-col justify-around min-w-[160px]"
             >
               {round.map((match) => (
-                 <div ref={el => (matchRefs.current[`match-${match.id}`] = el)} key={match.id}>
+                 // FIX: Ref callbacks should not return a value. Changed implicit return to a function body.
+                 <div ref={el => { matchRefs.current[`match-${match.id}`] = el; }} key={match.id}>
                     <MatchCard 
                         match={match} 
                         isCurrent={match.id === currentMatchId} 

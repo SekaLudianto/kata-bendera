@@ -42,14 +42,14 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, globalLead
     <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
       <div className="text-center shrink-0">
         <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">
-          Permainan Selesai!
+          🎉 Permainan Selesai! 🎉
         </h1>
       </div>
 
       <div className="flex-grow my-2 grid grid-cols-2 gap-4 overflow-y-auto px-1 text-xs">
         {/* Session Leaderboard */}
         <div>
-          <h2 className="font-bold text-center mb-2 text-sky-600 dark:text-sky-300">Peringkat Sesi Ini</h2>
+          <h2 className="font-bold text-center mb-2 text-sky-600 dark:text-sky-300">🏆 Peringkat Sesi Ini</h2>
           <div className="space-y-1.5">
             {topSessionPlayers.map((entry, index) => (
               <motion.div
@@ -71,7 +71,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, globalLead
 
         {/* Global Leaderboard */}
         <div>
-          <h2 className="font-bold text-center mb-2 text-amber-600 dark:text-amber-400">Top 10 Global</h2>
+          <h2 className="font-bold text-center mb-2 text-amber-600 dark:text-amber-400">🌍 Top 10 Global</h2>
            <div className="space-y-1.5">
             {topGlobalPlayers.map((entry, index) => (
               <motion.div

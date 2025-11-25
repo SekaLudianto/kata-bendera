@@ -1,28 +1,15 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
-import GiftNotification from './GiftNotification';
 // FIX: Import LetterObject from types.ts instead of defining it locally.
-import { GiftNotification as GiftNotificationType, GameMode, GameStyle, LetterObject } from '../types';
+import { GameMode, GameStyle, LetterObject } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
 
 // FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
 interface GameTabProps {
   gameState: InternalGameState;
-  currentGift: GiftNotificationType | null;
 }
-
-const letterVariants = {
-  scrambled: { scale: 1 },
-  revealed: (index: number) => ({
-    scale: [1, 1.2, 1],
-    transition: {
-      delay: index * 0.05,
-      duration: 0.4,
-    },
-  }),
-};
 
 const getLetterBoxSizeClasses = (totalLetters: number): string => {
   if (totalLetters > 22) return 'w-5 h-7 text-sm gap-0.5';
@@ -39,13 +26,10 @@ const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundA
         <div className="flex flex-col items-center gap-1 px-2">
             {scrambledWord.map((word, wordIndex) => (
                 <div key={wordIndex} className={`flex flex-wrap justify-center ${sizeClasses.split(' ')[2]}`}>
-                    {word.map((item: LetterObject, letterIndex: number) => (
+                    {word.map((item: LetterObject) => (
                         <motion.div
                             key={item.id}
                             layout
-                            variants={letterVariants}
-                            animate={isRoundActive ? "scrambled" : "revealed"}
-                            custom={letterIndex}
                             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                             className={`bg-sky-100 dark:bg-gray-700 border-2 rounded-md flex items-center justify-center font-bold transition-colors duration-500 ${sizeClasses.split(' ').slice(0, 2).join(' ')} ${
                                 isRoundActive
@@ -128,7 +112,7 @@ const ABC5DasarContent: React.FC<{ gameState: InternalGameState }> = ({ gameStat
 
 
 const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentWordCategory, scrambledWord, isRoundActive } = gameState;
+    const { currentWord, currentWordCategory, scrambledWord, isRoundActive } = gameState;
   
     return (
       <>
@@ -136,6 +120,19 @@ const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
             Kategori: {currentWordCategory}
         </h2>
         <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+        <AnimatePresence>
+            {!isRoundActive && currentWord && (
+                 <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 text-center"
+                 >
+                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
+                        {currentWord}
+                    </p>
+                 </motion.div>
+            )}
+            </AnimatePresence>
       </>
     );
 };
@@ -235,7 +232,7 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
     );
 };
 
-const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
+const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
   const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / TOTAL_ROUNDS) * 100;
   const firstWinner = roundWinners.length > 0 ? roundWinners[0] : null;
@@ -252,6 +249,9 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
         if (knockoutCategory === 'Trivia') return "Trivia Pengetahuan Umum";
         if (knockoutCategory === 'GuessTheCountry') return "Tebak Negara";
         if (knockoutCategory === 'ZonaBola') return "Zona Bola";
+        if (knockoutCategory === 'GuessTheFruit') return "Tebak Kata: Buah";
+        if (knockoutCategory === 'GuessTheAnimal') return "Tebak Kata: Hewan";
+        if (knockoutCategory === 'KpopTrivia') return "Trivia: Zona KPOP";
 
         if (currentBracketRoundIndex === null || !knockoutBracket || !knockoutBracket[currentBracketRoundIndex]) {
             return "Mode Knockout";
@@ -288,14 +288,8 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, currentGift }) => {
       transition={{ duration: 0.3 }}
       className="p-3 flex flex-col h-full relative"
     >
-      <div className="absolute top-2 left-0 right-0 px-3 z-50 pointer-events-none">
-        <AnimatePresence>
-          {currentGift && <GiftNotification key={currentGift.id} {...currentGift} />}
-        </AnimatePresence>
-      </div>
-      
       <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
-        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
+        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `🎯 Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
         <span className='font-semibold'>{getRoundTitle()}</span>
       </div>
 

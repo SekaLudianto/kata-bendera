@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChatMessage, GameState, KnockoutPlayer } from '../types';
+import { ChatMessage, GameState, KnockoutPlayer, GiftNotification } from '../types';
 
 interface SimulationPanelProps {
   onComment: (comment: ChatMessage) => void;
+  onGift: (gift: Omit<GiftNotification, 'id'>) => void;
   currentAnswer: string;
   gameState: GameState;
   onRegisterPlayer: (player: KnockoutPlayer) => void;
 }
 
-const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAnswer, gameState, onRegisterPlayer }) => {
+const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, currentAnswer, gameState, onRegisterPlayer }) => {
   const [username, setUsername] = useState('Tester');
   const [comment, setComment] = useState('');
   const [userCounter, setUserCounter] = useState(1);
   const [fakePlayerCount, setFakePlayerCount] = useState(8);
+  
+  const [giftName, setGiftName] = useState('Mawar');
+  const [giftCount, setGiftCount] = useState(1);
+  const [giftId, setGiftId] = useState(5655);
 
   const generateRandomUser = () => {
     setUsername(`Pemain${userCounter}`);
@@ -33,6 +38,19 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAns
     });
 
     setComment('');
+  };
+
+  const handleSendGift = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (username.trim() === '' || giftName.trim() === '' || giftCount < 1) return;
+
+    onGift({
+      nickname: username,
+      profilePictureUrl: `https://i.pravatar.cc/40?u=${username}`,
+      giftName,
+      giftCount,
+      giftId,
+    });
   };
 
   const handleSendCorrectAnswer = () => {
@@ -96,7 +114,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAns
 
         <div>
           <label htmlFor="sim-username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Username
+            Username Pengirim
           </label>
           <div className="flex gap-2">
             <input
@@ -133,6 +151,59 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, currentAns
           >
             Kirim Komentar
           </button>
+        </form>
+
+        <div className="border-t border-dashed border-sky-200 dark:border-gray-600 my-2"></div>
+
+        <form onSubmit={handleSendGift}>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Simulasi Hadiah</h3>
+            <div className="space-y-2">
+                <div>
+                    <label htmlFor="sim-gift-name" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Nama Hadiah
+                    </label>
+                    <input
+                        type="text"
+                        id="sim-gift-name"
+                        value={giftName}
+                        onChange={(e) => setGiftName(e.target.value)}
+                        className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                     <div>
+                        <label htmlFor="sim-gift-count" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Jumlah
+                        </label>
+                        <input
+                            type="number"
+                            id="sim-gift-count"
+                            value={giftCount}
+                            onChange={(e) => setGiftCount(parseInt(e.target.value, 10) || 1)}
+                            min="1"
+                            className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                    </div>
+                     <div>
+                        <label htmlFor="sim-gift-id" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            ID Hadiah
+                        </label>
+                        <input
+                            type="number"
+                            id="sim-gift-id"
+                            value={giftId}
+                            onChange={(e) => setGiftId(parseInt(e.target.value, 10) || 0)}
+                            className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                    </div>
+                </div>
+            </div>
+             <button
+                type="submit"
+                className="w-full mt-2 px-4 py-2 bg-pink-500 text-white font-bold rounded-lg hover:bg-pink-600 transition-all"
+            >
+                Kirim Hadiah
+            </button>
         </form>
 
         <div className="border-t border-dashed border-sky-200 dark:border-gray-600 my-2"></div>
