@@ -22,7 +22,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { SkipForwardIcon, SwitchIcon } from './components/IconComponents';
 
-const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
+const MODERATOR_USERNAMES = ['Arsenic', 'Ahmad Syams'];
 
 const infoTips: (() => React.ReactNode)[] = [
   () => <>Ketik <b className="text-sky-300">!myrank</b> di chat untuk melihat peringkat & skormu!</>,
