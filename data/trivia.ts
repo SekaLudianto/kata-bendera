@@ -223,6 +223,5 @@ export const triviaQuestions: TriviaQuestion[] = [
 { question: 'Teleskop luar angkasa yang dirancang untuk observasi inframerah dan menjadi penerus utama Hubble disebut apa?', answer: 'James Webb Space Telescope' },
 { question: 'Kotak perekam data dan suara penerbangan yang tahan benturan disebut apa?', answer: 'Kotak hitam' },
 { question: 'Skala kekerasan mineral berdasarkan kemampuan menggores satu sama lain disebut skala apa?', answer: 'Skala Mohs' },
-{ question: 'Masalah terbuka terkenal dalam ilmu komputer yang menanyakan kesetaraan kelas P dan NP disebut masalah apa?', answer: 'Masalah P versus NP' },
-
+{ question: 'Masalah terbuka terkenal dalam ilmu komputer yang menanyakan kesetaraan kelas P dan NP disebut masalah apa?', answer: 'Masalah P versus NP' }
 ];

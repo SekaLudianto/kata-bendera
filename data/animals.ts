@@ -1,4 +1,4 @@
-export const plants: string[] = [
+export const animals: string[] = [
   // A
   'Anjing',
   'Ayam',
