@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KnockoutMatch, KnockoutChampions } from '../types';
@@ -37,10 +38,10 @@ const KnockoutPrepareMatchScreen: React.FC<KnockoutPrepareMatchScreenProps> = ({
           <img src={match.player1.profilePictureUrl} alt={match.player1.nickname} className="w-24 h-24 rounded-full border-4 border-sky-400 shadow-lg" />
            <div className="flex items-center gap-1 mt-2">
               <p className="font-bold text-lg truncate max-w-[120px]">{match.player1.nickname}</p>
-              {champions[match.player1.nickname] && (
+              {champions[match.player1.userId] && (
                   <div className="flex items-center gap-0.5 text-amber-500">
                       <span className="text-sm">🏆</span>
-                      <span className="text-sm font-bold">{champions[match.player1.nickname]}</span>
+                      <span className="text-sm font-bold">{champions[match.player1.userId].wins}</span>
                   </div>
               )}
           </div>
@@ -64,10 +65,10 @@ const KnockoutPrepareMatchScreen: React.FC<KnockoutPrepareMatchScreenProps> = ({
           <img src={match.player2.profilePictureUrl} alt={match.player2.nickname} className="w-24 h-24 rounded-full border-4 border-gray-400 dark:border-gray-500 shadow-lg" />
           <div className="flex items-center gap-1 mt-2">
             <p className="font-bold text-lg truncate max-w-[120px]">{match.player2.nickname}</p>
-             {champions[match.player2.nickname] && (
+             {champions[match.player2.userId] && (
                 <div className="flex items-center gap-0.5 text-amber-500">
                     <span className="text-sm">🏆</span>
-                    <span className="text-sm font-bold">{champions[match.player2.nickname]}</span>
+                    <span className="text-sm font-bold">{champions[match.player2.userId].wins}</span>
                 </div>
             )}
           </div>

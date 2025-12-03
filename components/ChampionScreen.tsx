@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LeaderboardEntry, KnockoutChampions } from '../types';
@@ -76,10 +77,10 @@ const ChampionScreen: React.FC<ChampionScreenProps> = ({ champion, isKnockout = 
               className="w-24 h-24 rounded-full border-4 border-amber-400 shadow-lg shadow-amber-500/30"
             />
             <p className="mt-3 text-xl font-bold text-slate-800 dark:text-white">{champion.nickname}</p>
-            {isKnockout && champions[champion.nickname] && (
+            {isKnockout && champions[champion.userId] && (
                 <div className="flex items-center gap-1.5 mt-1 text-amber-500 dark:text-amber-400">
                     <span className="text-lg">🏆</span>
-                    <span className="text-lg font-bold">Total Kemenangan: {champions[champion.nickname]}</span>
+                    <span className="text-lg font-bold">Total Kemenangan: {champions[champion.userId].wins}</span>
                 </div>
             )}
             {!isKnockout && (

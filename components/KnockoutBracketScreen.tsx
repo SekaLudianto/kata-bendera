@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KnockoutBracket, KnockoutMatch, KnockoutPlayer, KnockoutChampions } from '../types';
@@ -43,10 +44,10 @@ const MatchCard: React.FC<{
             <div className={`flex items-center gap-1.5 w-full min-w-0 transition-opacity duration-300 ${isWinner ? 'font-bold' : ''} ${isLoser ? 'opacity-50' : 'opacity-100'}`}>
                 <img src={player.profilePictureUrl} className="w-5 h-5 rounded-full shrink-0" alt={player.nickname} />
                 <span className="truncate flex-1">{player.nickname}</span>
-                {champions[player.nickname] && (
+                {champions[player.userId] && (
                     <div className="flex items-center gap-0.5 text-amber-500 shrink-0">
                         <span className="text-xs">🏆</span>
-                        <span className="text-xs font-bold">{champions[player.nickname]}</span>
+                        <span className="text-xs font-bold">{champions[player.userId].wins}</span>
                     </div>
                 )}
             </div>
@@ -62,7 +63,7 @@ const MatchCard: React.FC<{
                 transition={{ delay: match.roundIndex * 0.2 + match.matchIndex * 0.05 }}
                 className={`bg-sky-50 dark:bg-gray-700 rounded-lg p-2 text-sm h-[72px] flex flex-col justify-center relative border-2 w-full transition-all duration-300 ${isCurrent ? 'border-amber-500 shadow-lg shadow-amber-500/20' : 'border-transparent'}`}
             >
-                <PlayerDisplay player={match.player1} isWinner={!!match.winner && match.winner.nickname === match.player1?.nickname} isLoser={!!match.winner && match.winner.nickname !== match.player1?.nickname} />
+                <PlayerDisplay player={match.player1} isWinner={!!match.winner && match.winner.userId === match.player1?.userId} isLoser={!!match.winner && match.winner.userId !== match.player1?.userId} />
                 
                 {match.winner && match.score ? (
                     <div className="text-center font-bold text-sky-500 dark:text-sky-400 my-1 text-xs">
@@ -73,7 +74,7 @@ const MatchCard: React.FC<{
                 )}
 
                 {match.player2 ? (
-                     <PlayerDisplay player={match.player2} isWinner={!!match.winner && match.winner.nickname === match.player2?.nickname} isLoser={!!match.winner && match.winner.nickname !== match.player2?.nickname} />
+                     <PlayerDisplay player={match.player2} isWinner={!!match.winner && match.winner.userId === match.player2?.userId} isLoser={!!match.winner && match.winner.userId !== match.player2?.userId} />
                 ) : match.player1 ? (
                     <span className="text-green-500 italic font-semibold text-xs flex items-center justify-center h-5">LOLOS (BYE)</span>
                 ) : <span className="truncate italic text-gray-400 h-5">...</span>}
@@ -151,7 +152,7 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
                         const startY = startRect.top + startRect.height / 2 - containerRect.top;
                         
                         const endX = endRect.left - containerRect.left;
-                        const isTopPlayer = !nextMatch.player1 || nextMatch.player1.nickname === match.winner.nickname;
+                        const isTopPlayer = !nextMatch.player1 || nextMatch.player1.userId === match.winner.userId;
                         const endY = endRect.top + (isTopPlayer ? endRect.height * 0.25 : endRect.height * 0.75) - containerRect.top;
 
                         const midX = startX + (endX - startX) / 2;
@@ -186,10 +187,6 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
     if (isReadyToPlay) return "Pilih Match";
     return "Bagan Turnamen";
   }
-  
-  const sortedChampions = Object.entries(champions)
-    .sort(([, a], [, b]) => Number(b) - Number(a))
-    .map(([nickname, wins]) => ({ nickname, wins }));
 
   return (
     <div className="flex flex-col h-full p-2 bg-white dark:bg-gray-800 rounded-3xl overflow-hidden">
@@ -266,22 +263,6 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
                   Pilih Mode Lain (Menu Utama)
               </button>
           </div>
-          {sortedChampions.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-dashed border-sky-200 dark:border-gray-600">
-              <h3 className="text-center text-sm font-bold text-slate-600 dark:text-gray-300 mb-2">Histori Juara</h3>
-              <div className="max-h-24 overflow-y-auto space-y-1 text-xs px-1">
-                  {sortedChampions.map(({ nickname, wins }) => (
-                      <div key={nickname} className="flex items-center justify-between bg-sky-50 dark:bg-gray-700/60 p-1.5 rounded-md">
-                          <span className="font-semibold truncate">{nickname}</span>
-                          <div className="flex items-center gap-1 text-amber-500 font-bold">
-                              <span>🏆</span>
-                              <span>{wins}x</span>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-            </div>
-          )}
         </motion.div>
       )}
       </AnimatePresence>

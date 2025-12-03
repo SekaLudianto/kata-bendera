@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChatMessage, GameState, KnockoutPlayer, GiftNotification } from '../types';
@@ -8,10 +9,12 @@ interface SimulationPanelProps {
   currentAnswer: string;
   gameState: GameState;
   onRegisterPlayer: (player: KnockoutPlayer) => void;
+  knockoutPlayers?: KnockoutPlayer[];
 }
 
-const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, currentAnswer, gameState, onRegisterPlayer }) => {
-  const [username, setUsername] = useState('Tester');
+const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, currentAnswer, gameState, onRegisterPlayer, knockoutPlayers = [] }) => {
+  const [userId, setUserId] = useState('tester.user');
+  const [nickname, setNickname] = useState('Tester');
   const [comment, setComment] = useState('');
   const [userCounter, setUserCounter] = useState(1);
   const [fakePlayerCount, setFakePlayerCount] = useState(8);
@@ -21,19 +24,33 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
   const [giftId, setGiftId] = useState(5655);
 
   const generateRandomUser = () => {
-    setUsername(`Pemain${userCounter}`);
+    const newId = userCounter;
+    setUserId(`pemain${newId}`);
+    setNickname(`Pemain ${newId}`);
     setUserCounter(prev => prev + 1);
+  };
+  
+  const handlePlayerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const selectedId = e.target.value;
+      if (!selectedId) return;
+      
+      const player = knockoutPlayers.find(p => p.userId === selectedId);
+      if (player) {
+          setUserId(player.userId);
+          setNickname(player.nickname);
+      }
   };
   
   const handleSendComment = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (comment.trim() === '' || username.trim() === '') return;
+    if (comment.trim() === '' || userId.trim() === '' || nickname.trim() === '') return;
 
     onComment({
-      id: `${Date.now()}-${username}`,
-      nickname: username,
+      id: `${Date.now()}-${userId}`,
+      userId: userId,
+      nickname: nickname,
       comment,
-      profilePictureUrl: `https://i.pravatar.cc/40?u=${username}`,
+      profilePictureUrl: `https://i.pravatar.cc/40?u=${userId}`,
       isWinner: false,
     });
 
@@ -42,11 +59,12 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
 
   const handleSendGift = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (username.trim() === '' || giftName.trim() === '' || giftCount < 1) return;
+    if (userId.trim() === '' || nickname.trim() === '' || giftName.trim() === '' || giftCount < 1) return;
 
     onGift({
-      nickname: username,
-      profilePictureUrl: `https://i.pravatar.cc/40?u=${username}`,
+      userId: userId,
+      nickname: nickname,
+      profilePictureUrl: `https://i.pravatar.cc/40?u=${userId}`,
       giftName,
       giftCount,
       giftId,
@@ -57,10 +75,28 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
     if (currentAnswer.startsWith('(')) return; // Don't send for ABC 5 Dasar helper text
 
     onComment({
-      id: `${Date.now()}-${username}`,
-      nickname: username,
+      id: `${Date.now()}-${userId}`,
+      userId: userId,
+      nickname: nickname,
       comment: currentAnswer,
-      profilePictureUrl: `https://i.pravatar.cc/40?u=${username}`,
+      profilePictureUrl: `https://i.pravatar.cc/40?u=${userId}`,
+      isWinner: false,
+    });
+  };
+
+  const handleSendCorrectAnswerRandom = () => {
+    if (currentAnswer.startsWith('(')) return;
+    
+    const randomId = Math.floor(Math.random() * 10000);
+    const rUserId = `random.user.${randomId}`;
+    const rNickname = `Penebak Jitu ${randomId}`;
+
+    onComment({
+      id: `${Date.now()}-${rUserId}`,
+      userId: rUserId,
+      nickname: rNickname,
+      comment: currentAnswer,
+      profilePictureUrl: `https://i.pravatar.cc/40?u=${rUserId}`,
       isWinner: false,
     });
   };
@@ -68,10 +104,12 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
   const handleAddFakePlayers = () => {
     if (fakePlayerCount <= 0) return;
     for (let i = 1; i <= fakePlayerCount; i++) {
-      const fakePlayerName = `Pemain${i}`;
+      const fakePlayerUserId = `pemainpalsu_${i}`;
+      const fakePlayerNickname = `PemainPalsu${i}`;
       onRegisterPlayer({
-        nickname: fakePlayerName,
-        profilePictureUrl: `https://i.pravatar.cc/40?u=${fakePlayerName}`
+        userId: fakePlayerUserId,
+        nickname: fakePlayerNickname,
+        profilePictureUrl: `https://i.pravatar.cc/40?u=${fakePlayerUserId}`
       });
     }
   };
@@ -81,7 +119,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 50 }}
-      className="hidden lg:flex flex-col flex-1 h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-lg shadow-sky-500/5 border border-sky-200 dark:border-gray-700 overflow-hidden"
+      className="hidden md:flex flex-col flex-1 h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-lg shadow-sky-500/5 border border-sky-200 dark:border-gray-700 overflow-hidden"
     >
       <header className="p-3 text-center border-b border-sky-100 dark:border-gray-700 shrink-0">
         <h2 className="text-md font-bold text-slate-700 dark:text-gray-300">Panel Simulasi</h2>
@@ -113,30 +151,67 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
         )}
 
         <div>
-          <label htmlFor="sim-username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Username Pengirim
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              id="sim-username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
-            />
-            <button
+            {knockoutPlayers && knockoutPlayers.length > 0 && (
+                <div className="mb-3">
+                    <label htmlFor="player-select" className="block text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">
+                        Pilih Pemain Terdaftar (Otomatis Isi)
+                    </label>
+                    <select
+                        id="player-select"
+                        onChange={handlePlayerSelect}
+                        className="w-full px-3 py-2 text-sm bg-amber-50 border border-amber-200 rounded-lg focus:outline-none focus:border-amber-500 dark:bg-gray-700 dark:border-gray-600"
+                        defaultValue=""
+                    >
+                        <option value="" disabled>-- Pilih Pemain --</option>
+                        {knockoutPlayers.map(p => (
+                            <option key={p.userId} value={p.userId}>
+                                {p.nickname} (@{p.userId})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+        
+            <div className="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                     <label htmlFor="sim-userid" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Username (ID Unik)
+                    </label>
+                    <input
+                        type="text"
+                        id="sim-userid"
+                        value={userId}
+                        placeholder="cth: ahmadsyams.jpg"
+                        onChange={(e) => setUserId(e.target.value)}
+                        className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                </div>
+                 <div>
+                    <label htmlFor="sim-nickname" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Nama Tampilan
+                    </label>
+                    <input
+                        type="text"
+                        id="sim-nickname"
+                        value={nickname}
+                        placeholder="cth: Ahmad Syams"
+                        onChange={(e) => setNickname(e.target.value)}
+                        className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                </div>
+            </div>
+             <button
                 onClick={generateRandomUser}
-                className="px-3 py-2 bg-sky-500 text-white text-xs font-bold rounded-md hover:bg-sky-600 transition-all"
+                className="w-full px-3 py-2 bg-sky-500 text-white text-xs font-bold rounded-md hover:bg-sky-600 transition-all"
                 title="Generate User Baru"
             >
-                Acak
+                Acak Identitas di Input
             </button>
-          </div>
         </div>
 
         <form onSubmit={handleSendComment}>
           <label htmlFor="sim-comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Komentar
+            Komentar Manual
           </label>
           <textarea
             id="sim-comment"
@@ -217,13 +292,23 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
                     {currentAnswer || '...'}
                 </p>
            </div>
-           <button
-            onClick={handleSendCorrectAnswer}
-            disabled={!currentAnswer || currentAnswer.startsWith('(')}
-            className="w-full mt-2 px-4 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-          >
-            Kirim Jawaban Benar
-          </button>
+           
+           <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                    onClick={handleSendCorrectAnswer}
+                    disabled={!currentAnswer || currentAnswer.startsWith('(')}
+                    className="w-full px-2 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-xs"
+                >
+                    Jawab Benar (User Diatas)
+                </button>
+                <button
+                    onClick={handleSendCorrectAnswerRandom}
+                    disabled={!currentAnswer || currentAnswer.startsWith('(')}
+                    className="w-full px-2 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-xs"
+                >
+                    Jawab Benar (User Acak)
+                </button>
+           </div>
         </div>
 
       </div>

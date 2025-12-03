@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
@@ -20,9 +21,10 @@ import { useKnockoutChampions } from './hooks/useKnockoutChampions';
 import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
-import { SkipForwardIcon, SwitchIcon } from './components/IconComponents';
+import { KeyboardIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
+import AdminInputPanel from './components/AdminInputPanel';
 
-const MODERATOR_USERNAMES = ['Arsenic', 'Ahmad Syams'];
+const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
 
 const infoTips: (() => React.ReactNode)[] = [
   () => <>Ketik <b className="text-sky-300">!myrank</b> di chat untuk melihat peringkat & skormu!</>,
@@ -49,6 +51,7 @@ const App: React.FC = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isDisconnected, setIsDisconnected] = useState(false);
   const [showGlobalLeaderboard, setShowGlobalLeaderboard] = useState(false);
+  const [showAdminKeyboard, setShowAdminKeyboard] = useState(false);
   
   const [currentGift, setCurrentGift] = useState<GiftNotificationType | null>(null);
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
@@ -63,14 +66,14 @@ const App: React.FC = () => {
   const { champions, addChampion } = useKnockoutChampions();
   
   const handleGift = useCallback((gift: Omit<GiftNotificationType, 'id'>) => {
-      const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.nickname}` };
+      const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.userId}` };
       giftQueue.current.push(gift);
       setLiveFeed(prev => [fullGift, ...prev].slice(0, 100));
 
       if (!currentGift) {
         const nextGift = giftQueue.current.shift();
         if (nextGift) {
-            setCurrentGift({ ...nextGift, id: `${new Date().getTime()}-${nextGift.nickname}` });
+            setCurrentGift({ ...nextGift, id: `${new Date().getTime()}-${nextGift.userId}` });
         }
       }
 
@@ -93,7 +96,7 @@ const App: React.FC = () => {
         const nextGift = giftQueue.current.shift();
         if (nextGift) {
             const timer = setTimeout(() => {
-              setCurrentGift({ ...nextGift, id: `${new Date().getTime()}-${nextGift.nickname}` });
+              setCurrentGift({ ...nextGift, id: `${new Date().getTime()}-${nextGift.userId}` });
             }, 300); // small delay between notifications
             return () => clearTimeout(timer);
         }
@@ -105,7 +108,7 @@ const App: React.FC = () => {
       if (!currentRank) {
         const nextRank = rankQueue.current.shift();
         if (nextRank) {
-            setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.nickname}` });
+            setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.userId}` });
         }
       }
   }, [currentRank]);
@@ -120,7 +123,7 @@ const App: React.FC = () => {
         const nextRank = rankQueue.current.shift();
         if (nextRank) {
             const timer = setTimeout(() => {
-              setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.nickname}` });
+              setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.userId}` });
             }, 300); // small delay between notifications
             return () => clearTimeout(timer);
         }
@@ -165,22 +168,24 @@ const App: React.FC = () => {
   const handleComment = useCallback((message: ChatMessage) => {
     setLiveFeed(prev => [message, ...prev].slice(0,100));
     const commentText = message.comment.trim().toLowerCase();
-    const isModerator = MODERATOR_USERNAMES.includes(message.nickname.toLowerCase().replace(/^@/, ''));
+    const isModerator = MODERATOR_USERNAMES.includes(message.userId.toLowerCase().replace(/^@/, ''));
     
     if (commentText === '!myrank') {
-      const playerRank = game.state.leaderboard.findIndex(p => p.nickname === message.nickname);
+      const playerRank = game.state.leaderboard.findIndex(p => p.userId === message.userId);
       if (playerRank !== -1) {
           const playerScore = game.state.leaderboard[playerRank].score;
           handleRankCheck({
+              userId: message.userId,
               nickname: message.nickname,
-              profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.nickname}`,
+              profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.userId}`,
               rank: playerRank + 1,
               score: playerScore,
           });
       } else {
           handleRankCheck({
+              userId: message.userId,
               nickname: message.nickname,
-              profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.nickname}`,
+              profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.userId}`,
               rank: -1, // -1 indicates not ranked
               score: 0,
           });
@@ -204,11 +209,26 @@ const App: React.FC = () => {
     }
 
     if (gameState === GameState.KnockoutRegistration && commentText === '!ikut') {
-      game.registerPlayer({ nickname: message.nickname, profilePictureUrl: message.profilePictureUrl });
+      game.registerPlayer({ userId: message.userId, nickname: message.nickname, profilePictureUrl: message.profilePictureUrl });
     } else if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
       game.processComment(message);
     }
   }, [gameState, game, handleRankCheck]);
+  
+  const handleAdminSubmit = (commentText: string) => {
+    if (!username) return;
+
+    const adminMessage: ChatMessage = {
+        id: `admin-${Date.now()}`,
+        userId: username,
+        nickname: `${username} (Host)`,
+        comment: commentText,
+        profilePictureUrl: `https://i.pravatar.cc/40?u=admin-${username}`,
+        isWinner: false,
+    };
+    handleComment(adminMessage);
+    setShowAdminKeyboard(false);
+  };
 
 
   const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
@@ -220,6 +240,8 @@ const App: React.FC = () => {
     setUsername(tiktokUsername);
     setIsSimulation(isSimulating);
     
+    game.setHostUsername(tiktokUsername);
+
     if (isSimulating) {
         game.returnToModeSelection();
     } else {
@@ -293,7 +315,7 @@ const App: React.FC = () => {
         if (game.state.gameStyle === GameStyle.Knockout) {
             const knockoutChampion = game.state.sessionLeaderboard?.[0];
             if (knockoutChampion) {
-                addChampion(knockoutChampion.nickname);
+                addChampion(knockoutChampion);
             }
         }
     }
@@ -398,6 +420,7 @@ const App: React.FC = () => {
                       onEndRegistration={game.endRegistrationAndDrawBracket} 
                       champions={champions} 
                       onResetRegistration={game.resetKnockoutRegistration}
+                      isSimulation={isSimulation}
                     />;
         case GameState.KnockoutDrawing:
         case GameState.KnockoutReadyToPlay:
@@ -486,6 +509,17 @@ const App: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}
+                  onClick={() => setShowAdminKeyboard(prev => !prev)}
+                  className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-900 focus:ring-sky-500"
+                  aria-label="Buka Keyboard Admin"
+                  title="Buka Keyboard Admin"
+                >
+                  <KeyboardIcon className="w-5 h-5" />
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
                   onClick={handleSwitchMode}
                   className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-900 focus:ring-sky-500"
                   aria-label="Pindah Mode"
@@ -510,9 +544,9 @@ const App: React.FC = () => {
             <SoundToggle />
             <ThemeToggle />
         </div>
-      <div className="w-full max-w-5xl mx-auto flex flex-row items-start justify-center gap-4">
+      <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-center gap-4">
         {/* Left Column: Game Screen */}
-        <div className="w-full max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
+        <div className="w-full md:max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
           <AnimatePresence mode="wait">
             {renderContent()}
           </AnimatePresence>
@@ -528,10 +562,20 @@ const App: React.FC = () => {
                 currentAnswer={game.currentAnswer} 
                 gameState={gameState}
                 onRegisterPlayer={game.registerPlayer}
+                knockoutPlayers={game.state.knockoutPlayers}
             />
         )}
         </AnimatePresence>
       </div>
+
+       <AnimatePresence>
+        {showAdminKeyboard && (
+          <AdminInputPanel
+            onSubmit={handleAdminSubmit}
+            onClose={() => setShowAdminKeyboard(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

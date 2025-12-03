@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { LeaderboardEntry } from '../types';
 import { motion } from 'framer-motion';
@@ -49,7 +50,7 @@ const LeaderboardTab: React.FC<LeaderboardTabProps> = ({ leaderboard }) => {
         <div className="space-y-1.5">
             {filteredLeaderboard.map((entry, index) => (
             <motion.div
-                key={entry.nickname}
+                key={entry.userId}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}

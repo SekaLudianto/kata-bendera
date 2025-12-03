@@ -1,3 +1,6 @@
+// FIX: Import React to use React.ReactNode type.
+import React from 'react';
+
 // FIX: Export LetterObject interface to be used across multiple files.
 export interface LetterObject {
   id: string;
@@ -22,6 +25,7 @@ export interface FootballStadium {
 
 export interface ChatMessage {
   id: string;
+  userId: string;
   nickname: string;
   comment: string;
   profilePictureUrl?: string;
@@ -29,6 +33,7 @@ export interface ChatMessage {
 }
 
 export interface LeaderboardEntry {
+  userId: string;
   nickname: string;
   score: number;
   profilePictureUrl?: string;
@@ -42,6 +47,7 @@ export interface RoundWinner extends LeaderboardEntry {
 
 export interface GiftNotification {
   id: string;
+  userId: string;
   nickname: string;
   profilePictureUrl: string;
   giftName: string;
@@ -51,6 +57,7 @@ export interface GiftNotification {
 
 export interface RankNotification {
   id: string;
+  userId: string;
   nickname: string;
   profilePictureUrl: string;
   rank: number;
@@ -104,6 +111,8 @@ export enum GameMode {
   Trivia = 'trivia',
   GuessTheCity = 'guess_the_city',
   ZonaBola = 'zona_bola',
+  Minesweeper = 'minesweeper',
+  Math = 'math',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -112,14 +121,20 @@ export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 // --- Knockout Mode Types ---
-export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia';
+export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia' | 'Minesweeper' | 'Math';
 
 export interface TriviaQuestion {
   question: string;
   answer: string;
 }
 
+export interface MathQuestion {
+  question: string; // e.g. "10 + 5 = ?"
+  answer: number;
+}
+
 export interface KnockoutPlayer {
+  userId: string;
   nickname: string;
   profilePictureUrl?: string;
 }
@@ -137,7 +152,27 @@ export interface KnockoutMatch {
 export type KnockoutRound = KnockoutMatch[];
 export type KnockoutBracket = KnockoutRound[];
 
-export type KnockoutChampions = Record<string, number>;
+export interface ChampionRecord {
+  wins: number;
+  nickname: string;
+}
+
+export type KnockoutChampions = Record<string, ChampionRecord>; // Key is userId
+
+// Minesweeper specific
+export interface MinesweeperCell {
+    id: string; // e.g., "A1"
+    row: number;
+    col: number;
+    isMine: boolean;
+    isRevealed: boolean;
+    neighborMines: number;
+    exploded?: boolean;
+    revealedBy?: {
+        userId: string;
+        profilePictureUrl?: string;
+    }
+}
 
 // This will be used in useGameLogic.ts to set the word for a knockout match
 export interface GameActionPayloads {
@@ -169,12 +204,15 @@ export interface GameActionPayloads {
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
+    'SET_HOST_USERNAME': { username: string };
     'SET_KNOCKOUT_COUNTRY': { country: Country };
     'SET_KNOCKOUT_TRIVIA': { question: TriviaQuestion };
     'SET_KNOCKOUT_ZONA_BOLA': { type: 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola', data: string | FootballStadium };
     'SET_KNOCKOUT_GUESS_THE_FRUIT': { fruit: string };
     'SET_KNOCKOUT_GUESS_THE_ANIMAL': { animal: string };
     'SET_KNOCKOUT_KPOP_TRIVIA': { question: TriviaQuestion };
+    'SET_KNOCKOUT_MINESWEEPER': {};
+    'SET_KNOCKOUT_MATH': { question: MathQuestion };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer; score: string; };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };

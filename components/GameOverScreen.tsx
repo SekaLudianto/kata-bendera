@@ -46,14 +46,14 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, globalLead
         </h1>
       </div>
 
-      <div className="flex-grow my-2 grid grid-cols-2 gap-4 overflow-y-auto px-1 text-xs">
+      <div className="flex-grow my-2 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto px-1 text-xs">
         {/* Session Leaderboard */}
         <div>
           <h2 className="font-bold text-center mb-2 text-sky-600 dark:text-sky-300">🏆 Peringkat Sesi Ini</h2>
           <div className="space-y-1.5">
             {topSessionPlayers.map((entry, index) => (
               <motion.div
-                key={`session-${entry.nickname}`}
+                key={`session-${entry.userId}`}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 + index * 0.05 }}
@@ -75,7 +75,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, globalLead
            <div className="space-y-1.5">
             {topGlobalPlayers.map((entry, index) => (
               <motion.div
-                key={`global-${entry.nickname}`}
+                key={`global-${entry.userId}`}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 + index * 0.05 }}

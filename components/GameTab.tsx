@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 // FIX: Import LetterObject from types.ts instead of defining it locally.
-import { GameMode, GameStyle, LetterObject } from '../types';
+import { GameMode, GameStyle, LetterObject, MinesweeperCell } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
+import { BombIcon } from './IconComponents';
+import { useSound } from '../hooks/useSound';
 
 // FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
@@ -232,6 +234,141 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
     );
 };
 
+const MinesweeperContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { minesweeperGrid } = gameState;
+    const { playSound } = useSound();
+    
+    // Check for explosion to trigger shake animation
+    const exploded = minesweeperGrid.some(c => c.exploded);
+
+    useEffect(() => {
+        if (exploded) playSound('explosion');
+    }, [exploded, playSound]);
+
+    if (!minesweeperGrid || minesweeperGrid.length === 0) return null;
+
+    const getCellColor = (cell: MinesweeperCell) => {
+        if (cell.exploded) return 'bg-red-500 border-red-700 text-white';
+        if (!cell.isRevealed) return 'bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600';
+        if (cell.isMine) return 'bg-red-500 border-red-600 text-white'; // Revealed mine but not exploded (end game reveal)
+        
+        // Revealed Safe
+        return 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-600 text-slate-800 dark:text-slate-200';
+    };
+
+    const getNumberColor = (num: number) => {
+        if (num === 1) return 'text-blue-500';
+        if (num === 2) return 'text-green-500';
+        if (num === 3) return 'text-red-500';
+        if (num === 4) return 'text-purple-500';
+        return 'text-slate-700 dark:text-slate-300';
+    };
+
+    return (
+        <motion.div 
+            className="flex flex-col items-center"
+            animate={exploded ? { x: [-10, 10, -10, 10, 0] } : {}}
+            transition={{ duration: 0.5 }}
+        >
+             <div className="w-full max-w-sm bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-center mb-3 border border-slate-200 dark:border-slate-700 shadow-sm">
+                <p className="font-bold text-xs text-red-600 dark:text-red-400">MODE SUDDEN DEATH</p>
+                <p className="text-[10px] mt-1 text-slate-600 dark:text-slate-400">
+                    Pemain pertama yang terkena <span className="font-bold">BOM</span> akan langsung kalah!
+                </p>
+             </div>
+
+            <div className="relative p-4 bg-slate-50 dark:bg-gray-900 rounded-xl border-2 border-slate-200 dark:border-gray-700 shadow-xl">
+                {/* Column Headers */}
+                <div className="flex justify-center mb-2 pl-6 gap-2">
+                    {['A','B','C','D','E'].map(l => (
+                        <div key={l} className="w-10 text-center font-bold text-slate-400 dark:text-slate-500 text-sm">{l}</div>
+                    ))}
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                    {[0, 1, 2, 3, 4].map(row => (
+                        <div key={row} className="flex gap-2 items-center">
+                            {/* Row Header */}
+                            <div className="w-6 text-center font-bold text-slate-400 dark:text-slate-500 text-sm">{row + 1}</div>
+                            
+                            {/* Cells */}
+                            {minesweeperGrid.filter(c => c.row === row).map(cell => (
+                                <motion.div
+                                    key={cell.id}
+                                    initial={false}
+                                    animate={{ 
+                                        scale: cell.isRevealed ? [1.1, 1] : 1,
+                                        rotate: cell.exploded ? [0, -10, 10, -10, 10, 0] : 0
+                                    }}
+                                    className={`w-10 h-10 rounded-lg border-b-4 flex items-center justify-center font-bold text-lg cursor-default select-none shadow-sm relative overflow-visible ${getCellColor(cell)}`}
+                                >
+                                    {cell.isRevealed ? (
+                                        cell.isMine ? (
+                                            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.5 }}>
+                                                <BombIcon className="w-6 h-6 text-white drop-shadow-md" />
+                                            </motion.div>
+                                        ) : (
+                                            <span className={getNumberColor(cell.neighborMines)}>{cell.neighborMines > 0 ? cell.neighborMines : ''}</span>
+                                        )
+                                    ) : (
+                                        <div className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 opacity-50" />
+                                    )}
+
+                                    {/* Player Avatar Overlay */}
+                                    {cell.isRevealed && cell.revealedBy && (
+                                        <motion.img 
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            src={cell.revealedBy.profilePictureUrl} 
+                                            alt="Player" 
+                                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 shadow-md z-10"
+                                        />
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+const MathContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { currentMathQuestion, isRoundActive } = gameState;
+    if (!currentMathQuestion) return null;
+
+    return (
+        <div className="text-center px-2 flex flex-col items-center justify-center gap-6">
+            <h2 className="text-xl font-bold text-sky-600 dark:text-sky-300 mb-2">
+                Hitung Cepat!
+            </h2>
+            
+            <div className="p-6 bg-white dark:bg-gray-700/50 rounded-2xl shadow-lg border-2 border-sky-200 dark:border-gray-600 w-full max-w-xs">
+                 <p className="text-4xl sm:text-5xl font-extrabold text-slate-800 dark:text-white tracking-widest font-mono">
+                    {currentMathQuestion.question}
+                </p>
+            </div>
+
+            <AnimatePresence>
+            {!isRoundActive && (
+                 <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="mt-2"
+                 >
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Jawabannya:</p>
+                    <p className="text-3xl font-bold text-green-500 dark:text-green-400">
+                        {currentMathQuestion.answer}
+                    </p>
+                 </motion.div>
+            )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+
 const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
   const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / TOTAL_ROUNDS) * 100;
@@ -252,6 +389,8 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
         if (knockoutCategory === 'GuessTheFruit') return "Tebak Kata: Buah";
         if (knockoutCategory === 'GuessTheAnimal') return "Tebak Kata: Hewan";
         if (knockoutCategory === 'KpopTrivia') return "Trivia: Zona KPOP";
+        if (knockoutCategory === 'Minesweeper') return "Minesweeper (Sudden Death)";
+        if (knockoutCategory === 'Math') return "Matematika 123";
 
         if (currentBracketRoundIndex === null || !knockoutBracket || !knockoutBracket[currentBracketRoundIndex]) {
             return "Mode Knockout";
@@ -281,7 +420,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
 
   return (
     <motion.div 
-      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}-${gameState.currentCountry?.name}-${gameState.currentTriviaQuestion?.question}-${gameState.currentCity?.name}-${gameState.currentStadium?.name}`}
+      key={`${round}-${gameMode}-${currentCategory}-${currentMatch?.id}-${gameState.currentWord}-${gameState.currentCountry?.name}-${gameState.currentTriviaQuestion?.question}-${gameState.currentCity?.name}-${gameState.currentStadium?.name}-${gameState.currentMathQuestion?.question}`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
@@ -289,7 +428,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
       className="p-3 flex flex-col h-full relative"
     >
       <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
-        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `🎯 Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
+        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `🎯 Skor: ${knockoutMatchPoints.player1} - ${knockoutMatchPoints.player2}`}</span>
         <span className='font-semibold'>{getRoundTitle()}</span>
       </div>
 
@@ -321,7 +460,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
                     <p className="text-3xl font-bold text-red-500">
                         {knockoutMatchPoints.player1} - {knockoutMatchPoints.player2}
                     </p>
-                    <p className="text-xs text-gray-500">Skor</p>
+                    <p className="text-xs text-gray-500">Kotak Aman</p>
                 </div>
                 <div className="flex flex-col items-center text-center flex-1 min-w-0">
                     <img src={currentMatch.player2.profilePictureUrl} alt={currentMatch.player2.nickname} className="w-16 h-16 rounded-full border-4 border-gray-400"/>
@@ -341,6 +480,8 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
         {gameState.gameMode === GameMode.Trivia && <TriviaContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheCity && <GuessTheCityContent gameState={gameState} />}
         {gameState.gameMode === GameMode.ZonaBola && <ZonaBolaContent gameState={gameState} />}
+        {gameState.gameMode === GameMode.Minesweeper && <MinesweeperContent gameState={gameState} />}
+        {gameState.gameMode === GameMode.Math && <MathContent gameState={gameState} />}
 
 
         {gameStyle === GameStyle.Knockout && gameState.isRoundActive && (
@@ -384,13 +525,15 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
             )}
           </AnimatePresence>
           
-          <div className="w-full max-w-[150px] bg-sky-100 dark:bg-gray-700 rounded-full h-1.5 mx-auto mt-2">
-            <motion.div
-              className="bg-gradient-to-r from-sky-500 to-teal-400 h-1.5 rounded-full"
-              animate={{ width: `${timerProgress}%` }}
-              transition={{ duration: 0.5, ease: "linear" }}
-            />
-          </div>
+          {gameMode !== GameMode.Minesweeper && (
+            <div className="w-full max-w-[150px] bg-sky-100 dark:bg-gray-700 rounded-full h-1.5 mx-auto mt-2">
+                <motion.div
+                className="bg-gradient-to-r from-sky-500 to-teal-400 h-1.5 rounded-full"
+                animate={{ width: `${timerProgress}%` }}
+                transition={{ duration: 0.5, ease: "linear" }}
+                />
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

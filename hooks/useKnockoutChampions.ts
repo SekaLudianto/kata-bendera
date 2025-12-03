@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { KnockoutChampions } from '../types';
 
@@ -17,12 +18,18 @@ export const useKnockoutChampions = () => {
     }
   }, []);
 
-  const addChampion = useCallback((nickname: string) => {
+  const addChampion = useCallback((player: { userId: string, nickname: string }) => {
     setChampions(prevChampions => {
+      const currentRecord = prevChampions[player.userId] || { wins: 0, nickname: player.nickname };
+      
       const newChampions = {
         ...prevChampions,
-        [nickname]: (prevChampions[nickname] || 0) + 1,
+        [player.userId]: {
+            wins: currentRecord.wins + 1,
+            nickname: player.nickname // Update nickname in case it changed
+        },
       };
+      
       try {
         localStorage.setItem(CHAMPIONS_STORAGE_KEY, JSON.stringify(newChampions));
       } catch (error) {
