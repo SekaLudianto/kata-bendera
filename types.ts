@@ -122,6 +122,8 @@ export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnect
 
 // --- Knockout Mode Types ---
 export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia' | 'Minesweeper' | 'Math';
+export type ClassicCategorySelection = 'Random' | KnockoutCategory | 'GuessTheCity';
+
 
 export interface TriviaQuestion {
   question: string;
@@ -179,7 +181,8 @@ export interface GameActionPayloads {
     'START_GAME': { 
       gameStyle: GameStyle; 
       maxWinners: number; 
-      knockoutCategory?: KnockoutCategory; 
+      knockoutCategory?: KnockoutCategory;
+      classicCategorySelection?: ClassicCategorySelection;
       classicRoundDeck?: GameMode[];
       firstRoundData?: {
         gameMode: GameMode,
@@ -189,6 +192,9 @@ export interface GameActionPayloads {
         availableAnswersCount?: number,
         triviaQuestion?: TriviaQuestion,
         city?: City,
+        word?: string,
+        wordCategory?: WordCategory,
+        stadium?: FootballStadium,
       }
     };
     'NEXT_ROUND': { 
@@ -201,6 +207,7 @@ export interface GameActionPayloads {
       nextWordCategory?: WordCategory,
       nextTriviaQuestion?: TriviaQuestion,
       nextCity?: City,
+      nextStadium?: FootballStadium,
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;

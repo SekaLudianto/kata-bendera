@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
@@ -18,7 +17,7 @@ import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ClassicCategorySelection } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { KeyboardIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
@@ -250,13 +249,13 @@ const App: React.FC = () => {
     }
   }, [connect, game]);
 
-  const handleStartClassic = useCallback((winnersCount: number) => {
+  const handleStartClassic = useCallback((winnersCount: number, category: ClassicCategorySelection) => {
     setMaxWinners(winnersCount);
-    game.startGame(GameStyle.Classic, winnersCount);
+    game.startGame(GameStyle.Classic, winnersCount, { classicCategory: category });
   }, [game]);
 
   const handleStartKnockout = useCallback((category: KnockoutCategory) => {
-    game.startGame(GameStyle.Knockout, maxWinners, category);
+    game.startGame(GameStyle.Knockout, maxWinners, { knockoutCategory: category });
   }, [game, maxWinners]);
   
   const handleBackToModeSelection = useCallback(() => {
@@ -264,7 +263,7 @@ const App: React.FC = () => {
   }, [game]);
   
   const handleAutoRestart = useCallback(() => {
-    game.startGame(GameStyle.Classic, maxWinners);
+    game.startGame(GameStyle.Classic, maxWinners, { classicCategory: 'Random' });
   }, [game, maxWinners]);
 
   const handleReconnect = useCallback(() => {

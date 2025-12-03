@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GamepadIcon, BombIcon, CalculatorIcon } from './IconComponents';
 import { DEFAULT_MAX_WINNERS_PER_ROUND } from '../constants';
-import { GameStyle, KnockoutCategory } from '../types';
+import { GameStyle, KnockoutCategory, ClassicCategorySelection } from '../types';
 
 interface ModeSelectionScreenProps {
-  onStartClassic: (maxWinners: number) => void;
+  onStartClassic: (maxWinners: number, category: ClassicCategorySelection) => void;
   onStartKnockout: (category: KnockoutCategory) => void;
   onShowLeaderboard: () => void;
 }
@@ -17,6 +16,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     return saved ? parseInt(saved, 10) : DEFAULT_MAX_WINNERS_PER_ROUND;
   });
   const [gameStyle, setGameStyle] = useState<GameStyle>(GameStyle.Classic);
+  const [classicCategory, setClassicCategory] = useState<ClassicCategorySelection>('Random');
 
   useEffect(() => {
     localStorage.setItem('tiktok-quiz-maxwinners', String(maxWinners));
@@ -33,7 +33,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
 
   const handleStartGame = (category?: KnockoutCategory) => {
     if (gameStyle === GameStyle.Classic) {
-      onStartClassic(maxWinners);
+      onStartClassic(maxWinners, classicCategory);
     } else if (category) {
       onStartKnockout(category);
     }
@@ -46,6 +46,17 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     }
   };
   
+  const classicCategories: { id: ClassicCategorySelection, name: string }[] = [
+      { id: 'Random', name: 'Random Campuran' },
+      { id: 'GuessTheCountry', name: 'Tebak Negara' },
+      { id: 'Trivia', name: 'Trivia Umum' },
+      { id: 'GuessTheCity', name: 'Tebak Kota' },
+      { id: 'ZonaBola', name: 'Zona Bola' },
+      { id: 'GuessTheFruit', name: 'Tebak Buah' },
+      { id: 'GuessTheAnimal', name: 'Tebak Hewan' },
+      { id: 'KpopTrivia', name: 'Zona KPOP' },
+  ];
+
   const knockoutCategories: { id: KnockoutCategory, name: string, icon?: React.ElementType, color?: string }[] = [
     { id: 'GuessTheCountry', name: 'Tebak Negara', color: 'bg-blue-500' },
     { id: 'Trivia', name: 'Trivia Umum', color: 'bg-indigo-500' },
@@ -100,6 +111,19 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
                 className="flex flex-col gap-4"
             >
                 <div>
+                    <label htmlFor="classicCategory" className="block text-sm text-left text-gray-500 dark:text-gray-400 mb-1 font-medium">Pilih Kategori Soal</label>
+                    <select
+                        id="classicCategory"
+                        value={classicCategory}
+                        onChange={(e) => setClassicCategory(e.target.value as ClassicCategorySelection)}
+                        className="w-full px-4 py-3 bg-sky-50 border-2 border-sky-200 rounded-xl text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white font-medium"
+                    >
+                        {classicCategories.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
                     <label htmlFor="maxWinners" className="block text-sm text-left text-gray-500 dark:text-gray-400 mb-1 font-medium">Jumlah Pemenang per Ronde</label>
                     <input
                         type="number"
@@ -112,10 +136,6 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
                     />
                 </div>
                 
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-700 dark:text-blue-300">
-                    <p>Mode klasik dengan berbagai variasi soal (Bendera, Kota, Trivia, dll) secara acak.</p>
-                </div>
-
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
