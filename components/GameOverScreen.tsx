@@ -46,7 +46,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, globalLead
         </h1>
       </div>
 
-      <div className="flex-grow my-2 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto px-1 text-xs">
+      <div className="flex-grow my-2 grid grid-cols-2 gap-2 overflow-y-auto px-1 text-xs">
         {/* Session Leaderboard */}
         <div>
           <h2 className="font-bold text-center mb-2 text-sky-600 dark:text-sky-300">🏆 Peringkat Sesi Ini</h2>

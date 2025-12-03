@@ -197,18 +197,6 @@ export interface GameActionPayloads {
         stadium?: FootballStadium,
       }
     };
-    'NEXT_ROUND': { 
-      gameMode: GameMode,
-      nextCountry?: Country, 
-      nextLetter?: string, 
-      nextCategory?: AbcCategory, 
-      availableAnswersCount?: number,
-      nextWord?: string,
-      nextWordCategory?: WordCategory,
-      nextTriviaQuestion?: TriviaQuestion,
-      nextCity?: City,
-      nextStadium?: FootballStadium,
-    };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
     'SET_HOST_USERNAME': { username: string };
@@ -227,4 +215,4 @@ export interface GameActionPayloads {
 
 export type GameAction =
     | { [K in keyof GameActionPayloads]: { type: K; payload: GameActionPayloads[K] } }[keyof GameActionPayloads]
-    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'SKIP_KNOCKOUT_MATCH' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' | 'RESET_KNOCKOUT_REGISTRATION' | 'RESTART_KNOCKOUT_COMPETITION' | 'RETURN_TO_MODE_SELECTION' };
+    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'SKIP_KNOCKOUT_MATCH' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' | 'RESET_KNOCKOUT_REGISTRATION' | 'RESTART_KNOCKOUT_COMPETITION' | 'RETURN_TO_MODE_SELECTION' | 'PROCEED_TO_NEXT_CLASSIC_ROUND' };

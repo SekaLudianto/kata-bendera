@@ -546,7 +546,7 @@ const App: React.FC = () => {
       <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-center gap-4">
         {/* Left Column: Game Screen */}
         <div className="w-full md:max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             {renderContent()}
           </AnimatePresence>
         </div>
