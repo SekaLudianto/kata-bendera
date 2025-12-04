@@ -1,18 +1,20 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChatMessage, GameState, KnockoutPlayer, GiftNotification } from '../types';
+import { ChatMessage, GameState, KnockoutPlayer, GiftNotification, DonationEvent, DonationPlatform } from '../types';
 
 interface SimulationPanelProps {
   onComment: (comment: ChatMessage) => void;
   onGift: (gift: Omit<GiftNotification, 'id'>) => void;
+  onDonation: (donation: DonationEvent) => void;
   currentAnswer: string;
   gameState: GameState;
   onRegisterPlayer: (player: KnockoutPlayer) => void;
   knockoutPlayers?: KnockoutPlayer[];
 }
 
-const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, currentAnswer, gameState, onRegisterPlayer, knockoutPlayers = [] }) => {
+const donationPlatforms: DonationPlatform[] = ['saweria', 'sociabuzz', 'trakteer', 'tako', 'bagibagi', 'sibagi'];
+
+const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, onDonation, currentAnswer, gameState, onRegisterPlayer, knockoutPlayers = [] }) => {
   const [userId, setUserId] = useState('tester.user');
   const [nickname, setNickname] = useState('Tester');
   const [comment, setComment] = useState('');
@@ -22,6 +24,12 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
   const [giftName, setGiftName] = useState('Mawar');
   const [giftCount, setGiftCount] = useState(1);
   const [giftId, setGiftId] = useState(5655);
+
+  const [donationPlatform, setDonationPlatform] = useState<DonationPlatform>('saweria');
+  const [donationName, setDonationName] = useState('Donatur Baik');
+  const [donationAmount, setDonationAmount] = useState(10000);
+  const [donationMessage, setDonationMessage] = useState('Semangat ya livenya!');
+
 
   const generateRandomUser = () => {
     const newId = userCounter;
@@ -68,6 +76,19 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
       giftName,
       giftCount,
       giftId,
+    });
+  };
+  
+  const handleSendDonation = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (donationName.trim() === '' || donationAmount <= 0) return;
+
+    onDonation({
+      id: `${Date.now()}-${donationName}`,
+      platform: donationPlatform,
+      from_name: donationName,
+      amount: donationAmount,
+      message: donationMessage
     });
   };
 
@@ -231,53 +252,74 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, cu
         <div className="border-t border-dashed border-sky-200 dark:border-gray-600 my-2"></div>
 
         <form onSubmit={handleSendGift}>
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Simulasi Hadiah</h3>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Simulasi Hadiah TikTok</h3>
             <div className="space-y-2">
-                <div>
-                    <label htmlFor="sim-gift-name" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        Nama Hadiah
-                    </label>
+                <input
+                    type="text"
+                    value={giftName}
+                    onChange={(e) => setGiftName(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    placeholder="Nama Hadiah"
+                />
+                <div className="grid grid-cols-2 gap-2">
                     <input
-                        type="text"
-                        id="sim-gift-name"
-                        value={giftName}
-                        onChange={(e) => setGiftName(e.target.value)}
+                        type="number"
+                        value={giftCount}
+                        onChange={(e) => setGiftCount(parseInt(e.target.value, 10) || 1)}
+                        min="1"
                         className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                        placeholder="Jumlah"
+                    />
+                    <input
+                        type="number"
+                        value={giftId}
+                        onChange={(e) => setGiftId(parseInt(e.target.value, 10) || 0)}
+                        className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                        placeholder="ID Hadiah"
                     />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                     <div>
-                        <label htmlFor="sim-gift-count" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                            Jumlah
-                        </label>
-                        <input
-                            type="number"
-                            id="sim-gift-count"
-                            value={giftCount}
-                            onChange={(e) => setGiftCount(parseInt(e.target.value, 10) || 1)}
-                            min="1"
-                            className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
-                        />
-                    </div>
-                     <div>
-                        <label htmlFor="sim-gift-id" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                            ID Hadiah
-                        </label>
-                        <input
-                            type="number"
-                            id="sim-gift-id"
-                            value={giftId}
-                            onChange={(e) => setGiftId(parseInt(e.target.value, 10) || 0)}
-                            className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
-                        />
-                    </div>
-                </div>
             </div>
-             <button
-                type="submit"
-                className="w-full mt-2 px-4 py-2 bg-pink-500 text-white font-bold rounded-lg hover:bg-pink-600 transition-all"
-            >
+             <button type="submit" className="w-full mt-2 px-4 py-2 bg-pink-500 text-white font-bold rounded-lg hover:bg-pink-600 transition-all">
                 Kirim Hadiah
+            </button>
+        </form>
+        
+        <div className="border-t border-dashed border-sky-200 dark:border-gray-600 my-2"></div>
+        
+        <form onSubmit={handleSendDonation}>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Simulasi Donasi</h3>
+            <div className="space-y-2">
+                <select 
+                    value={donationPlatform} 
+                    onChange={e => setDonationPlatform(e.target.value as DonationPlatform)}
+                    className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                >
+                    {donationPlatforms.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                </select>
+                <input
+                    type="text"
+                    value={donationName}
+                    onChange={(e) => setDonationName(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    placeholder="Nama Donatur"
+                />
+                <input
+                    type="number"
+                    value={donationAmount}
+                    onChange={(e) => setDonationAmount(parseInt(e.target.value, 10) || 0)}
+                    className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    placeholder="Jumlah (Rp)"
+                />
+                <input
+                    type="text"
+                    value={donationMessage}
+                    onChange={(e) => setDonationMessage(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-sky-50 border border-sky-200 rounded-lg focus:outline-none focus:border-sky-500 dark:bg-gray-700 dark:border-gray-600"
+                    placeholder="Pesan Donasi"
+                />
+            </div>
+             <button type="submit" className="w-full mt-2 px-4 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition-all">
+                Kirim Donasi
             </button>
         </form>
 

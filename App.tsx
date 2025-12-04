@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
@@ -18,7 +17,7 @@ import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { KeyboardIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
@@ -45,7 +44,7 @@ const infoTips: (() => React.ReactNode)[] = [
 const App: React.FC = () => {
   useTheme(); // Initialize theme logic
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
-  const [username, setUsername] = useState<string>('');
+  const [serverConfig, setServerConfig] = useState<ServerConfig | null>(null);
   const [isSimulation, setIsSimulation] = useState<boolean>(false);
   const [maxWinners, setMaxWinners] = useState<number>(DEFAULT_MAX_WINNERS_PER_ROUND);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -85,6 +84,19 @@ const App: React.FC = () => {
           game.skipRound();
       }
   }, [currentGift, gameState, game]);
+  
+  const handleDonation = useCallback((donation: DonationEvent) => {
+    // Convert donation to a gift notification for UI display
+    const gift: Omit<GiftNotification, 'id'> = {
+      userId: donation.from_name,
+      nickname: donation.from_name,
+      profilePictureUrl: `https://i.pravatar.cc/40?u=${donation.from_name}`,
+      giftName: `${donation.message || `Donasi via ${donation.platform}`} (Rp ${donation.amount.toLocaleString()})`,
+      giftCount: 1,
+      giftId: 99999, // generic ID for donations
+    };
+    handleGift(gift);
+  }, [handleGift]);
 
   useEffect(() => {
     if (currentGift) {
@@ -216,14 +228,14 @@ const App: React.FC = () => {
   }, [gameState, game, handleRankCheck]);
   
   const handleAdminSubmit = (commentText: string) => {
-    if (!username) return;
-
+    if (!serverConfig?.username && !isSimulation) return;
+    const hostUsername = serverConfig?.username || 'admin';
     const adminMessage: ChatMessage = {
         id: `admin-${Date.now()}`,
-        userId: username,
-        nickname: `${username} (Host)`,
+        userId: hostUsername,
+        nickname: `${hostUsername} (Host)`,
         comment: commentText,
-        profilePictureUrl: `https://i.pravatar.cc/40?u=admin-${username}`,
+        profilePictureUrl: `https://i.pravatar.cc/40?u=admin-${hostUsername}`,
         isWinner: false,
     };
     handleComment(adminMessage);
@@ -233,20 +245,20 @@ const App: React.FC = () => {
 
   const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
 
-  const handleConnect = useCallback((tiktokUsername: string, isSimulating: boolean) => {
+  const handleConnect = useCallback((config: ServerConfig, isSimulating: boolean) => {
     setLiveFeed([]);
     setConnectionError(null);
     setIsDisconnected(false);
-    setUsername(tiktokUsername);
+    setServerConfig(config);
     setIsSimulation(isSimulating);
     
-    game.setHostUsername(tiktokUsername);
+    game.setHostUsername(config.username);
 
     if (isSimulating) {
         game.returnToModeSelection();
     } else {
         setGameState(GameState.Connecting);
-        connect(tiktokUsername);
+        connect(config);
     }
   }, [connect, game]);
 
@@ -268,10 +280,11 @@ const App: React.FC = () => {
   }, [game, maxWinners]);
 
   const handleReconnect = useCallback(() => {
+    if (!serverConfig) return;
     setConnectionError(null);
     setIsDisconnected(false);
-    connect(username);
-  }, [connect, username]);
+    connect(serverConfig);
+  }, [connect, serverConfig]);
   
   const handleSwitchMode = () => {
     if (window.confirm('Apakah Anda yakin ingin menghentikan permainan saat ini dan kembali ke menu pemilihan mode?')) {
@@ -375,11 +388,11 @@ const App: React.FC = () => {
                     exit={{ opacity: 0 }}
                     className="h-full"
                 >
-                    {gameState === GameState.Setup && <SetupScreen onStart={handleConnect} error={connectionError} />}
+                    {gameState === GameState.Setup && <SetupScreen onConnect={handleConnect} error={connectionError} />}
                     {gameState === GameState.Connecting && (
                         <div className="h-full flex flex-col items-center justify-center text-center p-4">
                             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-sky-400"></div>
-                            <p className="mt-4 text-sky-500 dark:text-sky-300">Menghubungkan ke live @{username}...</p>
+                            <p className="mt-4 text-sky-500 dark:text-sky-300">Menghubungkan ke @{serverConfig?.username}...</p>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Pastikan username benar dan streamer sedang live.</p>
                         </div>
                     )}
@@ -559,6 +572,7 @@ const App: React.FC = () => {
             <SimulationPanel 
                 onComment={handleComment} 
                 onGift={handleGift}
+                onDonation={handleDonation}
                 currentAnswer={game.currentAnswer} 
                 gameState={gameState}
                 onRegisterPlayer={game.registerPlayer}

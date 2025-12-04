@@ -1,9 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ConnectionStatus, ChatMessage, GiftNotification, TikTokGiftEvent } from '../types';
-
-// The backend server is expected to run on localhost:8081
-const TIKTOK_LIVE_BACKEND_URL = 'https://tiktok-server-production-e9f4.up.railway.app';
+import { ConnectionStatus, ChatMessage, GiftNotification, TikTokGiftEvent, ServerConfig, ServerType, DonationPlatform } from '../types';
 
 // Define the shape of the chat data coming from the backend
 interface TikTokChatEvent {
@@ -15,26 +12,24 @@ interface TikTokChatEvent {
 }
 
 const parseTikTokError = (reason: string): string => {
-    if (typeof reason !== 'string') {
-        return 'Terjadi error yang tidak diketahui saat menghubungkan ke TikTok.';
-    }
-    // Check for specific API code or text for user_not_found
-    if (reason.includes('user_not_found') || reason.includes('19881007')) {
-        return 'Username tidak ditemukan atau tidak sedang live. Mohon periksa kembali ejaan dan pastikan streamer sedang online.';
-    }
-    // Handle websocket upgrade failure
-    if (reason.includes('websocket upgrade')) {
-        return 'Koneksi ke TikTok gagal (metode websocket ditolak). Ini bisa terjadi jika TikTok mengubah API-nya. Coba lagi nanti.';
-    }
-    if (reason.includes('timeout')) {
-        return 'Koneksi ke TikTok timeout. Pastikan koneksi internet Anda stabil dan coba lagi.';
-    }
-    if (reason.includes('Connection lost')) {
-        return 'Koneksi ke TikTok terputus. Stream mungkin telah berakhir.';
-    }
-    return 'Gagal terhubung ke TikTok Live. Silakan coba lagi.';
+    if (typeof reason !== 'string') return 'Terjadi error yang tidak diketahui.';
+    if (reason.includes('user_not_found') || reason.includes('19881007')) return 'Username tidak ditemukan atau tidak sedang live.';
+    if (reason.includes('websocket upgrade')) return 'Koneksi ke TikTok gagal (websocket ditolak).';
+    if (reason.includes('timeout')) return 'Koneksi ke TikTok timeout.';
+    if (reason.includes('Connection lost')) return 'Koneksi ke TikTok terputus.';
+    return `Gagal terhubung: ${reason}`;
 };
 
+const indofinityDonationAdapter = (platform: DonationPlatform, data: any): Omit<GiftNotification, 'id'> => {
+  return {
+    userId: data.from_name || platform,
+    nickname: data.from_name || 'Donatur',
+    profilePictureUrl: `https://i.pravatar.cc/40?u=${data.from_name || platform}`,
+    giftName: `${data.message || `Donasi via ${platform}`} (Rp ${data.amount.toLocaleString()})`,
+    giftCount: 1,
+    giftId: 99999, // generic ID for donations
+  };
+};
 
 export const useTikTokLive = (
     onMessage: (message: ChatMessage) => void,
@@ -42,9 +37,8 @@ export const useTikTokLive = (
 ) => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
-  const socket = useRef<Socket | null>(null);
+  const connectionRef = useRef<Socket | WebSocket | null>(null);
 
-  // Use refs to store the latest callbacks, preventing stale closures
   const onMessageRef = useRef(onMessage);
   const onGiftRef = useRef(onGift);
   useEffect(() => {
@@ -52,103 +46,184 @@ export const useTikTokLive = (
     onGiftRef.current = onGift;
   }, [onMessage, onGift]);
 
-  // Add a cleanup effect to disconnect the socket when the component unmounts
   useEffect(() => {
-    return () => {
-      socket.current?.disconnect();
+    return () => { // Cleanup on unmount
+      if (connectionRef.current) {
+        if (connectionRef.current instanceof WebSocket) {
+          connectionRef.current.close();
+        } else {
+          connectionRef.current.disconnect();
+        }
+      }
     };
   }, []);
 
-  const connect = useCallback((username: string) => {
-    if (socket.current?.connected) {
-      socket.current.disconnect();
-    }
+  const connect = useCallback((config: ServerConfig) => {
+    if (connectionRef.current) disconnect();
 
     setConnectionStatus('connecting');
     setError(null);
 
-    // Establish connection to the backend server
-    socket.current = io(TIKTOK_LIVE_BACKEND_URL);
+    switch (config.type) {
+      case ServerType.RAILWAY_1:
+      case ServerType.RAILWAY_2:
+      case ServerType.CUSTOM:
+        connectToRailway(config);
+        break;
+      case ServerType.INDOFINITY_WEBSOCKET:
+        connectToIndoFinityWS();
+        break;
+      case ServerType.INDOFINITY_SOCKETIO:
+        connectToIndoFinitySocketIO();
+        break;
+    }
+  }, []);
 
-    // Event: Successfully connected to the backend WebSocket server
-    socket.current.on('connect', () => {
-      console.log('Connected to backend server, setting uniqueId...');
-      socket.current?.emit('setUniqueId', username, {});
-    });
-
-    // Event: Backend confirms connection to TikTok Live
-    socket.current.on('tiktokConnected', (state) => {
-      console.log('Successfully connected to TikTok Live:', state);
-      setConnectionStatus('connected');
-    });
-
-    // Event: Backend reports disconnection from TikTok Live
-    socket.current.on('tiktokDisconnected', (reason: string) => {
-      console.error('Disconnected from TikTok Live:', reason);
-      setError(parseTikTokError(reason));
-      setConnectionStatus('error');
-      socket.current?.disconnect();
-    });
-
-    // Event: A new chat message is received
-    socket.current.on('chat', (data: TikTokChatEvent) => {
-      // Map the backend data to our internal ChatMessage type
-      const message: ChatMessage = {
-        id: data.msgId,
-        userId: data.uniqueId,
-        nickname: data.nickname,
-        comment: data.comment,
-        profilePictureUrl: data.profilePictureUrl,
-        isWinner: false, // This will be determined by the game logic
-      };
-      // Call the latest onMessage callback via the ref
-      onMessageRef.current(message);
-    });
-
-    // Event: A new gift is received
-    socket.current.on('gift', (data: TikTokGiftEvent) => {
-        const gift: Omit<GiftNotification, 'id'> = {
+  const handleIndoFinityMessage = (event: string, data: any) => {
+    const donationPlatforms: DonationPlatform[] = ['saweria', 'sociabuzz', 'trakteer', 'tako', 'bagibagi', 'sibagi'];
+    
+    if (event === 'chat') {
+        onMessageRef.current({
+            id: data.msgId || `${Date.now()}`,
+            userId: data.uniqueId,
+            nickname: data.nickname,
+            comment: data.comment,
+            profilePictureUrl: data.profilePictureUrl,
+            isWinner: false,
+        });
+    } else if (event === 'gift') {
+        onGiftRef.current({
             userId: data.uniqueId,
             nickname: data.nickname,
             profilePictureUrl: data.profilePictureUrl,
             giftName: data.giftName,
             giftCount: data.giftCount,
             giftId: data.giftId,
-        };
-        // Call the latest onGift callback via the ref
-        onGiftRef.current(gift);
+        });
+    } else if (donationPlatforms.includes(event as DonationPlatform)) {
+        const giftData = indofinityDonationAdapter(event as DonationPlatform, data);
+        onGiftRef.current(giftData);
+    }
+  };
+
+  const connectToIndoFinityWS = () => {
+    const ws = new WebSocket('ws://localhost:62024');
+    connectionRef.current = ws;
+
+    ws.onopen = () => {
+        console.log('Terhubung ke IndoFinity WebSocket');
+        setConnectionStatus('connected');
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const message = JSON.parse(event.data);
+            handleIndoFinityMessage(message.event, message.data);
+        } catch (e) {
+            console.error('Error parsing IndoFinity WS message:', e);
+        }
+    };
+
+    ws.onerror = (err) => {
+        console.error('IndoFinity WebSocket error:', err);
+        setError('Gagal terhubung ke IndoFinity WebSocket. Pastikan server lokal berjalan.');
+        setConnectionStatus('error');
+    };
+
+    ws.onclose = () => {
+        console.log('Koneksi IndoFinity WebSocket ditutup');
+        if (connectionStatus !== 'error') setConnectionStatus('disconnected');
+    };
+  };
+
+  const connectToIndoFinitySocketIO = () => {
+    const socket = io('http://localhost:62025');
+    connectionRef.current = socket;
+
+    socket.on('connect', () => {
+        console.log('Terhubung ke IndoFinity Socket.IO');
+        setConnectionStatus('connected');
     });
 
-    // Event: Stream has ended
-    socket.current.on('streamEnd', () => {
-        console.log('The Live stream has ended.');
-        setError('Siaran langsung telah berakhir.');
-        setConnectionStatus('disconnected');
-        socket.current?.disconnect();
+    socket.on('message', (data) => {
+        try {
+            handleIndoFinityMessage(data.event, data.data);
+        } catch (e) {
+            console.error('Error parsing IndoFinity Socket.IO message:', e);
+        }
     });
 
-    // Event: Error connecting to the backend server
-    socket.current.on('connect_error', (err) => {
-      console.error('Failed to connect to backend server:', err);
-      setError('Gagal terhubung ke server backend. Pastikan server berjalan.');
+    socket.on('connect_error', (err) => {
+        console.error('IndoFinity Socket.IO error:', err);
+        setError('Gagal terhubung ke IndoFinity Socket.IO. Pastikan server lokal berjalan.');
+        setConnectionStatus('error');
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Koneksi IndoFinity Socket.IO terputus');
+        if (connectionStatus !== 'error') setConnectionStatus('disconnected');
+    });
+  };
+
+  const connectToRailway = (config: ServerConfig) => {
+    if (!config.url || !config.username) {
+        setError('URL Server atau Username TikTok tidak boleh kosong.');
+        setConnectionStatus('error');
+        return;
+    }
+    const socket = io(config.url);
+    connectionRef.current = socket;
+
+    socket.on('connect', () => socket.emit('setUniqueId', config.username, {}));
+    socket.on('tiktokConnected', () => setConnectionStatus('connected'));
+    socket.on('tiktokDisconnected', (reason: string) => {
+      setError(parseTikTokError(reason));
       setConnectionStatus('error');
+      socket.disconnect();
     });
-    
-    // Event: Disconnected from backend server
-    socket.current.on('disconnect', () => {
-        setConnectionStatus((prevStatus) => {
-            if (prevStatus !== 'error') {
-                return 'disconnected';
-            }
-            return prevStatus;
+    socket.on('chat', (data: TikTokChatEvent) => {
+      onMessageRef.current({
+        id: data.msgId,
+        userId: data.uniqueId,
+        nickname: data.nickname,
+        comment: data.comment,
+        profilePictureUrl: data.profilePictureUrl,
+        isWinner: false,
+      });
+    });
+    socket.on('gift', (data: TikTokGiftEvent) => {
+        onGiftRef.current({
+            userId: data.uniqueId,
+            nickname: data.nickname,
+            profilePictureUrl: data.profilePictureUrl,
+            giftName: data.giftName,
+            giftCount: data.giftCount,
+            giftId: data.giftId,
         });
     });
-
-  }, []); // Empty dependency array makes `connect` function stable
+    socket.on('streamEnd', () => {
+        setError('Siaran langsung telah berakhir.');
+        setConnectionStatus('disconnected');
+        socket.disconnect();
+    });
+    socket.on('connect_error', (err) => {
+      setError(`Gagal terhubung ke ${config.url}. Pastikan server berjalan.`);
+      setConnectionStatus('error');
+    });
+    socket.on('disconnect', () => {
+      if (connectionStatus !== 'error') setConnectionStatus('disconnected');
+    });
+  };
 
   const disconnect = useCallback(() => {
-    socket.current?.disconnect();
-    socket.current = null;
+    if (connectionRef.current) {
+        if (connectionRef.current instanceof WebSocket) {
+            connectionRef.current.close();
+        } else {
+            connectionRef.current.disconnect();
+        }
+        connectionRef.current = null;
+    }
     setConnectionStatus('idle');
   }, []);
 

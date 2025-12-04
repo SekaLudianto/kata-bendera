@@ -1,30 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GlobeIcon } from './IconComponents';
+import { ServerConfig, ServerType } from '../types';
 
 interface SetupScreenProps {
-  onStart: (username: string, isSimulation: boolean) => void;
+  onConnect: (config: ServerConfig, isSimulation: boolean) => void;
   error: string | null;
 }
 
-const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
+const serverOptions = [
+  { id: ServerType.RAILWAY_1, name: 'Server 1 (Buat Lev)', url: 'https://buat-lev.up.railway.app' },
+  { id: ServerType.RAILWAY_2, name: 'Server 2 (Ini Live)', url: 'https://ini-live.up.railway.app' },
+  { id: ServerType.CUSTOM, name: 'Server Kustom' },
+  { id: ServerType.INDOFINITY_WEBSOCKET, name: 'IndoFinity (WebSocket)' },
+  { id: ServerType.INDOFINITY_SOCKETIO, name: 'IndoFinity (Socket.IO)' },
+];
+
+const SetupScreen: React.FC<SetupScreenProps> = ({ onConnect, error }) => {
   const [username, setUsername] = useState(() => localStorage.getItem('tiktok-quiz-username') || '');
   const [isSimulation, setIsSimulation] = useState(false);
+  const [serverType, setServerType] = useState<ServerType>(ServerType.RAILWAY_1);
+  const [customUrl, setCustomUrl] = useState('');
 
   useEffect(() => {
     localStorage.setItem('tiktok-quiz-username', username);
   }, [username]);
 
   const handleStart = () => {
-    if (isSimulation || username.trim()) {
-      onStart(username.trim().replace(/^@/, ''), isSimulation);
+    const isIndoFinity = serverType === ServerType.INDOFINITY_SOCKETIO || serverType === ServerType.INDOFINITY_WEBSOCKET;
+    
+    // For IndoFinity, username is optional and can be an empty string
+    const requiresUsername = !isSimulation && !isIndoFinity;
+    if (requiresUsername && !username.trim()) return;
+    if (serverType === ServerType.CUSTOM && !customUrl.trim()) return;
+
+    let finalUrl: string | undefined;
+    if (serverType === ServerType.CUSTOM) {
+        finalUrl = customUrl;
+    } else {
+        const selectedOption = serverOptions.find(opt => opt.id === serverType);
+        finalUrl = selectedOption?.url;
     }
+    
+    const config: ServerConfig = {
+      type: serverType,
+      url: finalUrl,
+      username: username.trim().replace(/^@/, ''),
+    };
+    onConnect(config, isSimulation);
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleStart();
   };
+  
+  const isIndoFinity = serverType === ServerType.INDOFINITY_SOCKETIO || serverType === ServerType.INDOFINITY_WEBSOCKET;
+  const usernameLabel = isIndoFinity ? "Username TikTok (Opsional)" : "Username TikTok";
+  const startButtonDisabled = !isSimulation && !isIndoFinity && !username.trim();
 
   return (
     <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
@@ -41,8 +74,43 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Edisi TikTok Live</p>
 
         <form onSubmit={handleSubmit} className="w-full max-w-xs mt-6">
+          <div className="mb-3">
+            <label htmlFor="server-type" className="block text-sm text-left text-gray-500 dark:text-gray-400 mb-1 font-medium">Pilih Server Koneksi</label>
+            <select
+              id="server-type"
+              value={serverType}
+              onChange={(e) => setServerType(e.target.value as ServerType)}
+              className="w-full px-4 py-2 bg-sky-100 border-2 border-sky-200 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-sky-500"
+              disabled={isSimulation}
+            >
+              {serverOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
+            </select>
+          </div>
+
+          <AnimatePresence>
+          {serverType === ServerType.CUSTOM && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-3 overflow-hidden"
+            >
+              <label htmlFor="custom-url" className="block text-sm text-left text-gray-500 dark:text-gray-400 mb-1 font-medium">URL Server Kustom</label>
+              <input
+                type="text"
+                id="custom-url"
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                placeholder="https://... atau ws://..."
+                className="w-full px-4 py-2 bg-sky-100 border-2 border-sky-200 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                disabled={isSimulation}
+              />
+            </motion.div>
+          )}
+          </AnimatePresence>
+          
           <div className="relative mb-3">
-             <label htmlFor="username" className="block text-sm text-left text-gray-500 dark:text-gray-400 mb-1 font-medium">Masukkan Username TikTok</label>
+             <label htmlFor="username" className="block text-sm text-left text-gray-500 dark:text-gray-400 mb-1 font-medium">{usernameLabel}</label>
             <input
               type="text"
               id="username"
@@ -75,10 +143,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart, error }) => {
             whileTap={{ scale: 0.95 }}
             type="button"
             onClick={handleStart}
-            disabled={!username.trim() && !isSimulation}
+            disabled={startButtonDisabled}
             className="w-full mt-2 px-4 py-2.5 bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
           >
-            {isSimulation ? 'Mulai Simulasi' : 'Hubungkan ke Live'}
+            {isSimulation ? 'Mulai Simulasi' : 'Hubungkan'}
           </motion.button>
         </form>
         

@@ -1,4 +1,3 @@
-
 // FIX: Import React to use React.ReactNode type.
 import React from 'react';
 
@@ -80,7 +79,31 @@ export interface TikTokGiftEvent {
   giftId: number; // e.g., 5655 for Rose
 }
 
-export type LiveFeedEvent = ChatMessage | GiftNotification;
+export type DonationPlatform = 'saweria' | 'sociabuzz' | 'trakteer' | 'tako' | 'bagibagi' | 'sibagi';
+
+export interface DonationEvent {
+  id: string;
+  platform: DonationPlatform;
+  from_name: string;
+  amount: number;
+  message: string;
+}
+
+export type LiveFeedEvent = ChatMessage | GiftNotification | DonationEvent;
+
+export enum ServerType {
+  RAILWAY_1 = 'railway_1',
+  RAILWAY_2 = 'railway_2',
+  CUSTOM = 'custom',
+  INDOFINITY_WEBSOCKET = 'indofinity_ws',
+  INDOFINITY_SOCKETIO = 'indofinity_io',
+}
+
+export interface ServerConfig {
+  type: ServerType;
+  url?: string;
+  username: string;
+}
 
 export enum GameStyle {
     Classic = 'classic',
