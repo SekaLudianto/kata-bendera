@@ -1,7 +1,6 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-type SoundType = 'roundStart' | 'correctAnswer' | 'roundEnd' | 'roundEndMuted' | 'champion' | 'gameOver' | 'explosion' | 'safeMove';
+type SoundType = 'roundStart' | 'correctAnswer' | 'roundEnd' | 'roundEndMuted' | 'champion' | 'gameOver';
 
 // Use a singleton pattern for the AudioContext to avoid creating multiple instances
 let audioCtx: AudioContext | null = null;
@@ -51,7 +50,6 @@ export const useSound = () => {
             gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
             break;
         case 'correctAnswer':
-        case 'safeMove':
             oscillator.type = 'triangle';
             oscillator.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
             gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
@@ -67,13 +65,6 @@ export const useSound = () => {
             oscillator.frequency.setValueAtTime(220, ctx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
             break;
-        case 'explosion':
-             oscillator.type = 'sawtooth';
-             oscillator.frequency.setValueAtTime(100, ctx.currentTime);
-             oscillator.frequency.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-             gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
-             gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-             break;
         case 'champion':
         case 'gameOver':
             oscillator.type = 'sine';

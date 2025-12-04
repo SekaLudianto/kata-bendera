@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
@@ -17,7 +18,7 @@ import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ClassicCategorySelection } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { KeyboardIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
@@ -249,13 +250,13 @@ const App: React.FC = () => {
     }
   }, [connect, game]);
 
-  const handleStartClassic = useCallback((winnersCount: number, category: ClassicCategorySelection) => {
+  const handleStartClassic = useCallback((winnersCount: number) => {
     setMaxWinners(winnersCount);
-    game.startGame(GameStyle.Classic, winnersCount, { classicCategory: category });
+    game.startGame(GameStyle.Classic, winnersCount);
   }, [game]);
 
   const handleStartKnockout = useCallback((category: KnockoutCategory) => {
-    game.startGame(GameStyle.Knockout, maxWinners, { knockoutCategory: category });
+    game.startGame(GameStyle.Knockout, maxWinners, category);
   }, [game, maxWinners]);
   
   const handleBackToModeSelection = useCallback(() => {
@@ -263,7 +264,7 @@ const App: React.FC = () => {
   }, [game]);
   
   const handleAutoRestart = useCallback(() => {
-    game.startGame(GameStyle.Classic, maxWinners, { classicCategory: 'Random' });
+    game.startGame(GameStyle.Classic, maxWinners);
   }, [game, maxWinners]);
 
   const handleReconnect = useCallback(() => {
@@ -546,7 +547,7 @@ const App: React.FC = () => {
       <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-center gap-4">
         {/* Left Column: Game Screen */}
         <div className="w-full md:max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {renderContent()}
           </AnimatePresence>
         </div>

@@ -1,6 +1,6 @@
-
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
-import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject, MinesweeperCell, MathQuestion, ClassicCategorySelection } from '../types';
+// FIX: The type `LetterObject` is now correctly exported from `types.ts`.
+import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject } from '../types';
 import { countries } from '../data/countries';
 import { fruits } from '../data/fruits';
 import { animals } from '../data/animals';
@@ -45,7 +45,6 @@ export interface InternalGameState {
   countdownValue: number | null;
   chatMessages: ChatMessage[]; // Added for ChatTab
   classicRoundDeck: GameMode[];
-  classicCategorySelection: ClassicCategorySelection;
 
   // Knockout state
   knockoutCategory: KnockoutCategory | null;
@@ -54,12 +53,6 @@ export interface InternalGameState {
   currentBracketRoundIndex: number | null;
   currentMatchIndex: number | null;
   knockoutMatchPoints: { player1: number; player2: number };
-  
-  // Minesweeper State
-  minesweeperGrid: MinesweeperCell[];
-
-  // Math State
-  currentMathQuestion: MathQuestion | null;
 }
 
 
@@ -92,11 +85,10 @@ const scrambleWord = (name:string): LetterObject[][] => {
         // Add 3 decoy vowels only to the longest word
         if (wordIndex === longestWordIndex) {
             for (let i = 0; i < 3; i++) {
-                const randomVowel = VOWELS[Math.floor(Math.random() * VOWELS.length)];
                 lettersWithDecoys.push({
-                    id: `w${wordIndex}-d${i}`,
-                    letter: randomVowel,
-                    isDecoy: true
+                    id: `decoy-${wordIndex}-${i}`,
+                    letter: VOWELS[Math.floor(Math.random() * VOWELS.length)],
+                    isDecoy: true,
                 });
             }
         }
@@ -104,122 +96,6 @@ const scrambleWord = (name:string): LetterObject[][] => {
         // Shuffle the combined array
         return shuffleArray(lettersWithDecoys);
     }).map(wordArray => [...wordArray]); // Return a new array of new arrays
-};
-
-// --- MATH GENERATOR (HARD MODE) ---
-const generateMathQuestion = (): MathQuestion => {
-    // 0: Addition (Hundreds), 1: Subtraction (Hundreds), 2: Multiplication (Tens), 
-    // 3: Division (Clean), 4: Mixed (Order of Operations)
-    const type = Math.floor(Math.random() * 5);
-    
-    let question = '';
-    let answer = 0;
-
-    switch (type) {
-        case 0: // Hard Addition
-            const a1 = Math.floor(Math.random() * 899) + 100; // 100-999
-            const a2 = Math.floor(Math.random() * 899) + 100;
-            question = `${a1} + ${a2} = ?`;
-            answer = a1 + a2;
-            break;
-        case 1: // Hard Subtraction
-            const s1 = Math.floor(Math.random() * 500) + 500; // 500-1000
-            const s2 = Math.floor(Math.random() * 450) + 50;  // 50-500
-            question = `${s1} - ${s2} = ?`;
-            answer = s1 - s2;
-            break;
-        case 2: // Hard Multiplication
-            // Case A: 2 digit x 1 digit (High numbers) e.g., 87 x 8
-            if (Math.random() > 0.5) {
-                const m1 = Math.floor(Math.random() * 70) + 20; // 20-90
-                const m2 = Math.floor(Math.random() * 7) + 3;   // 3-9
-                question = `${m1} x ${m2} = ?`;
-                answer = m1 * m2;
-            } else {
-                // Case B: 2 digit x 2 digit (Teens/Twenties) e.g., 14 x 16
-                const m1 = Math.floor(Math.random() * 15) + 11; // 11-25
-                const m2 = Math.floor(Math.random() * 15) + 11; 
-                question = `${m1} x ${m2} = ?`;
-                answer = m1 * m2;
-            }
-            break;
-        case 3: // Division (Integer Result)
-            const dAns = Math.floor(Math.random() * 50) + 10; // Result between 10-60
-            const dDivisor = Math.floor(Math.random() * 15) + 4; // Divisor between 4-19
-            const dividend = dAns * dDivisor;
-            question = `${dividend} : ${dDivisor} = ?`;
-            answer = dAns;
-            break;
-        case 4: // Mixed Operations (PEMDAS Trick)
-            // A + B x C  or  A - B x C
-            const op = Math.random() > 0.5 ? '+' : '-';
-            const mx1 = Math.floor(Math.random() * 50) + 20;
-            const mx2 = Math.floor(Math.random() * 10) + 3;
-            const mx3 = Math.floor(Math.random() * 10) + 3;
-            
-            question = `${mx1} ${op} ${mx2} x ${mx3} = ?`;
-            
-            // Multiply first!
-            const multRes = mx2 * mx3;
-            answer = op === '+' ? mx1 + multRes : mx1 - multRes;
-            break;
-    }
-
-    return { question, answer };
-};
-
-
-// --- MINESWEEPER LOGIC ---
-const ROWS = 5;
-const COLS = 5;
-const MINES_COUNT = 5;
-
-const generateMinesweeperGrid = (): MinesweeperCell[] => {
-    const grid: MinesweeperCell[] = [];
-    const colLabels = ['A', 'B', 'C', 'D', 'E'];
-
-    // Initialize cells
-    for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-            grid.push({
-                id: `${colLabels[c]}${r + 1}`,
-                row: r,
-                col: c,
-                isMine: false,
-                isRevealed: false,
-                neighborMines: 0
-            });
-        }
-    }
-
-    // Place mines
-    let minesPlaced = 0;
-    while (minesPlaced < MINES_COUNT) {
-        const idx = Math.floor(Math.random() * grid.length);
-        if (!grid[idx].isMine) {
-            grid[idx].isMine = true;
-            minesPlaced++;
-        }
-    }
-
-    // Calculate neighbors
-    for (let i = 0; i < grid.length; i++) {
-        const cell = grid[i];
-        if (cell.isMine) continue;
-
-        let count = 0;
-        for (let r = cell.row - 1; r <= cell.row + 1; r++) {
-            for (let c = cell.col - 1; c <= cell.col + 1; c++) {
-                if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-                    const neighbor = grid.find(g => g.row === r && g.col === c);
-                    if (neighbor && neighbor.isMine) count++;
-                }
-            }
-        }
-        cell.neighborMines = count;
-    }
-
-    return grid;
 };
 
 
@@ -252,15 +128,12 @@ const createInitialState = (): InternalGameState => ({
   countdownValue: null,
   chatMessages: [],
   classicRoundDeck: [],
-  classicCategorySelection: 'Random',
   knockoutCategory: null,
   knockoutPlayers: [],
   knockoutBracket: null,
   currentBracketRoundIndex: null,
   currentMatchIndex: null,
   knockoutMatchPoints: { player1: 0, player2: 0 },
-  minesweeperGrid: [],
-  currentMathQuestion: null,
 });
 
 // --- KNOCKOUT HELPERS ---
@@ -368,16 +241,9 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
   switch (action.type) {
     case 'START_GAME': {
       const initialState = createInitialState();
-      const { gameStyle, maxWinners, knockoutCategory, classicCategorySelection, classicRoundDeck, firstRoundData } = action.payload;
+      const { gameStyle, maxWinners, knockoutCategory, classicRoundDeck, firstRoundData } = action.payload;
 
       if (gameStyle === GameStyle.Classic && firstRoundData) {
-        const scrambled = firstRoundData.country ? scrambleWord(firstRoundData.country.name)
-                        : firstRoundData.triviaQuestion ? scrambleWord(firstRoundData.triviaQuestion.answer)
-                        : firstRoundData.city ? scrambleWord(firstRoundData.city.name)
-                        : firstRoundData.word ? scrambleWord(firstRoundData.word)
-                        : firstRoundData.stadium ? scrambleWord(firstRoundData.stadium.name)
-                        : [];
-
         return {
           ...initialState,
           hostUsername: state.hostUsername,
@@ -385,7 +251,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
           gameStyle: gameStyle,
           maxWinners: maxWinners,
           classicRoundDeck: classicRoundDeck || [],
-          classicCategorySelection: classicCategorySelection || 'Random',
           gameState: GameState.Playing,
           round: 1,
           gameMode: firstRoundData.gameMode,
@@ -394,11 +259,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
           currentCategory: firstRoundData.category || null,
           currentTriviaQuestion: firstRoundData.triviaQuestion || null,
           currentCity: firstRoundData.city || null,
-          currentWord: firstRoundData.word || null,
-          currentWordCategory: firstRoundData.wordCategory || null,
-          currentStadium: firstRoundData.stadium || null,
           availableAnswersCount: firstRoundData.availableAnswersCount || null,
-          scrambledWord: scrambled,
+          scrambledWord: firstRoundData.country ? scrambleWord(firstRoundData.country.name) : firstRoundData.triviaQuestion ? scrambleWord(firstRoundData.triviaQuestion.answer) : firstRoundData.city ? scrambleWord(firstRoundData.city.name) : [],
           isRoundActive: true,
           roundTimer: ROUND_TIMER_SECONDS,
         };
@@ -414,84 +276,43 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         };
       }
     }
+    case 'NEXT_ROUND': {
+      if (state.round >= TOTAL_ROUNDS) {
+        return { ...state, gameState: GameState.Champion, isRoundActive: false };
+      }
+      const newRound = state.round + 1;
+      const { gameMode, nextCountry, nextLetter, nextCategory, availableAnswersCount, nextWord, nextWordCategory, nextTriviaQuestion, nextCity } = action.payload;
+
+      return {
+        ...state,
+        gameState: GameState.Playing,
+        round: newRound,
+        gameMode: gameMode,
+        currentCountry: nextCountry || null,
+        currentLetter: nextLetter || null,
+        currentCategory: nextCategory || null,
+        currentWord: nextWord || null,
+        currentWordCategory: nextWordCategory || null,
+        currentTriviaQuestion: nextTriviaQuestion || null,
+        currentCity: nextCity || null,
+        availableAnswersCount: availableAnswersCount || null,
+        scrambledWord: nextCountry ? scrambleWord(nextCountry.name) : nextWord ? scrambleWord(nextWord) : nextTriviaQuestion ? scrambleWord(nextTriviaQuestion.answer) : nextCity ? scrambleWord(nextCity.name) : [],
+        usedAnswers: [],
+        isRoundActive: true,
+        roundWinners: [],
+        roundTimer: ROUND_TIMER_SECONDS,
+        showWinnerModal: false,
+        allAnswersFoundInRound: false,
+        isPausedByAdmin: false,
+        countdownValue: null,
+      };
+    }
     case 'PROCESS_COMMENT': {
         const message = action.payload;
         const newChatMessages = [message, ...state.chatMessages].slice(0, 100);
         if (!state.isRoundActive) return { ...state, chatMessages: newChatMessages };
         
         const comment = message.comment.trim();
-
-        // --- MINESWEEPER LOGIC START ---
-        if (state.gameMode === GameMode.Minesweeper && state.gameStyle === GameStyle.Knockout) {
-            const { knockoutMatchPoints, currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
-            if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return { ...state, chatMessages: newChatMessages };
-            
-            const match = knockoutBracket[currentBracketRoundIndex][currentMatchIndex];
-            
-            // Check if player is in the current match (using userId)
-            if (message.userId !== match.player1?.userId && message.userId !== match.player2?.userId) {
-                 return { ...state, chatMessages: newChatMessages };
-            }
-
-            // Parse coordinate (e.g., "A1", "C3")
-            const matchCoord = comment.toUpperCase().match(/^([A-E])\s*([1-5])$/);
-            if (!matchCoord) return { ...state, chatMessages: newChatMessages };
-            
-            const cellId = `${matchCoord[1]}${matchCoord[2]}`;
-            const cellIndex = state.minesweeperGrid.findIndex(c => c.id === cellId);
-            
-            if (cellIndex === -1 || state.minesweeperGrid[cellIndex].isRevealed) {
-                return { ...state, chatMessages: newChatMessages };
-            }
-
-            const cell = state.minesweeperGrid[cellIndex];
-            const newGrid = [...state.minesweeperGrid];
-
-            // 1. HIT MINE -> INSTANT LOSS for current player (Opponent Wins)
-            if (cell.isMine) {
-                newGrid[cellIndex] = { 
-                    ...cell, 
-                    isRevealed: true, 
-                    exploded: true,
-                    revealedBy: {
-                        userId: message.userId,
-                        profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.userId}`
-                    }
-                };
-                
-                return {
-                     ...state,
-                     isRoundActive: false, // Stop the round immediately
-                     minesweeperGrid: newGrid,
-                     chatMessages: [{ ...message, comment: `BOOM! ${comment} adalah ranjau!`, isWinner: false }, ...state.chatMessages].slice(0, 100),
-                }
-            } 
-            
-            // 2. SAFE CELL -> Point for current player (for visual feedback)
-            newGrid[cellIndex] = { 
-                ...cell, 
-                isRevealed: true,
-                revealedBy: {
-                    userId: message.userId,
-                    profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.userId}`
-                }
-            };
-            
-            const newPoints = { ...knockoutMatchPoints };
-            if (message.userId === match.player1?.userId) {
-                newPoints.player1++;
-            } else {
-                newPoints.player2++;
-            }
-
-            return {
-                ...state,
-                minesweeperGrid: newGrid,
-                knockoutMatchPoints: newPoints,
-                chatMessages: [{ ...message, isWinner: true }, ...state.chatMessages].slice(0, 100),
-            };
-        }
-        // --- MINESWEEPER LOGIC END ---
 
         // Helper function to check for a whole word/phrase match, case-insensitively
         const checkAnswer = (commentText: string, answer: string): boolean => {
@@ -519,12 +340,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                     foundAnswer = validItem;
                     break;
                 }
-            }
-        } else if (state.gameMode === GameMode.Math) {
-            // Check exact number match for Math
-            if (state.currentMathQuestion && comment === state.currentMathQuestion.answer.toString()) {
-                isCorrect = true;
-                foundAnswer = state.currentMathQuestion.answer.toString();
             }
         } else {
             let expectedAnswer = '';
@@ -583,7 +398,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                     sessionLeaderboard: updatedSessionLeaderboard,
                     usedAnswers: state.gameMode === GameMode.ABC5Dasar ? [...state.usedAnswers, foundAnswer.toLowerCase()] : state.usedAnswers,
                 };
-            } else { // Knockout mode point scored (Classic Trivia/Word/Math types)
+            } else { // Knockout mode point scored
                 const { knockoutMatchPoints, currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
                 if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
                 const match = knockoutBracket![currentBracketRoundIndex!][currentMatchIndex!];
@@ -615,7 +430,15 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
     }
     case 'END_ROUND': {
       if (!state.isRoundActive) return state;
-
+    
+      const correctlyOrderedWord: LetterObject[][] = state.scrambledWord.map(wordArray => {
+        const realLetters = wordArray.filter(letterObj => !letterObj.isDecoy);
+        return realLetters.sort((a, b) => {
+          const getIndex = (id: string) => parseInt(id.split('-i')[1], 10);
+          return getIndex(a.id) - getIndex(b.id);
+        });
+      });
+    
       let updatedWinners = [...state.roundWinners];
       let updatedSessionLeaderboard = [...state.sessionLeaderboard];
       if (state.gameMode === GameMode.ABC5Dasar) {
@@ -636,25 +459,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         });
         updatedSessionLeaderboard.sort((a, b) => b.score - a.score);
       }
-
-      // Check if this is the final round of a classic game
-      if (state.gameStyle === GameStyle.Classic && state.round >= TOTAL_ROUNDS) {
-        return {
-          ...state,
-          isRoundActive: false,
-          gameState: GameState.Champion,
-          roundWinners: updatedWinners,
-          sessionLeaderboard: updatedSessionLeaderboard,
-        };
-      }
-    
-      const correctlyOrderedWord: LetterObject[][] = state.scrambledWord.map(wordArray => {
-        const realLetters = wordArray.filter(letterObj => !letterObj.isDecoy);
-        return realLetters.sort((a, b) => {
-          const getIndex = (id: string) => parseInt(id.split('-i')[1], 10);
-          return getIndex(a.id) - getIndex(b.id);
-        });
-      });
     
       return {
         ...state,
@@ -664,131 +468,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         sessionLeaderboard: updatedSessionLeaderboard,
         scrambledWord: correctlyOrderedWord,
       };
-    }
-    case 'PROCEED_TO_NEXT_CLASSIC_ROUND': {
-        // This action centralizes the logic to proceed to the next round in Classic mode, making it more robust.
-        if (state.round >= TOTAL_ROUNDS) {
-            return { ...state, showWinnerModal: false, gameState: GameState.Champion, isRoundActive: false };
-        }
-
-        const nextRoundDeck = [...state.classicRoundDeck];
-        const nextGameMode = nextRoundDeck.shift();
-
-        if (!nextGameMode) {
-            return { ...state, showWinnerModal: false, gameState: GameState.Champion, isRoundActive: false };
-        }
-
-        // --- Logic from old finishWinnerDisplay to get payload ---
-        const getPayloadForRound = (gameMode: GameMode, category: ClassicCategorySelection, usedDataRef: any): Partial<GameActionPayloads['START_GAME']['firstRoundData']> => {
-            const payload: Partial<GameActionPayloads['START_GAME']['firstRoundData']> = { gameMode };
-             switch(category) {
-                case 'GuessTheCountry':
-                     const country = getNewCountry(usedDataRef.current.countries);
-                     usedDataRef.current.countries.push(country);
-                     payload.country = country;
-                     break;
-                case 'Trivia':
-                     const trivia = getNewTrivia(usedDataRef.current.trivia);
-                     usedDataRef.current.trivia.push(trivia);
-                     payload.triviaQuestion = trivia;
-                     break;
-                case 'GuessTheCity':
-                     const city = getNewCity(usedDataRef.current.cities);
-                     usedDataRef.current.cities.push(city);
-                     payload.city = city;
-                     break;
-                case 'KpopTrivia':
-                    const kpop = getNewKpopTrivia(usedDataRef.current.kpopTrivia);
-                    usedDataRef.current.kpopTrivia.push(kpop);
-                    payload.triviaQuestion = kpop;
-                    break;
-                case 'ZonaBola':
-                    const types: WordCategory[] = ['Pemain Bola', 'Klub Bola', 'Stadion Bola'];
-                    const type = shuffleArray(types)[0];
-                    payload.wordCategory = type;
-                    if (type === 'Stadion Bola') {
-                        const stadium = getNewStadium(usedDataRef.current.stadiums);
-                        usedDataRef.current.stadiums.push(stadium);
-                        payload.stadium = stadium;
-                    } else {
-                        const word = getNewWord(type, usedDataRef.current.words);
-                        usedDataRef.current.words.push(word);
-                        payload.word = word;
-                    }
-                    break;
-                case 'GuessTheFruit':
-                    const fruit = getNewWord('Buah-buahan', usedDataRef.current.words);
-                    usedDataRef.current.words.push(fruit);
-                    payload.word = fruit;
-                    payload.wordCategory = 'Buah-buahan';
-                    break;
-                case 'GuessTheAnimal':
-                    const animal = getNewWord('Hewan', usedDataRef.current.words);
-                    usedDataRef.current.words.push(animal);
-                    payload.word = animal;
-                    payload.wordCategory = 'Hewan';
-                    break;
-            }
-            return payload;
-        };
-        
-        // This part is tricky because the reducer should be pure. However, `useGameLogic` is designed with a non-pure reducer that has access to the hook's scope.
-        // We will proceed with this pattern for minimal disruption.
-        const usedDataRef = (action as any)._usedDataRef; // A conceptual way to pass it, though not ideal. In reality, it's available via closure.
-
-        let payload: Partial<GameActionPayloads['START_GAME']['firstRoundData']> = { gameMode: nextGameMode };
-
-        if (state.classicCategorySelection === 'Random') {
-             if (nextGameMode === GameMode.GuessTheFlag) {
-                const country = getNewCountry(usedDataRef.current.countries);
-                usedDataRef.current.countries.push(country);
-                payload.country = country;
-            } else if (nextGameMode === GameMode.Trivia) {
-                 const question = getNewTrivia(usedDataRef.current.trivia);
-                 usedDataRef.current.trivia.push(question);
-                 payload.triviaQuestion = question;
-            } else if (nextGameMode === GameMode.GuessTheCity) {
-                const city = getNewCity(usedDataRef.current.cities);
-                usedDataRef.current.cities.push(city);
-                payload.city = city;
-            }
-        } else {
-            payload = getPayloadForRound(nextGameMode, state.classicCategorySelection, usedDataRef);
-        }
-
-        // --- Logic from old NEXT_ROUND reducer to apply payload ---
-        const newRound = state.round + 1;
-        const { country, letter, category, availableAnswersCount, word, wordCategory, triviaQuestion, city, stadium } = payload;
-        const scrambled = country ? scrambleWord(country.name)
-                        : word ? scrambleWord(word)
-                        : triviaQuestion ? scrambleWord(triviaQuestion.answer)
-                        : city ? scrambleWord(city.name)
-                        : stadium ? scrambleWord(stadium.name)
-                        : [];
-
-        return {
-            ...state,
-            gameState: GameState.Playing,
-            round: newRound,
-            gameMode: nextGameMode,
-            currentCountry: country || null,
-            currentLetter: letter || null,
-            currentCategory: category || null,
-            currentWord: word || null,
-            currentWordCategory: wordCategory || null,
-            currentTriviaQuestion: triviaQuestion || null,
-            currentCity: city || null,
-            currentStadium: stadium || null,
-            availableAnswersCount: availableAnswersCount || null,
-            scrambledWord: scrambled,
-            usedAnswers: [],
-            isRoundActive: true,
-            roundWinners: [],
-            roundTimer: ROUND_TIMER_SECONDS,
-            showWinnerModal: false,
-            allAnswersFoundInRound: false,
-            classicRoundDeck: nextRoundDeck,
-        };
     }
     case 'SHOW_WINNER_MODAL':
         return { ...state, showWinnerModal: true };
@@ -802,45 +481,148 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
       return createInitialState();
     case 'START_COUNTDOWN':
       return { ...state, countdownValue: 3 };
-    case 'TICK_COUNTDOWN': {
-      if (state.countdownValue !== null && state.countdownValue > 0) {
+    case 'TICK_COUNTDOWN':
+      if (state.countdownValue && state.countdownValue > 0) {
         return { ...state, countdownValue: state.countdownValue - 1 };
       }
+      if (state.gameState === GameState.KnockoutPrepareMatch && state.countdownValue === 1) {
+          return { ...state, countdownValue: 0, gameState: GameState.KnockoutPlaying }
+      }
       return state;
-    }
+    case 'SET_HOST_USERNAME':
+        return { ...state, hostUsername: action.payload.username };
+
+    // --- KNOCKOUT REDUCERS ---
+    case 'REGISTER_PLAYER':
+        if (state.knockoutPlayers.some(p => p.userId === action.payload.userId)) return state;
+        return { ...state, knockoutPlayers: [...state.knockoutPlayers, action.payload] };
+    case 'RESET_KNOCKOUT_REGISTRATION':
+        return { ...state, knockoutPlayers: [] };
     case 'END_REGISTRATION_AND_DRAW_BRACKET': {
-        if (state.knockoutPlayers.length < 2) return state;
+        if(state.knockoutPlayers.length < 2) return state; // Do nothing if not enough players
+        const bracket = generateBracket(state.knockoutPlayers);
+        return { ...state, gameState: GameState.KnockoutDrawing, knockoutBracket: bracket };
+    }
+    case 'PREPARE_NEXT_MATCH': {
+        const { roundIndex, matchIndex } = action.payload;
+        const bracket = state.knockoutBracket;
+        const matchToStart = bracket?.[roundIndex]?.[matchIndex];
+
+        if (!matchToStart || !matchToStart.player1 || !matchToStart.player2) {
+            console.error("BUG PREVENTED: Attempted to start an incomplete match.", matchToStart);
+            return state; 
+        }
+
+        return {
+            ...state,
+            gameState: GameState.KnockoutPrepareMatch,
+            countdownValue: KNOCKOUT_PREPARE_SECONDS,
+            currentBracketRoundIndex: roundIndex,
+            currentMatchIndex: matchIndex,
+        };
+    }
+    case 'START_MATCH': {
+        return {
+            ...state,
+            gameState: GameState.KnockoutPlaying,
+            knockoutMatchPoints: { player1: 0, player2: 0 },
+            currentCountry: null,
+            currentTriviaQuestion: null,
+            currentWord: null,
+            currentWordCategory: null,
+            currentStadium: null,
+        };
+    }
+    case 'FINISH_KNOCKOUT_MATCH': {
+        const { winner, score } = action.payload;
+        const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
+        if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
+
+        let newBracket = JSON.parse(JSON.stringify(knockoutBracket));
+        newBracket[currentBracketRoundIndex][currentMatchIndex].winner = winner;
+        newBracket[currentBracketRoundIndex][currentMatchIndex].score = score;
+
+        if (isTournamentOver(newBracket, currentBracketRoundIndex)) {
+            return {
+                ...state,
+                isRoundActive: false,
+                knockoutBracket: newBracket,
+                sessionLeaderboard: [{ ...winner, score: 1 }],
+                gameState: GameState.Champion,
+            };
+        } else {
+            const advancedBracket = advanceWinnerInBracket(newBracket, winner, currentBracketRoundIndex, currentMatchIndex);
+            return {
+                ...state,
+                isRoundActive: false,
+                knockoutBracket: advancedBracket,
+                gameState: GameState.KnockoutShowWinner,
+            };
+        }
+    }
+    case 'DECLARE_WALKOVER_WINNER': {
+        const { roundIndex, matchIndex, winner } = action.payload;
+        if (!state.knockoutBracket) return state;
+        
+        let newBracket = JSON.parse(JSON.stringify(state.knockoutBracket));
+        newBracket[roundIndex][matchIndex].winner = winner;
+        newBracket[roundIndex][matchIndex].score = 'WO';
+
+        if (isTournamentOver(newBracket, roundIndex)) {
+            return {
+                ...state,
+                knockoutBracket: newBracket,
+                sessionLeaderboard: [{ ...winner, score: 1 }],
+                gameState: GameState.Champion,
+            };
+        } else {
+            const advancedBracket = advanceWinnerInBracket(newBracket, winner, roundIndex, matchIndex);
+            return {
+                ...state,
+                knockoutBracket: advancedBracket,
+                gameState: GameState.KnockoutReadyToPlay,
+            };
+        }
+    }
+    case 'SET_READY_TO_PLAY': {
+        return { ...state, gameState: GameState.KnockoutReadyToPlay };
+    }
+    case 'RETURN_TO_BRACKET': {
+        return { ...state, gameState: GameState.KnockoutReadyToPlay };
+    }
+    case 'REDRAW_BRACKET': {
+        if (!state.knockoutPlayers || state.knockoutPlayers.length < 2) {
+            return state; // Not enough players to redraw
+        }
         const newBracket = generateBracket(state.knockoutPlayers);
         return {
             ...state,
             knockoutBracket: newBracket,
+            currentBracketRoundIndex: null,
+            currentMatchIndex: null,
+            knockoutMatchPoints: { player1: 0, player2: 0 },
             gameState: GameState.KnockoutDrawing,
         };
     }
-    case 'REGISTER_PLAYER': {
-        if (state.knockoutPlayers.some(p => p.userId === action.payload.userId)) {
-            return state; // Already registered
-        }
-        return {
-            ...state,
-            knockoutPlayers: [...state.knockoutPlayers, action.payload]
-        };
-    }
-    case 'RESET_KNOCKOUT_REGISTRATION': {
-        return {
-            ...state,
-            knockoutPlayers: [],
-            knockoutBracket: null,
-            currentBracketRoundIndex: null,
-            currentMatchIndex: null,
-        };
-    }
+    case 'RESTART_KNOCKOUT_COMPETITION':
+      return {
+        ...state,
+        gameState: GameState.KnockoutRegistration,
+        knockoutPlayers: [],
+        knockoutBracket: null,
+        currentBracketRoundIndex: null,
+        currentMatchIndex: null,
+        knockoutMatchPoints: { player1: 0, player2: 0 },
+        sessionLeaderboard: [],
+      };
     case 'SET_KNOCKOUT_COUNTRY': {
         return {
             ...state,
             gameMode: GameMode.GuessTheFlag,
             currentCountry: action.payload.country,
             scrambledWord: scrambleWord(action.payload.country.name),
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
         };
     }
     case 'SET_KNOCKOUT_TRIVIA': {
@@ -849,26 +631,33 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.Trivia,
             currentTriviaQuestion: action.payload.question,
             scrambledWord: scrambleWord(action.payload.question.answer),
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
         };
     }
     case 'SET_KNOCKOUT_ZONA_BOLA': {
-        const wordToScramble = typeof action.payload.data === 'string' ? action.payload.data : action.payload.data.name;
+        const { type, data } = action.payload;
+        const name = typeof data === 'string' ? data : data.name;
         return {
             ...state,
             gameMode: GameMode.ZonaBola,
-            currentWordCategory: action.payload.type,
-            currentWord: typeof action.payload.data === 'string' ? action.payload.data : null,
-            currentStadium: typeof action.payload.data !== 'string' ? action.payload.data : null,
-            scrambledWord: scrambleWord(wordToScramble),
+            currentWordCategory: type,
+            currentWord: type !== 'Stadion Bola' ? name : null,
+            currentStadium: type === 'Stadion Bola' ? (data as FootballStadium) : null,
+            scrambledWord: scrambleWord(name),
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
         };
     }
-    case 'SET_KNOCKOUT_GUESS_THE_FRUIT': {
+     case 'SET_KNOCKOUT_GUESS_THE_FRUIT': {
         return {
             ...state,
             gameMode: GameMode.GuessTheWord,
             currentWordCategory: 'Buah-buahan',
             currentWord: action.payload.fruit,
             scrambledWord: scrambleWord(action.payload.fruit),
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
         };
     }
     case 'SET_KNOCKOUT_GUESS_THE_ANIMAL': {
@@ -878,6 +667,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentWordCategory: 'Hewan',
             currentWord: action.payload.animal,
             scrambledWord: scrambleWord(action.payload.animal),
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
         };
     }
     case 'SET_KNOCKOUT_KPOP_TRIVIA': {
@@ -886,129 +677,40 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.Trivia,
             currentTriviaQuestion: action.payload.question,
             scrambledWord: scrambleWord(action.payload.question.answer),
-        };
-    }
-    case 'SET_KNOCKOUT_MINESWEEPER': {
-      return {
-          ...state,
-          gameMode: GameMode.Minesweeper,
-          minesweeperGrid: generateMinesweeperGrid(),
-      };
-    }
-    case 'SET_KNOCKOUT_MATH': {
-      return {
-          ...state,
-          gameMode: GameMode.Math,
-          currentMathQuestion: action.payload.question,
-          scrambledWord: [],
-      };
-    }
-    case 'PREPARE_NEXT_MATCH': {
-        return {
-            ...state,
-            gameState: GameState.KnockoutPrepareMatch,
-            currentBracketRoundIndex: action.payload.roundIndex,
-            currentMatchIndex: action.payload.matchIndex,
-            countdownValue: KNOCKOUT_PREPARE_SECONDS,
-        };
-    }
-    case 'START_MATCH': {
-        return {
-            ...state,
-            gameState: GameState.KnockoutPlaying,
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
-            roundTimer: state.gameMode === GameMode.Minesweeper ? 999 : KNOCKOUT_ROUND_TIMER_SECONDS, // Effectively no timer for minesweeper
+        };
+    }
+    case 'KNOCKOUT_QUESTION_TIMEOUT': {
+        return { ...state, isRoundActive: false };
+    }
+    case 'SKIP_KNOCKOUT_MATCH': {
+        return {
+            ...state,
+            isRoundActive: false,
+            gameState: GameState.KnockoutReadyToPlay,
             knockoutMatchPoints: { player1: 0, player2: 0 },
+            currentCountry: null,
+            currentTriviaQuestion: null,
+            scrambledWord: [],
         };
     }
-    case 'SET_READY_TO_PLAY': {
-        return { ...state, gameState: GameState.KnockoutReadyToPlay };
-    }
-    case 'FINISH_KNOCKOUT_MATCH': {
-        const { winner, score } = action.payload;
-        const { currentBracketRoundIndex, currentMatchIndex, knockoutBracket } = state;
-        if (currentBracketRoundIndex === null || currentMatchIndex === null || !knockoutBracket) return state;
-
-        const newBracket = JSON.parse(JSON.stringify(knockoutBracket));
-        const match = newBracket[currentBracketRoundIndex][currentMatchIndex];
-        match.winner = winner;
-        match.score = score;
-
-        const finalBracket = advanceWinnerInBracket(newBracket, winner, currentBracketRoundIndex, currentMatchIndex);
-        
-        const isOver = isTournamentOver(finalBracket, currentBracketRoundIndex);
-        
-        return {
-            ...state,
-            knockoutBracket: finalBracket,
-            gameState: isOver ? GameState.Champion : GameState.KnockoutShowWinner,
-            // FIX: Convert KnockoutPlayer to LeaderboardEntry by adding a score.
-            sessionLeaderboard: isOver ? [{ ...winner, score: 1 }] : [],
-        };
-    }
-    case 'DECLARE_WALKOVER_WINNER': {
-        const { winner, roundIndex, matchIndex } = action.payload;
-        const { knockoutBracket } = state;
-        if (!knockoutBracket) return state;
-
-        const newBracket = JSON.parse(JSON.stringify(knockoutBracket));
-        const match = newBracket[roundIndex][matchIndex];
-        match.winner = winner;
-        match.score = "WO"; // Walkover
-
-        const finalBracket = advanceWinnerInBracket(newBracket, winner, roundIndex, matchIndex);
-
-        return {
-            ...state,
-            knockoutBracket: finalBracket,
-        };
-    }
-    case 'REDRAW_BRACKET': {
-        const redrawnBracket = generateBracket(state.knockoutPlayers);
-        return {
-            ...state,
-            knockoutBracket: redrawnBracket,
-            gameState: GameState.KnockoutDrawing,
-        };
-    }
-    case 'RESTART_KNOCKOUT_COMPETITION': {
-        return {
-            ...state,
-            knockoutPlayers: [],
-            knockoutBracket: null,
-            currentBracketRoundIndex: null,
-            currentMatchIndex: null,
-            gameState: GameState.KnockoutRegistration,
-        };
-    }
-    case 'RETURN_TO_BRACKET': {
-        return { ...state, gameState: GameState.KnockoutReadyToPlay };
-    }
-    case 'FINISH_GAME': {
+    case 'FINISH_GAME':
         return { ...state, gameState: GameState.Finished };
-    }
-    case 'RETURN_TO_MODE_SELECTION': {
+    case 'RETURN_TO_MODE_SELECTION':
         return {
-            ...state,
+            ...createInitialState(),
+            leaderboard: state.leaderboard, // Keep global leaderboard
             gameState: GameState.ModeSelection,
-            round: 0,
-            sessionLeaderboard: [],
-            knockoutPlayers: [],
-            knockoutBracket: null,
-            currentBracketRoundIndex: null,
-            currentMatchIndex: null,
         };
-    }
-    case 'SET_HOST_USERNAME': {
-        return { ...state, hostUsername: action.payload.username };
-    }
     default:
-        return state;
+      return state;
   }
 };
 
+const abcCategories: AbcCategory[] = ['Negara', 'Buah', 'Hewan', 'Benda', 'Profesi', 'Kota di Indonesia', 'Tumbuhan'];
 const getValidationList = (category: AbcCategory): string[] => {
-    switch(category) {
+    switch(category){
         case 'Negara': return countries.map(c => c.name);
         case 'Buah': return fruits;
         case 'Hewan': return animals;
@@ -1020,375 +722,370 @@ const getValidationList = (category: AbcCategory): string[] => {
     }
 };
 
-// --- GETTERS FOR NEW ROUND DATA ---
-const getNewCountry = (used: Country[]): Country => shuffleArray(countries.filter(c => !used.some(u => u.code === c.code)))[0];
-const getNewTrivia = (used: TriviaQuestion[]): TriviaQuestion => shuffleArray(triviaQuestions.filter(q => !used.includes(q)))[0];
-const getNewCity = (used: City[]): City => shuffleArray(cities.filter(c => !used.includes(c)))[0];
-const getNewKpopTrivia = (used: TriviaQuestion[]): TriviaQuestion => shuffleArray(kpopTrivia.filter(q => !used.includes(q)))[0];
-const getNewWord = (category: WordCategory, used: string[]): string => {
-    let wordList: string[] = [];
-    if (category === 'Pemain Bola') wordList = footballPlayers;
-    else if (category === 'Klub Bola') wordList = footballClubs;
-    else if (category === 'Buah-buahan') wordList = fruits;
-    else if (category === 'Hewan') wordList = animals;
-    return shuffleArray(wordList.filter(w => !used.includes(w)))[0];
-};
-const getNewStadium = (used: FootballStadium[]): FootballStadium => shuffleArray(footballStadiums.filter(s => !used.includes(s)))[0];
-
-
 export const useGameLogic = () => {
-    const [state, dispatch] = useReducer(gameReducer, createInitialState());
-    const timerRef = useRef<number | null>(null);
-    const usedDataRef = useRef<{
-        countries: Country[],
-        words: string[],
-        stadiums: FootballStadium[],
-        trivia: TriviaQuestion[],
-        cities: City[],
-        kpopTrivia: TriviaQuestion[],
-    }>({ countries: [], words: [], stadiums: [], trivia: [], cities: [], kpopTrivia: [] });
+  const [state, dispatch] = useReducer(gameReducer, createInitialState());
+  const countryDeck = useRef<Country[]>([]);
+  const knockoutCountryDeck = useRef<Country[]>([]);
+  const triviaDeck = useRef<TriviaQuestion[]>([]);
+  const kpopTriviaDeck = useRef<TriviaQuestion[]>([]);
+  const footballPlayerDeck = useRef<string[]>([]);
+  const footballClubDeck = useRef<string[]>([]);
+  const footballStadiumDeck = useRef<FootballStadium[]>([]);
+  const cityDeck = useRef<City[]>([]);
+  const fruitDeck = useRef<string[]>([]);
+  const animalDeck = useRef<string[]>([]);
+  const usedAbcCombinations = useRef<Set<string>>(new Set());
+  const getRandomLetter = () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
 
-    const currentAnswer = (() => {
-        if (!state.isRoundActive) return '';
-        switch (state.gameMode) {
-            case GameMode.GuessTheFlag: return state.currentCountry?.name || '';
-            case GameMode.GuessTheWord: return state.currentWord || '';
-            case GameMode.Trivia: return state.currentTriviaQuestion?.answer || '';
-            case GameMode.GuessTheCity: return state.currentCity?.name || '';
-            case GameMode.ZonaBola: return state.currentWord || state.currentStadium?.name || '';
-            case GameMode.Math: return state.currentMathQuestion?.answer.toString() || '';
-            case GameMode.ABC5Dasar:
-                const count = state.availableAnswersCount;
-                return count !== null ? `(${count} jawaban tersedia)` : '';
-            default: return '';
+  const prepareNewDecks = useCallback(() => {
+    countryDeck.current = shuffleArray(countries);
+    knockoutCountryDeck.current = shuffleArray(countries);
+    triviaDeck.current = shuffleArray(triviaQuestions);
+    kpopTriviaDeck.current = shuffleArray(kpopTrivia);
+    footballPlayerDeck.current = shuffleArray(footballPlayers);
+    footballClubDeck.current = shuffleArray(footballClubs);
+    footballStadiumDeck.current = shuffleArray(footballStadiums);
+    cityDeck.current = shuffleArray(cities);
+    fruitDeck.current = shuffleArray(fruits);
+    animalDeck.current = shuffleArray(animals);
+    usedAbcCombinations.current.clear();
+  }, []);
+
+  const getNextCountry = useCallback(() => {
+    if(countryDeck.current.length === 0) countryDeck.current = shuffleArray(countries);
+    return countryDeck.current.pop()!
+  }, []);
+  
+  const getNextTrivia = useCallback(() => {
+    if (triviaDeck.current.length === 0) triviaDeck.current = shuffleArray(triviaQuestions);
+    return triviaDeck.current.pop()!;
+  }, []);
+
+  const getNextCity = useCallback(() => {
+    if(cityDeck.current.length === 0) cityDeck.current = shuffleArray(cities);
+    return cityDeck.current.pop()!
+  }, []);
+  
+  const getNextAbcCombo = useCallback(() => {
+    let letter: string, category: AbcCategory, combo: string, attempts = 0;
+    do {
+        letter = getRandomLetter();
+        category = abcCategories[Math.floor(Math.random() * abcCategories.length)];
+        combo = `${letter}-${category}`;
+        attempts++;
+    } while (usedAbcCombinations.current.has(combo) && attempts < 100);
+    usedAbcCombinations.current.add(combo);
+    const validationList = getValidationList(category);
+    const availableAnswers = validationList.filter(item => item.toLowerCase().startsWith(letter.toLowerCase()));
+    
+    return { letter, category, availableAnswersCount: availableAnswers.length };
+  }, []);
+
+
+  const getNewKnockoutCountry = useCallback(() => {
+    if (knockoutCountryDeck.current.length === 0) knockoutCountryDeck.current = shuffleArray(countries);
+    return knockoutCountryDeck.current.pop()!;
+  }, []);
+
+  const getNewKnockoutTriviaQuestion = useCallback(() => {
+    if (triviaDeck.current.length === 0) triviaDeck.current = shuffleArray(triviaQuestions);
+    return triviaDeck.current.pop()!;
+  }, []);
+
+  const getNewKnockoutKpopTrivia = useCallback(() => {
+    if (kpopTriviaDeck.current.length === 0) kpopTriviaDeck.current = shuffleArray(kpopTrivia);
+    return kpopTriviaDeck.current.pop()!;
+  }, []);
+
+  const getNewKnockoutFruit = useCallback(() => {
+    if (fruitDeck.current.length === 0) fruitDeck.current = shuffleArray(fruits);
+    return fruitDeck.current.pop()!;
+  }, []);
+
+  const getNewKnockoutAnimal = useCallback(() => {
+    if (animalDeck.current.length === 0) animalDeck.current = shuffleArray(animals);
+    return animalDeck.current.pop()!;
+  }, []);
+
+  const getNewKnockoutZonaBola = useCallback(() => {
+      const choice = Math.floor(Math.random() * 3);
+      if (choice === 0) { // Player
+          if (footballPlayerDeck.current.length === 0) footballPlayerDeck.current = shuffleArray(footballPlayers);
+          return { type: 'Pemain Bola' as const, data: footballPlayerDeck.current.pop()! };
+      } else if (choice === 1) { // Club
+          if (footballClubDeck.current.length === 0) footballClubDeck.current = shuffleArray(footballClubs);
+          return { type: 'Klub Bola' as const, data: footballClubDeck.current.pop()! };
+      } else { // Stadium
+          if (footballStadiumDeck.current.length === 0) footballStadiumDeck.current = shuffleArray(footballStadiums);
+          return { type: 'Stadion Bola' as const, data: footballStadiumDeck.current.pop()! };
+      }
+  }, []);
+  
+  const startGame = useCallback((gameStyle: GameStyle, maxWinners: number, knockoutCategory?: KnockoutCategory) => {
+    prepareNewDecks();
+    if (gameStyle === GameStyle.Classic) {
+        const roundDeck: GameMode[] = [
+            ...Array(5).fill(GameMode.GuessTheFlag),
+            ...Array(3).fill(GameMode.ABC5Dasar),
+            ...Array(3).fill(GameMode.Trivia),
+            ...Array(4).fill(GameMode.GuessTheCity),
+        ];
+        const classicRoundDeck = shuffleArray(roundDeck);
+        const firstRoundMode = classicRoundDeck[0];
+        const firstRoundData: GameActionPayloads['START_GAME']['firstRoundData'] = { gameMode: firstRoundMode };
+
+        if (firstRoundMode === GameMode.GuessTheFlag) firstRoundData.country = getNextCountry();
+        else if (firstRoundMode === GameMode.ABC5Dasar) {
+            const { letter, category, availableAnswersCount } = getNextAbcCombo();
+            firstRoundData.letter = letter;
+            firstRoundData.category = category;
+            firstRoundData.availableAnswersCount = availableAnswersCount;
+        } else if (firstRoundMode === GameMode.Trivia) {
+            firstRoundData.triviaQuestion = getNextTrivia();
+        } else if (firstRoundMode === GameMode.GuessTheCity) {
+            firstRoundData.city = getNextCity();
         }
-    })();
+        
+        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, classicRoundDeck, firstRoundData } });
 
-    // --- CLASSIC GAME TIMER & ROUND LOGIC ---
-    useEffect(() => {
-        if (state.gameState === GameState.Playing && state.isRoundActive) {
-            timerRef.current = window.setInterval(() => {
-                dispatch({ type: 'TICK_TIMER' });
-            }, 1000);
+    } else { // Knockout
+        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory } });
+    }
+  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity]);
+  
+  const nextRound = useCallback(() => {
+    const nextRoundNumber = state.round + 1;
+    if (nextRoundNumber > TOTAL_ROUNDS || state.gameStyle !== GameStyle.Classic) return;
+
+    const nextGameMode = state.classicRoundDeck[state.round]; // round is 1-based, deck is 0-based
+    const payload: Partial<GameActionPayloads['NEXT_ROUND']> = { gameMode: nextGameMode };
+    
+    if (nextGameMode === GameMode.GuessTheFlag) {
+      payload.nextCountry = getNextCountry();
+    } else if (nextGameMode === GameMode.ABC5Dasar) {
+        const { letter, category, availableAnswersCount } = getNextAbcCombo();
+        payload.nextLetter = letter;
+        payload.nextCategory = category;
+        payload.availableAnswersCount = availableAnswersCount;
+    } else if (nextGameMode === GameMode.Trivia) {
+        payload.nextTriviaQuestion = getNextTrivia();
+    } else if (nextGameMode === GameMode.GuessTheCity) {
+        payload.nextCity = getNextCity();
+    }
+    dispatch({ type: 'NEXT_ROUND', payload: payload as GameActionPayloads['NEXT_ROUND'] });
+  }, [state.round, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity]);
+
+  const finishWinnerDisplay = useCallback(() => {
+      dispatch({ type: 'HIDE_WINNER_MODAL' });
+      if (state.round < TOTAL_ROUNDS) {
+          dispatch({ type: 'START_COUNTDOWN' });
+      } else {
+          dispatch({ type: 'NEXT_ROUND', payload: {} as GameActionPayloads['NEXT_ROUND'] });
+      }
+  }, [state.round]);
+
+  const resetGame = useCallback(() => dispatch({ type: 'RESET_GAME' }), []);
+  
+  const processComment = useCallback((message: ChatMessage) => {
+    dispatch({ type: 'PROCESS_COMMENT', payload: message });
+  }, []);
+
+  const skipRound = useCallback(() => {
+    if (state.isRoundActive || state.gameState === GameState.KnockoutPlaying) {
+        if (state.gameStyle === GameStyle.Classic) {
+            dispatch({ type: 'END_ROUND' });
+        } else if (state.gameStyle === GameStyle.Knockout) {
+            dispatch({ type: 'SKIP_KNOCKOUT_MATCH' });
+        }
+    }
+  }, [state.isRoundActive, state.gameStyle, state.gameState]);
+
+  const registerPlayer = useCallback((player: KnockoutPlayer) => {
+    if(state.gameState === GameState.KnockoutRegistration) {
+      dispatch({ type: 'REGISTER_PLAYER', payload: player });
+    }
+  }, [state.gameState]);
+  
+  const resetKnockoutRegistration = useCallback(() => {
+    dispatch({ type: 'RESET_KNOCKOUT_REGISTRATION' });
+  }, []);
+
+  const endRegistrationAndDrawBracket = useCallback(() => {
+    if(state.gameState === GameState.KnockoutRegistration) {
+        dispatch({ type: 'END_REGISTRATION_AND_DRAW_BRACKET' });
+    }
+  }, [state.gameState]);
+
+  const prepareNextMatch = useCallback((payload: { roundIndex: number; matchIndex: number }) => {
+      if(state.gameState === GameState.KnockoutReadyToPlay) {
+          dispatch({ type: 'PREPARE_NEXT_MATCH', payload });
+      }
+  }, [state.gameState]);
+  
+  const declareWalkoverWinner = useCallback((payload: GameActionPayloads['DECLARE_WALKOVER_WINNER']) => {
+    dispatch({ type: 'DECLARE_WALKOVER_WINNER', payload });
+  }, []);
+  
+  const returnToBracket = useCallback(() => dispatch({ type: 'RETURN_TO_BRACKET' }), []);
+  const redrawBracket = useCallback(() => dispatch({ type: 'REDRAW_BRACKET' }), []);
+  const finishGame = useCallback(() => dispatch({ type: 'FINISH_GAME' }), []);
+  const restartKnockoutCompetition = useCallback(() => dispatch({ type: 'RESTART_KNOCKOUT_COMPETITION' }), []);
+  const returnToModeSelection = useCallback(() => dispatch({ type: 'RETURN_TO_MODE_SELECTION' }), []);
+
+  const pauseGame = useCallback(() => dispatch({ type: 'PAUSE_GAME' }), []);
+  const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
+  
+  const setHostUsername = useCallback((username: string) => {
+    dispatch({ type: 'SET_HOST_USERNAME', payload: { username } });
+  }, []);
+
+  const getCurrentKnockoutMatch = useCallback(() => {
+      const { knockoutBracket, currentBracketRoundIndex, currentMatchIndex } = state;
+      if (knockoutBracket && currentBracketRoundIndex !== null && currentMatchIndex !== null) {
+          return knockoutBracket[currentBracketRoundIndex][currentMatchIndex];
+      }
+      return null;
+  }, [state.knockoutBracket, state.currentBracketRoundIndex, state.currentMatchIndex]);
+
+  useEffect(() => { prepareNewDecks(); }, [prepareNewDecks]);
+
+  // Timers for timed transitions
+  useEffect(() => {
+    let timerId: number;
+    if (state.isRoundActive && state.roundTimer > 0) {
+      timerId = window.setInterval(() => dispatch({ type: 'TICK_TIMER' }), 1000);
+    } else if (state.roundTimer <= 0) {
+      if (state.gameStyle === GameStyle.Classic && state.isRoundActive) {
+          dispatch({ type: 'END_ROUND' });
+      } else if (state.gameStyle === GameStyle.Knockout && state.isRoundActive) {
+          dispatch({ type: 'KNOCKOUT_QUESTION_TIMEOUT' });
+      }
+    }
+    return () => clearInterval(timerId);
+  }, [state.isRoundActive, state.roundTimer, state.gameState, state.gameStyle]);
+
+  useEffect(() => {
+    let timerId: number;
+    if (state.countdownValue && state.countdownValue > 0) {
+      timerId = window.setInterval(() => dispatch({ type: 'TICK_COUNTDOWN' }), 1000);
+    } else if (state.countdownValue === 0) {
+        if(state.gameState === GameState.KnockoutPrepareMatch) {
+            dispatch({ type: 'START_MATCH' });
         } else {
-            if (timerRef.current) clearInterval(timerRef.current);
+            nextRound();
         }
-        return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-        };
-    }, [state.gameState, state.isRoundActive]);
+    }
+    return () => clearInterval(timerId);
+  }, [state.countdownValue, state.gameState, nextRound]);
+  
+  useEffect(() => {
+    if(state.gameState === GameState.KnockoutDrawing) {
+        const timer = setTimeout(() => dispatch({ type: 'SET_READY_TO_PLAY' }), 2000); // 2 seconds to view the bracket
+        return () => clearTimeout(timer);
+    }
+    if(state.gameState === GameState.KnockoutShowWinner) {
+        const timer = setTimeout(() => dispatch({ type: 'SET_READY_TO_PLAY' }), KNOCKOUT_WINNER_VIEW_SECONDS * 1000);
+        return () => clearTimeout(timer);
+    }
+    if(state.gameState === GameState.ClassicAnswerReveal) {
+        const timer = setTimeout(() => dispatch({ type: 'SHOW_WINNER_MODAL' }), ANSWER_REVEAL_DELAY_SECONDS * 1000);
+        return () => clearTimeout(timer);
+    }
+  }, [state.gameState]);
 
-    useEffect(() => {
-        if (state.gameState === GameState.Playing && state.isRoundActive) {
-            const currentMaxWinners = state.gameMode === GameMode.ABC5Dasar && state.availableAnswersCount != null 
-                ? Math.min(state.maxWinners, state.availableAnswersCount) 
-                : state.maxWinners;
-
-            const allAnswersFound = state.roundWinners.length >= currentMaxWinners;
-            if (state.roundTimer <= 0 || allAnswersFound) {
-                dispatch({ type: 'END_ROUND' });
-            }
+  // Logic triggers based on state changes
+  useEffect(() => {
+    if (state.gameState === GameState.KnockoutPlaying && !state.isRoundActive && !state.currentCountry && !state.currentTriviaQuestion && !state.currentWord && !state.currentStadium) {
+        if(state.knockoutCategory === 'GuessTheCountry') {
+            const country = getNewKnockoutCountry();
+            dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
+        } else if (state.knockoutCategory === 'Trivia') {
+            const question = getNewKnockoutTriviaQuestion();
+            dispatch({ type: 'SET_KNOCKOUT_TRIVIA', payload: { question } });
+        } else if (state.knockoutCategory === 'ZonaBola') {
+            const payload = getNewKnockoutZonaBola();
+            dispatch({ type: 'SET_KNOCKOUT_ZONA_BOLA', payload });
+        } else if (state.knockoutCategory === 'GuessTheFruit') {
+            const fruit = getNewKnockoutFruit();
+            dispatch({ type: 'SET_KNOCKOUT_GUESS_THE_FRUIT', payload: { fruit } });
+        } else if (state.knockoutCategory === 'GuessTheAnimal') {
+            const animal = getNewKnockoutAnimal();
+            dispatch({ type: 'SET_KNOCKOUT_GUESS_THE_ANIMAL', payload: { animal } });
+        } else if (state.knockoutCategory === 'KpopTrivia') {
+            const question = getNewKnockoutKpopTrivia();
+            dispatch({ type: 'SET_KNOCKOUT_KPOP_TRIVIA', payload: { question } });
         }
-    }, [state.roundTimer, state.roundWinners.length, state.isRoundActive, state.gameState, state.gameMode, state.availableAnswersCount, state.maxWinners]);
+    }
+  }, [state.gameState, state.isRoundActive, state.knockoutCategory, getNewKnockoutCountry, getNewKnockoutTriviaQuestion, getNewKnockoutZonaBola, getNewKnockoutFruit, getNewKnockoutAnimal, getNewKnockoutKpopTrivia]);
 
-    useEffect(() => {
-        let timeoutId: number;
-        if (state.gameState === GameState.ClassicAnswerReveal) {
-            timeoutId = window.setTimeout(() => {
-                dispatch({ type: 'SHOW_WINNER_MODAL' });
-            }, ANSWER_REVEAL_DELAY_SECONDS * 1000);
-        }
-        return () => window.clearTimeout(timeoutId);
-    }, [state.gameState]);
-
-
-    // --- KNOCKOUT GAME TIMER & MATCH LOGIC ---
-    const knockoutTimerRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (knockoutTimerRef.current) {
-            clearTimeout(knockoutTimerRef.current);
-            clearInterval(knockoutTimerRef.current);
-        }
-    
-        if (state.gameState === GameState.KnockoutPrepareMatch) {
-            if (state.countdownValue !== null && state.countdownValue > 0) {
-                knockoutTimerRef.current = window.setTimeout(() => dispatch({ type: 'TICK_COUNTDOWN' }), 1000);
-            } else if (state.countdownValue === 0) { 
-                dispatch({ type: 'START_MATCH' });
-            }
-        } else if (state.gameState === GameState.KnockoutPlaying) {
-            if (state.isRoundActive && state.gameMode !== GameMode.Minesweeper) {
-                knockoutTimerRef.current = window.setInterval(() => dispatch({ type: 'TICK_TIMER' }), 1000);
-            }
-    
-            const { knockoutMatchPoints, currentBracketRoundIndex, currentMatchIndex, knockoutBracket, minesweeperGrid } = state;
-            if (!knockoutBracket || currentBracketRoundIndex === null || currentMatchIndex === null) return;
-            const match = knockoutBracket[currentBracketRoundIndex][currentMatchIndex];
-            if (!match || !match.player1 || !match.player2) return;
-            
-            let winner: KnockoutPlayer | null = null;
-            let hasMatchFinished = false;
-    
-            if (!state.isRoundActive) { // Match completion check
-                if (state.gameMode === GameMode.Minesweeper) {
-                    const explodedCell = minesweeperGrid.find(c => c.exploded);
-                    if (explodedCell && explodedCell.revealedBy) {
-                        const loserId = explodedCell.revealedBy.userId;
-                        winner = loserId === match.player1.userId ? match.player2 : match.player1;
-                        hasMatchFinished = true;
-                    }
-                } else { // Other knockout modes
-                    if (knockoutMatchPoints.player1 >= KNOCKOUT_TARGET_SCORE) winner = match.player1;
-                    else if (knockoutMatchPoints.player2 >= KNOCKOUT_TARGET_SCORE) winner = match.player2;
-                    if (winner) hasMatchFinished = true;
-                }
-    
-                if (hasMatchFinished && winner) {
-                    let score = `${knockoutMatchPoints.player1}-${knockoutMatchPoints.player2}`;
-                    if(state.gameMode === GameMode.Minesweeper && minesweeperGrid.some(c => c.exploded)) {
-                        score = "BOM 💣";
-                    }
-                    knockoutTimerRef.current = window.setTimeout(() => dispatch({ type: 'FINISH_KNOCKOUT_MATCH', payload: { winner: winner!, score } }), 1000);
-                }
-            }
-        } else if (state.gameState === GameState.KnockoutShowWinner) {
-            knockoutTimerRef.current = window.setTimeout(() => dispatch({ type: 'RETURN_TO_BRACKET' }), KNOCKOUT_WINNER_VIEW_SECONDS * 1000);
-        } else if (state.gameState === GameState.KnockoutDrawing) {
-            knockoutTimerRef.current = window.setTimeout(() => dispatch({ type: 'SET_READY_TO_PLAY' }), 1000);
-        }
-
-        return () => {
-          if(knockoutTimerRef.current) {
-            clearTimeout(knockoutTimerRef.current);
-            clearInterval(knockoutTimerRef.current);
+  // This effect handles advancing the knockout game after a question is finished
+  useEffect(() => {
+    if (state.gameState === GameState.KnockoutPlaying && !state.isRoundActive && (state.currentCountry || state.currentTriviaQuestion || state.currentCity || state.currentWord || state.currentStadium)) {
+      const timeoutId = setTimeout(() => {
+        const { player1, player2 } = state.knockoutMatchPoints;
+        const match = getCurrentKnockoutMatch();
+        if (match && (player1 >= KNOCKOUT_TARGET_SCORE || player2 >= KNOCKOUT_TARGET_SCORE)) {
+          const winner = player1 >= KNOCKOUT_TARGET_SCORE ? match.player1! : match.player2!;
+          const score = `${player1}-${player2}`;
+          dispatch({ type: 'FINISH_KNOCKOUT_MATCH', payload: { winner, score } });
+        } else {
+          // Start next question
+          if(state.knockoutCategory === 'GuessTheCountry') {
+              const country = getNewKnockoutCountry();
+              dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
+          } else if (state.knockoutCategory === 'Trivia') {
+              const question = getNewKnockoutTriviaQuestion();
+              dispatch({ type: 'SET_KNOCKOUT_TRIVIA', payload: { question } });
+          } else if (state.knockoutCategory === 'ZonaBola') {
+              const payload = getNewKnockoutZonaBola();
+              dispatch({ type: 'SET_KNOCKOUT_ZONA_BOLA', payload });
+          } else if (state.knockoutCategory === 'GuessTheFruit') {
+              const fruit = getNewKnockoutFruit();
+              dispatch({ type: 'SET_KNOCKOUT_GUESS_THE_FRUIT', payload: { fruit } });
+          } else if (state.knockoutCategory === 'GuessTheAnimal') {
+              const animal = getNewKnockoutAnimal();
+              dispatch({ type: 'SET_KNOCKOUT_GUESS_THE_ANIMAL', payload: { animal } });
+          } else if (state.knockoutCategory === 'KpopTrivia') {
+              const question = getNewKnockoutKpopTrivia();
+              dispatch({ type: 'SET_KNOCKOUT_KPOP_TRIVIA', payload: { question } });
           }
-        };
-    }, [state.gameState, state.countdownValue, state.knockoutMatchPoints, state.isRoundActive]);
-
-    const getCurrentKnockoutMatch = useCallback(() => {
-        if (state.knockoutBracket && state.currentBracketRoundIndex !== null && state.currentMatchIndex !== null) {
-            return state.knockoutBracket[state.currentBracketRoundIndex][state.currentMatchIndex];
         }
-        return null;
-    }, [state.knockoutBracket, state.currentBracketRoundIndex, state.currentMatchIndex]);
+      }, 3000); // 3-second delay to show the answer
 
-    const finishWinnerDisplay = useCallback(() => {
-        const action: GameAction = { 
-            type: 'PROCEED_TO_NEXT_CLASSIC_ROUND',
-            // @ts-ignore - a little hack to pass the non-serializable ref to the reducer via closure
-            _usedDataRef: usedDataRef 
-        };
-        dispatch(action);
-    }, []);
-
-    const getGameModeForClassicCategory = (category: ClassicCategorySelection): GameMode => {
-        switch(category) {
-            case 'GuessTheCountry': return GameMode.GuessTheFlag;
-            case 'Trivia': return GameMode.Trivia;
-            case 'ZonaBola': return GameMode.ZonaBola;
-            case 'GuessTheFruit': return GameMode.GuessTheWord;
-            case 'GuessTheAnimal': return GameMode.GuessTheWord;
-            case 'KpopTrivia': return GameMode.Trivia;
-            case 'GuessTheCity': return GameMode.GuessTheCity;
-            default: return GameMode.GuessTheFlag; // Fallback
+      return () => clearTimeout(timeoutId);
+    }
+  }, [state.isRoundActive, state.gameState, state.knockoutMatchPoints, state.knockoutCategory, getCurrentKnockoutMatch, getNewKnockoutCountry, getNewKnockoutTriviaQuestion, getNewKnockoutZonaBola, getNewKnockoutFruit, getNewKnockoutAnimal, getNewKnockoutKpopTrivia]);
+  
+  useEffect(() => {
+    // FIX: Changed GameState.Classic to GameStyle.Classic as the check is against state.gameStyle.
+    if (state.gameStyle === GameStyle.Classic && state.isRoundActive) {
+        const currentMaxWinners = state.gameMode === GameMode.ABC5Dasar && state.availableAnswersCount != null 
+              ? Math.min(state.maxWinners, state.availableAnswersCount) 
+              : state.maxWinners;
+        if (state.roundWinners.length >= currentMaxWinners) {
+            dispatch({ type: 'END_ROUND' });
         }
-    };
+    }
+  }, [state.roundWinners.length, state.isRoundActive, state.gameStyle, state.maxWinners, state.gameMode, state.availableAnswersCount]);
 
-    const startGame = useCallback((gameStyle: GameStyle, maxWinners: number, options?: { knockoutCategory?: KnockoutCategory, classicCategory?: ClassicCategorySelection }) => {
-        usedDataRef.current = { countries: [], words: [], stadiums: [], trivia: [], cities: [], kpopTrivia: [] };
-        
-        if (gameStyle === GameStyle.Classic) {
-            const category = options?.classicCategory || 'Random';
-            let deck: GameMode[] = [];
+  const getCurrentAnswer = () => {
+    switch (state.gameMode) {
+      case GameMode.GuessTheFlag:
+        return state.currentCountry?.name || '';
+      case GameMode.GuessTheWord:
+        return state.currentWord || '';
+      case GameMode.GuessTheCity:
+        return state.currentCity?.name || '';
+      case GameMode.ABC5Dasar:
+        return `(Jawaban Kategori ${state.currentCategory} diawali huruf ${state.currentLetter})`;
+      case GameMode.Trivia:
+        return state.currentTriviaQuestion?.answer || '';
+      case GameMode.ZonaBola:
+        return state.currentWord || state.currentStadium?.name || '';
+      default:
+        return 'Tidak ada soal aktif';
+    }
+  };
 
-            if (category === 'Random') {
-                const flagRounds = Array(10).fill(GameMode.GuessTheFlag);
-                const triviaRounds = Array(3).fill(GameMode.Trivia);
-                const cityRounds = Array(2).fill(GameMode.GuessTheCity);
-                deck = shuffleArray([...flagRounds, ...triviaRounds, ...cityRounds]);
-            } else {
-                const gameMode = getGameModeForClassicCategory(category);
-                deck = Array(TOTAL_ROUNDS).fill(gameMode);
-            }
-
-            const getPayloadForRound = (gameMode: GameMode, category: ClassicCategorySelection): Partial<GameActionPayloads['START_GAME']['firstRoundData']> => {
-                const payload: Partial<GameActionPayloads['START_GAME']['firstRoundData']> = { gameMode };
-                switch(category) {
-                    case 'GuessTheCountry':
-                         const country = getNewCountry(usedDataRef.current.countries);
-                         usedDataRef.current.countries.push(country);
-                         payload.country = country;
-                         break;
-                    case 'Trivia':
-                         const trivia = getNewTrivia(usedDataRef.current.trivia);
-                         usedDataRef.current.trivia.push(trivia);
-                         payload.triviaQuestion = trivia;
-                         break;
-                    case 'GuessTheCity':
-                         const city = getNewCity(usedDataRef.current.cities);
-                         usedDataRef.current.cities.push(city);
-                         payload.city = city;
-                         break;
-                    case 'KpopTrivia':
-                        const kpop = getNewKpopTrivia(usedDataRef.current.kpopTrivia);
-                        usedDataRef.current.kpopTrivia.push(kpop);
-                        payload.triviaQuestion = kpop;
-                        break;
-                    case 'ZonaBola':
-                        const types: WordCategory[] = ['Pemain Bola', 'Klub Bola', 'Stadion Bola'];
-                        const type = shuffleArray(types)[0];
-                        payload.wordCategory = type;
-                        if (type === 'Stadion Bola') {
-                            const stadium = getNewStadium(usedDataRef.current.stadiums);
-                            usedDataRef.current.stadiums.push(stadium);
-                            payload.stadium = stadium;
-                        } else {
-                            const word = getNewWord(type, usedDataRef.current.words);
-                            usedDataRef.current.words.push(word);
-                            payload.word = word;
-                        }
-                        break;
-                    case 'GuessTheFruit':
-                        const fruit = getNewWord('Buah-buahan', usedDataRef.current.words);
-                        usedDataRef.current.words.push(fruit);
-                        payload.word = fruit;
-                        payload.wordCategory = 'Buah-buahan';
-                        break;
-                    case 'GuessTheAnimal':
-                        const animal = getNewWord('Hewan', usedDataRef.current.words);
-                        usedDataRef.current.words.push(animal);
-                        payload.word = animal;
-                        payload.wordCategory = 'Hewan';
-                        break;
-                }
-                return payload;
-            };
-
-            const firstGameMode = deck.shift()!;
-            let firstRoundPayload: GameActionPayloads['START_GAME']['firstRoundData'] = { gameMode: firstGameMode };
-
-            if(category === 'Random') {
-                 if (firstGameMode === GameMode.GuessTheFlag) {
-                    const country = getNewCountry(usedDataRef.current.countries);
-                    usedDataRef.current.countries.push(country);
-                    firstRoundPayload.country = country;
-                } else if (firstGameMode === GameMode.Trivia) {
-                     const question = getNewTrivia(usedDataRef.current.trivia);
-                     usedDataRef.current.trivia.push(question);
-                     firstRoundPayload.triviaQuestion = question;
-                } else if (firstGameMode === GameMode.GuessTheCity) {
-                    const city = getNewCity(usedDataRef.current.cities);
-                    usedDataRef.current.cities.push(city);
-                    firstRoundPayload.city = city;
-                }
-            } else {
-                // FIX: The return type of `getPayloadForRound` is `Partial`, which might not have `gameMode`.
-                // We ensure `gameMode` is present by spreading the result and explicitly setting `gameMode`.
-                firstRoundPayload = { ...getPayloadForRound(firstGameMode, category), gameMode: firstGameMode };
-            }
-
-            dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, classicCategorySelection: category, classicRoundDeck: deck, firstRoundData: firstRoundPayload } });
-        } else {
-             dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory: options?.knockoutCategory } });
-        }
-    }, []);
-
-    const prepareNextMatch = useCallback((payload: { roundIndex: number; matchIndex: number }) => {
-        dispatch({ type: 'PREPARE_NEXT_MATCH', payload });
-        
-        switch (state.knockoutCategory) {
-            case 'GuessTheCountry': {
-                const country = getNewCountry(usedDataRef.current.countries);
-                usedDataRef.current.countries.push(country);
-                dispatch({ type: 'SET_KNOCKOUT_COUNTRY', payload: { country } });
-                break;
-            }
-            case 'Trivia': {
-                 const question = getNewTrivia(usedDataRef.current.trivia);
-                 usedDataRef.current.trivia.push(question);
-                 dispatch({ type: 'SET_KNOCKOUT_TRIVIA', payload: { question } });
-                 break;
-            }
-            case 'KpopTrivia': {
-                 const question = getNewKpopTrivia(usedDataRef.current.kpopTrivia);
-                 usedDataRef.current.kpopTrivia.push(question);
-                 dispatch({ type: 'SET_KNOCKOUT_KPOP_TRIVIA', payload: { question } });
-                 break;
-            }
-            case 'ZonaBola': {
-                const types: ('Pemain Bola' | 'Klub Bola' | 'Stadion Bola')[] = ['Pemain Bola', 'Klub Bola', 'Stadion Bola'];
-                const type = shuffleArray(types)[0];
-                if (type === 'Pemain Bola' || type === 'Klub Bola') {
-                    const word = getNewWord(type, usedDataRef.current.words);
-                    usedDataRef.current.words.push(word);
-                    dispatch({ type: 'SET_KNOCKOUT_ZONA_BOLA', payload: { type, data: word } });
-                } else {
-                    const stadium = getNewStadium(usedDataRef.current.stadiums);
-                    usedDataRef.current.stadiums.push(stadium);
-                    dispatch({ type: 'SET_KNOCKOUT_ZONA_BOLA', payload: { type, data: stadium } });
-                }
-                break;
-            }
-            case 'GuessTheFruit': {
-                const fruit = getNewWord('Buah-buahan', usedDataRef.current.words);
-                usedDataRef.current.words.push(fruit);
-                dispatch({ type: 'SET_KNOCKOUT_GUESS_THE_FRUIT', payload: { fruit } });
-                break;
-            }
-            case 'GuessTheAnimal': {
-                const animal = getNewWord('Hewan', usedDataRef.current.words);
-                usedDataRef.current.words.push(animal);
-                dispatch({ type: 'SET_KNOCKOUT_GUESS_THE_ANIMAL', payload: { animal } });
-                break;
-            }
-            case 'Minesweeper': {
-                dispatch({ type: 'SET_KNOCKOUT_MINESWEEPER', payload: {} });
-                break;
-            }
-            case 'Math': {
-                const question = generateMathQuestion();
-                dispatch({ type: 'SET_KNOCKOUT_MATH', payload: { question } });
-                break;
-            }
-        }
-    }, [state.knockoutCategory]);
-
-    const skipRound = useCallback(() => dispatch({ type: 'END_ROUND' }), []);
-    const pauseGame = useCallback(() => dispatch({ type: 'PAUSE_GAME' }), []);
-    const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
-    const processComment = useCallback((message: ChatMessage) => dispatch({ type: 'PROCESS_COMMENT', payload: message }), []);
-    const registerPlayer = useCallback((player: KnockoutPlayer) => dispatch({ type: 'REGISTER_PLAYER', payload: player }), []);
-    const endRegistrationAndDrawBracket = useCallback(() => dispatch({ type: 'END_REGISTRATION_AND_DRAW_BRACKET' }), []);
-    const resetKnockoutRegistration = useCallback(() => dispatch({ type: 'RESET_KNOCKOUT_REGISTRATION' }), []);
-    const redrawBracket = useCallback(() => dispatch({ type: 'REDRAW_BRACKET' }), []);
-    const restartKnockoutCompetition = useCallback(() => dispatch({ type: 'RESTART_KNOCKOUT_COMPETITION' }), []);
-    const declareWalkoverWinner = useCallback((payload: GameActionPayloads['DECLARE_WALKOVER_WINNER']) => dispatch({ type: 'DECLARE_WALKOVER_WINNER', payload }), []);
-    const returnToBracket = useCallback(() => dispatch({ type: 'RETURN_TO_BRACKET' }), []);
-    const finishGame = useCallback(() => dispatch({ type: 'FINISH_GAME' }), []);
-    const returnToModeSelection = useCallback(() => dispatch({ type: 'RETURN_TO_MODE_SELECTION' }), []);
-    const setHostUsername = useCallback((username: string) => dispatch({ type: 'SET_HOST_USERNAME', payload: { username } }), []);
-
-    return {
-        state,
-        currentAnswer,
-        startGame,
-        skipRound,
-        pauseGame,
-        resumeGame,
-        processComment,
-        finishWinnerDisplay,
-        registerPlayer,
-        endRegistrationAndDrawBracket,
-        resetKnockoutRegistration,
-        getCurrentKnockoutMatch,
-        prepareNextMatch,
-        redrawBracket,
-        restartKnockoutCompetition,
-        declareWalkoverWinner,
-        returnToBracket,
-        finishGame,
-        returnToModeSelection,
-        setHostUsername,
-    };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, finishWinnerDisplay, setHostUsername, currentAnswer: getCurrentAnswer() };
 };

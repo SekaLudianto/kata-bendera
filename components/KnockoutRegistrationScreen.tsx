@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KnockoutPlayer, KnockoutChampions, ChampionRecord } from '../types';
+import { KnockoutPlayer, KnockoutChampions } from '../types';
 import { UsersIcon, TrophyIcon } from './IconComponents';
 
 interface KnockoutRegistrationScreenProps {
@@ -17,14 +17,11 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
 
   const topChampions = useMemo(() => {
     return Object.entries(champions)
-        .map(([userId, data]) => {
-            const championData = data as ChampionRecord;
-            return { 
-                userId, 
-                wins: championData.wins, 
-                nickname: championData.nickname 
-            };
-        })
+        .map(([userId, data]) => ({ 
+            userId, 
+            wins: data.wins, 
+            nickname: data.nickname 
+        }))
         .sort((a, b) => b.wins - a.wins);
   }, [champions]);
 

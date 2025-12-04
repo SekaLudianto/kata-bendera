@@ -1,3 +1,4 @@
+
 // FIX: Import React to use React.ReactNode type.
 import React from 'react';
 
@@ -111,8 +112,6 @@ export enum GameMode {
   Trivia = 'trivia',
   GuessTheCity = 'guess_the_city',
   ZonaBola = 'zona_bola',
-  Minesweeper = 'minesweeper',
-  Math = 'math',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -121,18 +120,11 @@ export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 // --- Knockout Mode Types ---
-export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia' | 'Minesweeper' | 'Math';
-export type ClassicCategorySelection = 'Random' | KnockoutCategory | 'GuessTheCity';
-
+export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia';
 
 export interface TriviaQuestion {
   question: string;
   answer: string;
-}
-
-export interface MathQuestion {
-  question: string; // e.g. "10 + 5 = ?"
-  answer: number;
 }
 
 export interface KnockoutPlayer {
@@ -161,28 +153,12 @@ export interface ChampionRecord {
 
 export type KnockoutChampions = Record<string, ChampionRecord>; // Key is userId
 
-// Minesweeper specific
-export interface MinesweeperCell {
-    id: string; // e.g., "A1"
-    row: number;
-    col: number;
-    isMine: boolean;
-    isRevealed: boolean;
-    neighborMines: number;
-    exploded?: boolean;
-    revealedBy?: {
-        userId: string;
-        profilePictureUrl?: string;
-    }
-}
-
 // This will be used in useGameLogic.ts to set the word for a knockout match
 export interface GameActionPayloads {
     'START_GAME': { 
       gameStyle: GameStyle; 
       maxWinners: number; 
-      knockoutCategory?: KnockoutCategory;
-      classicCategorySelection?: ClassicCategorySelection;
+      knockoutCategory?: KnockoutCategory; 
       classicRoundDeck?: GameMode[];
       firstRoundData?: {
         gameMode: GameMode,
@@ -192,10 +168,18 @@ export interface GameActionPayloads {
         availableAnswersCount?: number,
         triviaQuestion?: TriviaQuestion,
         city?: City,
-        word?: string,
-        wordCategory?: WordCategory,
-        stadium?: FootballStadium,
       }
+    };
+    'NEXT_ROUND': { 
+      gameMode: GameMode,
+      nextCountry?: Country, 
+      nextLetter?: string, 
+      nextCategory?: AbcCategory, 
+      availableAnswersCount?: number,
+      nextWord?: string,
+      nextWordCategory?: WordCategory,
+      nextTriviaQuestion?: TriviaQuestion,
+      nextCity?: City,
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
@@ -206,8 +190,6 @@ export interface GameActionPayloads {
     'SET_KNOCKOUT_GUESS_THE_FRUIT': { fruit: string };
     'SET_KNOCKOUT_GUESS_THE_ANIMAL': { animal: string };
     'SET_KNOCKOUT_KPOP_TRIVIA': { question: TriviaQuestion };
-    'SET_KNOCKOUT_MINESWEEPER': {};
-    'SET_KNOCKOUT_MATH': { question: MathQuestion };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer; score: string; };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };
@@ -215,4 +197,4 @@ export interface GameActionPayloads {
 
 export type GameAction =
     | { [K in keyof GameActionPayloads]: { type: K; payload: GameActionPayloads[K] } }[keyof GameActionPayloads]
-    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'SKIP_KNOCKOUT_MATCH' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' | 'RESET_KNOCKOUT_REGISTRATION' | 'RESTART_KNOCKOUT_COMPETITION' | 'RETURN_TO_MODE_SELECTION' | 'PROCEED_TO_NEXT_CLASSIC_ROUND' };
+    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'SKIP_KNOCKOUT_MATCH' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' | 'RESET_KNOCKOUT_REGISTRATION' | 'RESTART_KNOCKOUT_COMPETITION' | 'RETURN_TO_MODE_SELECTION' };
