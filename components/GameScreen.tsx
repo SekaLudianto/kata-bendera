@@ -1,6 +1,5 @@
 
 
-
 import React, { useState, useEffect } from 'react';
 import GameTab from './GameTab';
 import ChatTab from './ChatTab';
@@ -108,14 +107,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
       </main>
 
-      <nav className="flex justify-around p-1 border-t border-sky-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 rounded-b-3xl shrink-0">
+      <nav className="flex md:hidden justify-around p-1 border-t border-sky-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 rounded-b-3xl shrink-0">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id as Tab)}
             className={`flex flex-col items-center justify-center w-20 h-14 rounded-lg transition-colors duration-200 ${
               activeTab === item.id ? 'text-sky-500 bg-sky-500/10 dark:text-sky-400 dark:bg-sky-400/10' : 'text-gray-500 hover:bg-sky-100 dark:text-gray-400 dark:hover:bg-gray-700'
-            } ${item.id === 'chat' ? 'md:hidden' : ''}`}
+            }`}
           >
             <item.icon className="w-5 h-5 mb-0.5" />
             <span className="text-xs font-medium">{item.label}</span>

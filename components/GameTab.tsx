@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
@@ -272,6 +273,10 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
     if (gameMode === GameMode.ABC5Dasar) return `ABC 5 Dasar`;
     if (gameMode === GameMode.GuessTheWord) return `Tebak Kata Acak`;
     if (gameMode === GameMode.Trivia) return 'Trivia Umum';
+    if (gameMode === GameMode.ZonaBola) return 'Zona Bola';
+    if (gameMode === GameMode.GuessTheFruit) return 'Tebak Buah';
+    if (gameMode === GameMode.GuessTheAnimal) return 'Tebak Hewan';
+    if (gameMode === GameMode.KpopTrivia) return 'Trivia: Zona KPOP';
     return '';
   }
 
@@ -331,14 +336,14 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
         )}
         
         {/* Main game content */}
-        {gameState.gameMode === GameMode.GuessTheWord && <GuessTheWordContent gameState={gameState} />}
+        {(gameState.gameMode === GameMode.GuessTheWord || gameState.gameMode === GameMode.GuessTheFruit || gameState.gameMode === GameMode.GuessTheAnimal) && <GuessTheWordContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheFlag && (
           gameState.gameStyle === GameStyle.Classic 
             ? <GuessTheFlagContent gameState={gameState} /> 
             : <GuessTheCountryKnockoutContent gameState={gameState} />
         )}
         {gameState.gameMode === GameMode.ABC5Dasar && <ABC5DasarContent gameState={gameState} />}
-        {gameState.gameMode === GameMode.Trivia && <TriviaContent gameState={gameState} />}
+        {(gameState.gameMode === GameMode.Trivia || gameState.gameMode === GameMode.KpopTrivia) && <TriviaContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheCity && <GuessTheCityContent gameState={gameState} />}
         {gameState.gameMode === GameMode.ZonaBola && <ZonaBolaContent gameState={gameState} />}
 

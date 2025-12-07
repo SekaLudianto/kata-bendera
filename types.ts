@@ -1,3 +1,4 @@
+
 // FIX: Import React to use React.ReactNode type.
 import React from 'react';
 
@@ -135,6 +136,9 @@ export enum GameMode {
   Trivia = 'trivia',
   GuessTheCity = 'guess_the_city',
   ZonaBola = 'zona_bola',
+  GuessTheFruit = 'guess_the_fruit',
+  GuessTheAnimal = 'guess_the_animal',
+  KpopTrivia = 'kpop_trivia',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -191,6 +195,9 @@ export interface GameActionPayloads {
         availableAnswersCount?: number,
         triviaQuestion?: TriviaQuestion,
         city?: City,
+        word?: string,
+        wordCategory?: WordCategory,
+        stadium?: FootballStadium,
       }
     };
     'NEXT_ROUND': { 
@@ -203,6 +210,7 @@ export interface GameActionPayloads {
       nextWordCategory?: WordCategory,
       nextTriviaQuestion?: TriviaQuestion,
       nextCity?: City,
+      nextStadium?: FootballStadium,
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;

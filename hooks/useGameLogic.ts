@@ -1,3 +1,4 @@
+
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 // FIX: The type `LetterObject` is now correctly exported from `types.ts`.
 import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject } from '../types';
@@ -259,8 +260,11 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
           currentCategory: firstRoundData.category || null,
           currentTriviaQuestion: firstRoundData.triviaQuestion || null,
           currentCity: firstRoundData.city || null,
+          currentWord: firstRoundData.word || null,
+          currentWordCategory: firstRoundData.wordCategory || null,
+          currentStadium: firstRoundData.stadium || null,
           availableAnswersCount: firstRoundData.availableAnswersCount || null,
-          scrambledWord: firstRoundData.country ? scrambleWord(firstRoundData.country.name) : firstRoundData.triviaQuestion ? scrambleWord(firstRoundData.triviaQuestion.answer) : firstRoundData.city ? scrambleWord(firstRoundData.city.name) : [],
+          scrambledWord: firstRoundData.country ? scrambleWord(firstRoundData.country.name) : firstRoundData.triviaQuestion ? scrambleWord(firstRoundData.triviaQuestion.answer) : firstRoundData.city ? scrambleWord(firstRoundData.city.name) : firstRoundData.word ? scrambleWord(firstRoundData.word) : firstRoundData.stadium ? scrambleWord(firstRoundData.stadium.name) : [],
           isRoundActive: true,
           roundTimer: ROUND_TIMER_SECONDS,
         };
@@ -281,7 +285,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         return { ...state, gameState: GameState.Champion, isRoundActive: false };
       }
       const newRound = state.round + 1;
-      const { gameMode, nextCountry, nextLetter, nextCategory, availableAnswersCount, nextWord, nextWordCategory, nextTriviaQuestion, nextCity } = action.payload;
+      const { gameMode, nextCountry, nextLetter, nextCategory, availableAnswersCount, nextWord, nextWordCategory, nextTriviaQuestion, nextCity, nextStadium } = action.payload;
 
       return {
         ...state,
@@ -295,8 +299,9 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         currentWordCategory: nextWordCategory || null,
         currentTriviaQuestion: nextTriviaQuestion || null,
         currentCity: nextCity || null,
+        currentStadium: nextStadium || null,
         availableAnswersCount: availableAnswersCount || null,
-        scrambledWord: nextCountry ? scrambleWord(nextCountry.name) : nextWord ? scrambleWord(nextWord) : nextTriviaQuestion ? scrambleWord(nextTriviaQuestion.answer) : nextCity ? scrambleWord(nextCity.name) : [],
+        scrambledWord: nextCountry ? scrambleWord(nextCountry.name) : nextWord ? scrambleWord(nextWord) : nextTriviaQuestion ? scrambleWord(nextTriviaQuestion.answer) : nextCity ? scrambleWord(nextCity.name) : nextStadium ? scrambleWord(nextStadium.name) : [],
         usedAnswers: [],
         isRoundActive: true,
         roundWinners: [],
@@ -345,9 +350,14 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             let expectedAnswer = '';
             switch (state.gameMode) {
                 case GameMode.GuessTheFlag: expectedAnswer = state.currentCountry?.name || ''; break;
-                case GameMode.GuessTheWord: expectedAnswer = state.currentWord || ''; break;
+                case GameMode.GuessTheWord: 
+                case GameMode.GuessTheFruit:
+                case GameMode.GuessTheAnimal:
+                    expectedAnswer = state.currentWord || ''; break;
                 case GameMode.GuessTheCity: expectedAnswer = state.currentCity?.name || ''; break;
-                case GameMode.Trivia: expectedAnswer = state.currentTriviaQuestion?.answer || ''; break;
+                case GameMode.Trivia: 
+                case GameMode.KpopTrivia:
+                    expectedAnswer = state.currentTriviaQuestion?.answer || ''; break;
                 case GameMode.ZonaBola: expectedAnswer = state.currentWord || state.currentStadium?.name || ''; break;
             }
             if (expectedAnswer && checkAnswer(comment, expectedAnswer)) {
@@ -737,17 +747,30 @@ export const useGameLogic = () => {
   const usedAbcCombinations = useRef<Set<string>>(new Set());
   const getRandomLetter = () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
 
-  const prepareNewDecks = useCallback(() => {
-    countryDeck.current = shuffleArray(countries);
-    knockoutCountryDeck.current = shuffleArray(countries);
-    triviaDeck.current = shuffleArray(triviaQuestions);
-    kpopTriviaDeck.current = shuffleArray(kpopTrivia);
-    footballPlayerDeck.current = shuffleArray(footballPlayers);
-    footballClubDeck.current = shuffleArray(footballClubs);
-    footballStadiumDeck.current = shuffleArray(footballStadiums);
-    cityDeck.current = shuffleArray(cities);
-    fruitDeck.current = shuffleArray(fruits);
-    animalDeck.current = shuffleArray(animals);
+  const prepareNewDecks = useCallback((useImportedOnly: boolean = false) => {
+    const customQuestionsRaw = localStorage.getItem('custom-questions');
+    const customQuestions = customQuestionsRaw ? JSON.parse(customQuestionsRaw) : {};
+
+    const createDeck = <T,>(builtIn: T[], custom: T[] | undefined): T[] => {
+        const customDeck = custom || [];
+        // If user wants imported only AND there are custom questions for this category, use only them.
+        if (useImportedOnly && customDeck.length > 0) {
+            return shuffleArray(customDeck);
+        }
+        // Otherwise, merge custom (if any) with built-in.
+        return shuffleArray([...customDeck, ...builtIn]);
+    };
+
+    countryDeck.current = createDeck(countries, customQuestions.countries);
+    knockoutCountryDeck.current = createDeck(countries, customQuestions.countries);
+    triviaDeck.current = createDeck(triviaQuestions, customQuestions.trivia);
+    kpopTriviaDeck.current = createDeck(kpopTrivia, customQuestions.kpopTrivia);
+    footballPlayerDeck.current = createDeck(footballPlayers, customQuestions.footballPlayers);
+    footballClubDeck.current = createDeck(footballClubs, customQuestions.footballClubs);
+    footballStadiumDeck.current = createDeck(footballStadiums, customQuestions.footballStadiums);
+    cityDeck.current = createDeck(cities, customQuestions.cities);
+    fruitDeck.current = createDeck(fruits, customQuestions.fruits);
+    animalDeck.current = createDeck(animals, customQuestions.animals);
     usedAbcCombinations.current.clear();
   }, []);
 
@@ -821,21 +844,31 @@ export const useGameLogic = () => {
       }
   }, []);
   
-  const startGame = useCallback((gameStyle: GameStyle, maxWinners: number, knockoutCategory?: KnockoutCategory) => {
-    prepareNewDecks();
+  const startGame = useCallback((
+    gameStyle: GameStyle, 
+    maxWinners: number, 
+    options?: { 
+      knockoutCategory?: KnockoutCategory, 
+      classicCategories?: GameMode[],
+      useImportedOnly?: boolean
+    }) => {
+    prepareNewDecks(options?.useImportedOnly ?? false);
     if (gameStyle === GameStyle.Classic) {
-        const roundDeck: GameMode[] = [
-            ...Array(5).fill(GameMode.GuessTheFlag),
-            ...Array(3).fill(GameMode.ABC5Dasar),
-            ...Array(3).fill(GameMode.Trivia),
-            ...Array(4).fill(GameMode.GuessTheCity),
-        ];
+        const classicCategories = options?.classicCategories || [];
+        let roundDeck: GameMode[] = [];
+        if (classicCategories.length > 0) {
+          for (let i = 0; i < TOTAL_ROUNDS; i++) {
+            roundDeck.push(classicCategories[i % classicCategories.length]);
+          }
+        }
         const classicRoundDeck = shuffleArray(roundDeck);
-        const firstRoundMode = classicRoundDeck[0];
+
+        const firstRoundMode = classicRoundDeck.length > 0 ? classicRoundDeck[0] : GameMode.GuessTheFlag; // Fallback
         const firstRoundData: GameActionPayloads['START_GAME']['firstRoundData'] = { gameMode: firstRoundMode };
 
-        if (firstRoundMode === GameMode.GuessTheFlag) firstRoundData.country = getNextCountry();
-        else if (firstRoundMode === GameMode.ABC5Dasar) {
+        if (firstRoundMode === GameMode.GuessTheFlag) {
+            firstRoundData.country = getNextCountry();
+        } else if (firstRoundMode === GameMode.ABC5Dasar) {
             const { letter, category, availableAnswersCount } = getNextAbcCombo();
             firstRoundData.letter = letter;
             firstRoundData.category = category;
@@ -844,14 +877,30 @@ export const useGameLogic = () => {
             firstRoundData.triviaQuestion = getNextTrivia();
         } else if (firstRoundMode === GameMode.GuessTheCity) {
             firstRoundData.city = getNextCity();
+        } else if (firstRoundMode === GameMode.ZonaBola) {
+            const { type, data } = getNewKnockoutZonaBola();
+            firstRoundData.wordCategory = type;
+            if (type === 'Stadion Bola') {
+                firstRoundData.stadium = data as FootballStadium;
+            } else {
+                firstRoundData.word = data as string;
+            }
+        } else if (firstRoundMode === GameMode.GuessTheFruit) {
+            firstRoundData.word = getNewKnockoutFruit();
+            firstRoundData.wordCategory = 'Buah-buahan';
+        } else if (firstRoundMode === GameMode.GuessTheAnimal) {
+            firstRoundData.word = getNewKnockoutAnimal();
+            firstRoundData.wordCategory = 'Hewan';
+        } else if (firstRoundMode === GameMode.KpopTrivia) {
+            firstRoundData.triviaQuestion = getNewKnockoutKpopTrivia();
         }
         
         dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, classicRoundDeck, firstRoundData } });
 
     } else { // Knockout
-        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory } });
+        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory: options?.knockoutCategory } });
     }
-  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity]);
+  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNewKnockoutZonaBola, getNewKnockoutFruit, getNewKnockoutAnimal, getNewKnockoutKpopTrivia]);
   
   const nextRound = useCallback(() => {
     const nextRoundNumber = state.round + 1;
@@ -871,9 +920,25 @@ export const useGameLogic = () => {
         payload.nextTriviaQuestion = getNextTrivia();
     } else if (nextGameMode === GameMode.GuessTheCity) {
         payload.nextCity = getNextCity();
+    } else if (nextGameMode === GameMode.ZonaBola) {
+        const { type, data } = getNewKnockoutZonaBola();
+        payload.nextWordCategory = type;
+        if (type === 'Stadion Bola') {
+            payload.nextStadium = data as FootballStadium;
+        } else {
+            payload.nextWord = data as string;
+        }
+    } else if (nextGameMode === GameMode.GuessTheFruit) {
+        payload.nextWord = getNewKnockoutFruit();
+        payload.nextWordCategory = 'Buah-buahan';
+    } else if (nextGameMode === GameMode.GuessTheAnimal) {
+        payload.nextWord = getNewKnockoutAnimal();
+        payload.nextWordCategory = 'Hewan';
+    } else if (nextGameMode === GameMode.KpopTrivia) {
+        payload.nextTriviaQuestion = getNewKnockoutKpopTrivia();
     }
     dispatch({ type: 'NEXT_ROUND', payload: payload as GameActionPayloads['NEXT_ROUND'] });
-  }, [state.round, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity]);
+  }, [state.round, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNewKnockoutZonaBola, getNewKnockoutFruit, getNewKnockoutAnimal, getNewKnockoutKpopTrivia]);
 
   const finishWinnerDisplay = useCallback(() => {
       dispatch({ type: 'HIDE_WINNER_MODAL' });
@@ -1073,12 +1138,15 @@ export const useGameLogic = () => {
       case GameMode.GuessTheFlag:
         return state.currentCountry?.name || '';
       case GameMode.GuessTheWord:
+      case GameMode.GuessTheFruit:
+      case GameMode.GuessTheAnimal:
         return state.currentWord || '';
       case GameMode.GuessTheCity:
         return state.currentCity?.name || '';
       case GameMode.ABC5Dasar:
         return `(Jawaban Kategori ${state.currentCategory} diawali huruf ${state.currentLetter})`;
       case GameMode.Trivia:
+      case GameMode.KpopTrivia:
         return state.currentTriviaQuestion?.answer || '';
       case GameMode.ZonaBola:
         return state.currentWord || state.currentStadium?.name || '';

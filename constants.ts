@@ -1,4 +1,3 @@
-
 export const TOTAL_ROUNDS = 15;
 export const ROUND_TIMER_SECONDS = 180;
 export const DEFAULT_MAX_WINNERS_PER_ROUND = 5;
@@ -20,3 +19,6 @@ export const ANSWER_REVEAL_DELAY_SECONDS = 3;
 export const BASE_POINTS = 100;
 export const SPEED_BONUS_MULTIPLIER = 1;
 export const UNIQUENESS_BONUS_POINTS = 50; // Bonus untuk jawaban unik di ABC 5 Dasar
+
+// SHA-256 hash for 'BajajBajuri2014'
+export const ADMIN_PASSWORD_HASH = '49fe3cf2afd702dd1278b066ccede5ae94e20e8f484847d63dcfa46b3b208306';

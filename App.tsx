@@ -1,4 +1,6 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import LoginScreen from './components/LoginScreen';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
 import GameOverScreen from './components/GameOverScreen';
@@ -13,11 +15,12 @@ import KnockoutPrepareMatchScreen from './components/KnockoutPrepareMatchScreen'
 import ModeSelectionScreen from './components/ModeSelectionScreen';
 import SimulationPanel from './components/SimulationPanel';
 import GlobalLeaderboardModal from './components/GlobalLeaderboardModal';
+import ConfirmModal from './components/ConfirmModal';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { KeyboardIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
@@ -43,6 +46,7 @@ const infoTips: (() => React.ReactNode)[] = [
 
 const App: React.FC = () => {
   useTheme(); // Initialize theme logic
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
   const [serverConfig, setServerConfig] = useState<ServerConfig | null>(null);
   const [isSimulation, setIsSimulation] = useState<boolean>(false);
@@ -51,6 +55,7 @@ const App: React.FC = () => {
   const [isDisconnected, setIsDisconnected] = useState(false);
   const [showGlobalLeaderboard, setShowGlobalLeaderboard] = useState(false);
   const [showAdminKeyboard, setShowAdminKeyboard] = useState(false);
+  const [isSwitchModeModalOpen, setIsSwitchModeModalOpen] = useState(false);
   
   const [currentGift, setCurrentGift] = useState<GiftNotificationType | null>(null);
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
@@ -87,7 +92,8 @@ const App: React.FC = () => {
   
   const handleDonation = useCallback((donation: DonationEvent) => {
     // Convert donation to a gift notification for UI display
-    const gift: Omit<GiftNotification, 'id'> = {
+    // FIX: Changed `GiftNotification` to `GiftNotificationType` as it is an alias for the imported type.
+    const gift: Omit<GiftNotificationType, 'id'> = {
       userId: donation.from_name,
       nickname: donation.from_name,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${donation.from_name}`,
@@ -262,13 +268,13 @@ const App: React.FC = () => {
     }
   }, [connect, game]);
 
-  const handleStartClassic = useCallback((winnersCount: number) => {
+  const handleStartClassic = useCallback((winnersCount: number, categories: GameMode[], useImportedOnly: boolean) => {
     setMaxWinners(winnersCount);
-    game.startGame(GameStyle.Classic, winnersCount);
+    game.startGame(GameStyle.Classic, winnersCount, { classicCategories: categories, useImportedOnly });
   }, [game]);
 
-  const handleStartKnockout = useCallback((category: KnockoutCategory) => {
-    game.startGame(GameStyle.Knockout, maxWinners, category);
+  const handleStartKnockout = useCallback((category: KnockoutCategory, useImportedOnly: boolean) => {
+    game.startGame(GameStyle.Knockout, maxWinners, { knockoutCategory: category, useImportedOnly });
   }, [game, maxWinners]);
   
   const handleBackToModeSelection = useCallback(() => {
@@ -276,7 +282,12 @@ const App: React.FC = () => {
   }, [game]);
   
   const handleAutoRestart = useCallback(() => {
-    game.startGame(GameStyle.Classic, maxWinners);
+    // This needs to be smarter; it doesn't know the last selected categories.
+    // For now, it will restart with a default set. A better implementation
+    // would store last used classic settings.
+    game.startGame(GameStyle.Classic, maxWinners, {
+      classicCategories: [GameMode.GuessTheFlag, GameMode.ABC5Dasar, GameMode.Trivia, GameMode.GuessTheCity]
+    });
   }, [game, maxWinners]);
 
   const handleReconnect = useCallback(() => {
@@ -287,9 +298,12 @@ const App: React.FC = () => {
   }, [connect, serverConfig]);
   
   const handleSwitchMode = () => {
-    if (window.confirm('Apakah Anda yakin ingin menghentikan permainan saat ini dan kembali ke menu pemilihan mode?')) {
-        game.returnToModeSelection();
-    }
+    setIsSwitchModeModalOpen(true);
+  };
+
+  const confirmSwitchMode = () => {
+    game.returnToModeSelection();
+    setIsSwitchModeModalOpen(false);
   };
 
   useEffect(() => {
@@ -351,6 +365,7 @@ const App: React.FC = () => {
 
   // Keyboard shortcuts
   useEffect(() => {
+    if (!isAuthenticated) return; // Disable shortcuts if not logged in
     const handleKeyDown = (event: KeyboardEvent) => {
       if (document.activeElement?.tagName.toLowerCase() === 'input') {
         return;
@@ -371,7 +386,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [gameState, game]);
+  }, [gameState, game, isAuthenticated]);
 
 
   const champion = game.state.sessionLeaderboard?.length > 0 ? game.state.sessionLeaderboard[0] : undefined;
@@ -501,8 +516,16 @@ const App: React.FC = () => {
     }
   }
 
-  const showAdminButtons = gameState === GameState.Playing || gameState === GameState.KnockoutPlaying;
-  const showLiveFeed = !isSimulation && (gameState !== GameState.Setup && gameState !== GameState.Connecting);
+  const showAdminButtons = isAuthenticated && (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying);
+  const showLiveFeed = isAuthenticated && !isSimulation && (gameState !== GameState.Setup && gameState !== GameState.Connecting);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4">
+        <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
@@ -511,6 +534,14 @@ const App: React.FC = () => {
           <GlobalLeaderboardModal 
             leaderboard={game.state.leaderboard} 
             onClose={() => setShowGlobalLeaderboard(false)} 
+          />
+        )}
+        {isSwitchModeModalOpen && (
+          <ConfirmModal
+              title="Pindah Mode Permainan?"
+              message="Permainan saat ini akan dihentikan dan semua progres akan hilang. Apakah Anda yakin?"
+              onConfirm={confirmSwitchMode}
+              onClose={() => setIsSwitchModeModalOpen(false)}
           />
         )}
       </AnimatePresence>
@@ -559,27 +590,29 @@ const App: React.FC = () => {
         </div>
       <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-center gap-4">
         {/* Left Column: Game Screen */}
-        <div className="w-full md:max-w-sm h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
+        <div className="w-full md:w-96 lg:w-[420px] h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
           <AnimatePresence mode="wait">
             {renderContent()}
           </AnimatePresence>
         </div>
         
         {/* Right Column: Feed or Simulation Panel */}
-        <AnimatePresence>
-        {showLiveFeed && <LiveFeedPanel feed={liveFeed} />}
-        {isSimulation && gameState !== GameState.Setup && (
-            <SimulationPanel 
-                onComment={handleComment} 
-                onGift={handleGift}
-                onDonation={handleDonation}
-                currentAnswer={game.currentAnswer} 
-                gameState={gameState}
-                onRegisterPlayer={game.registerPlayer}
-                knockoutPlayers={game.state.knockoutPlayers}
-            />
-        )}
-        </AnimatePresence>
+        <div className="hidden md:flex flex-1">
+            <AnimatePresence>
+            {showLiveFeed && <LiveFeedPanel feed={liveFeed} />}
+            {isSimulation && gameState !== GameState.Setup && (
+                <SimulationPanel 
+                    onComment={handleComment} 
+                    onGift={handleGift}
+                    onDonation={handleDonation}
+                    currentAnswer={game.currentAnswer} 
+                    gameState={gameState}
+                    onRegisterPlayer={game.registerPlayer}
+                    knockoutPlayers={game.state.knockoutPlayers}
+                />
+            )}
+            </AnimatePresence>
+        </div>
       </div>
 
        <AnimatePresence>
