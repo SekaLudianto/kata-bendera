@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import LoginScreen from './components/LoginScreen';
 import SetupScreen from './components/SetupScreen';
@@ -56,6 +57,7 @@ const App: React.FC = () => {
   const [showGlobalLeaderboard, setShowGlobalLeaderboard] = useState(false);
   const [showAdminKeyboard, setShowAdminKeyboard] = useState(false);
   const [isSwitchModeModalOpen, setIsSwitchModeModalOpen] = useState(false);
+  const [isResetLeaderboardModalOpen, setIsResetLeaderboardModalOpen] = useState(false);
   
   const [currentGift, setCurrentGift] = useState<GiftNotificationType | null>(null);
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
@@ -306,6 +308,12 @@ const App: React.FC = () => {
     setIsSwitchModeModalOpen(false);
   };
 
+  const handleOpenResetModal = () => setIsResetLeaderboardModalOpen(true);
+  const confirmResetLeaderboard = () => {
+      game.resetGlobalLeaderboard();
+      setIsResetLeaderboardModalOpen(false);
+  };
+
   useEffect(() => {
     if (isSimulation) return; // Don't run connection effects in simulation mode
 
@@ -418,6 +426,7 @@ const App: React.FC = () => {
                       onStartClassic={handleStartClassic}
                       onStartKnockout={handleStartKnockout}
                       onShowLeaderboard={() => setShowGlobalLeaderboard(true)}
+                      onResetGlobalLeaderboard={handleOpenResetModal}
                    />;
         case GameState.Playing:
         case GameState.KnockoutPlaying:
@@ -542,6 +551,14 @@ const App: React.FC = () => {
               message="Permainan saat ini akan dihentikan dan semua progres akan hilang. Apakah Anda yakin?"
               onConfirm={confirmSwitchMode}
               onClose={() => setIsSwitchModeModalOpen(false)}
+          />
+        )}
+        {isResetLeaderboardModalOpen && (
+          <ConfirmModal
+              title="Reset Peringkat Global?"
+              message="Semua data skor global akan dihapus permanen. Tindakan ini tidak dapat dibatalkan."
+              onConfirm={confirmResetLeaderboard}
+              onClose={() => setIsResetLeaderboardModalOpen(false)}
           />
         )}
       </AnimatePresence>

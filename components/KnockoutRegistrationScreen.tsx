@@ -15,12 +15,14 @@ interface KnockoutRegistrationScreenProps {
 const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, onEndRegistration, onResetRegistration, champions, isSimulation }) => {
   const [activeTab, setActiveTab] = useState<'register' | 'leaderboard'>('register');
 
+  // FIX: Replaced Object.entries with Object.keys to correctly infer the types of champion data.
+  // This resolves the issue where `data.wins` and `data.nickname` were inaccessible because `data` was of type `unknown`.
   const topChampions = useMemo(() => {
-    return Object.entries(champions)
-        .map(([userId, data]) => ({ 
+    return Object.keys(champions)
+        .map((userId) => ({ 
             userId, 
-            wins: data.wins, 
-            nickname: data.nickname 
+            wins: champions[userId].wins, 
+            nickname: champions[userId].nickname 
         }))
         .sort((a, b) => b.wins - a.wins);
   }, [champions]);

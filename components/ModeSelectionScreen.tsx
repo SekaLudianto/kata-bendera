@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon } from './IconComponents';
+import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './IconComponents';
 import { DEFAULT_MAX_WINNERS_PER_ROUND } from '../constants';
 import { GameMode, GameStyle, KnockoutCategory } from '../types';
 
@@ -9,6 +10,7 @@ interface ModeSelectionScreenProps {
   onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean) => void;
   onStartKnockout: (category: KnockoutCategory, useImportedOnly: boolean) => void;
   onShowLeaderboard: () => void;
+  onResetGlobalLeaderboard: () => void;
 }
 
 const classicCategories: { id: GameMode, name: string }[] = [
@@ -55,7 +57,7 @@ const jsonExampleFormat = `{
 }`;
 
 
-const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassic, onStartKnockout, onShowLeaderboard }) => {
+const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassic, onStartKnockout, onShowLeaderboard, onResetGlobalLeaderboard }) => {
   const [maxWinners, setMaxWinners] = useState(() => {
     const saved = localStorage.getItem('tiktok-quiz-maxwinners');
     return saved ? parseInt(saved, 10) : DEFAULT_MAX_WINNERS_PER_ROUND;
@@ -345,13 +347,23 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
             <UploadCloudIcon className="w-4 h-4" />
             Impor Soal (JSON)
           </button>
-          <button
-            type="button"
-            onClick={handleClearImported}
-            className="w-full px-4 py-2 bg-gray-500 text-white font-bold rounded-lg shadow-md shadow-gray-500/30 hover:bg-gray-600 transition-all text-sm"
-          >
-            Hapus Soal Impor
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleClearImported}
+              className="w-full px-4 py-2 bg-gray-500 text-white font-bold rounded-lg shadow-md shadow-gray-500/30 hover:bg-gray-600 transition-all text-sm"
+            >
+              Hapus Soal Impor
+            </button>
+            <button
+              type="button"
+              onClick={onResetGlobalLeaderboard}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all text-sm"
+            >
+              <TrashIcon className="w-4 h-4" />
+              Reset Peringkat
+            </button>
+          </div>
         </div>
 
         <div className="mt-3">

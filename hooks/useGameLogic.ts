@@ -1,4 +1,5 @@
 
+
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 // FIX: The type `LetterObject` is now correctly exported from `types.ts`.
 import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject } from '../types';
@@ -713,6 +714,11 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             leaderboard: state.leaderboard, // Keep global leaderboard
             gameState: GameState.ModeSelection,
         };
+    case 'RESET_GLOBAL_LEADERBOARD':
+        return {
+            ...state,
+            leaderboard: [],
+        };
     default:
       return state;
   }
@@ -951,6 +957,15 @@ export const useGameLogic = () => {
 
   const resetGame = useCallback(() => dispatch({ type: 'RESET_GAME' }), []);
   
+  const resetGlobalLeaderboard = useCallback(() => {
+    try {
+        localStorage.removeItem('leaderboard');
+        dispatch({ type: 'RESET_GLOBAL_LEADERBOARD' });
+    } catch (e) {
+        console.error("Failed to reset global leaderboard", e);
+    }
+  }, []);
+
   const processComment = useCallback((message: ChatMessage) => {
     dispatch({ type: 'PROCESS_COMMENT', payload: message });
   }, []);
@@ -1155,5 +1170,5 @@ export const useGameLogic = () => {
     }
   };
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, finishWinnerDisplay, setHostUsername, currentAnswer: getCurrentAnswer() };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, finishWinnerDisplay, setHostUsername, resetGlobalLeaderboard, currentAnswer: getCurrentAnswer() };
 };
