@@ -16,7 +16,7 @@ import { footballStadiums } from '../data/football_stadiums';
 import { triviaQuestions } from '../data/trivia';
 import { kpopTrivia } from '../data/kpop_trivia';
 import { cities } from '../data/cities';
-import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, UNIQUENESS_BONUS_POINTS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, ANSWER_REVEAL_DELAY_SECONDS } from '../constants';
+import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, UNIQUENESS_BONUS_POINTS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, ANSWER_REVEAL_DELAY_SECONDS, CHAMPION_SCREEN_TIMEOUT_MS } from '../constants';
 
 export interface InternalGameState {
   gameState: GameState;
@@ -1150,6 +1150,23 @@ export const useGameLogic = () => {
         }
     }
   }, [state.roundWinners.length, state.isRoundActive, state.gameStyle, state.maxWinners, state.gameMode, state.availableAnswersCount]);
+
+  // This effect handles the automatic transition away from the Champion screen
+  useEffect(() => {
+    let timeoutId: number;
+    if (state.gameState === GameState.Champion) {
+      timeoutId = window.setTimeout(() => {
+        if (state.gameStyle === GameStyle.Classic) {
+          dispatch({ type: 'FINISH_GAME' });
+        } else {
+          // For knockout, the tournament is over, so we go back to the bracket view
+          // which will show the final state and options to restart.
+          dispatch({ type: 'RETURN_TO_BRACKET' });
+        }
+      }, CHAMPION_SCREEN_TIMEOUT_MS);
+    }
+    return () => window.clearTimeout(timeoutId);
+  }, [state.gameState, state.gameStyle]);
 
   const getCurrentAnswer = () => {
     switch (state.gameMode) {

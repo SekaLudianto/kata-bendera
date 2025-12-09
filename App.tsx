@@ -23,7 +23,7 @@ import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
 import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
+import { DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
 import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
 import AdminInputPanel from './components/AdminInputPanel';
 
@@ -428,21 +428,6 @@ const App: React.FC = () => {
         }
     }
   }, [gameState, game.state.gameStyle, game.state.sessionLeaderboard, addChampion]);
-
-  // Transition: Champion -> Finished (for Classic) or back to bracket (for Knockout)
-  useEffect(() => {
-    let timeoutId: number;
-    if (gameState === GameState.Champion) {
-      timeoutId = window.setTimeout(() => {
-        if (game.state.gameStyle === GameStyle.Classic) {
-          game.finishGame();
-        } else {
-          game.returnToBracket();
-        }
-      }, CHAMPION_SCREEN_TIMEOUT_MS);
-    }
-    return () => window.clearTimeout(timeoutId);
-  }, [gameState, game.state.gameStyle, game]);
 
   // Keyboard shortcuts
   useEffect(() => {
