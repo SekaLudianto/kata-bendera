@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { LeaderboardEntry } from '../types';
 import { useSound } from '../hooks/useSound';
@@ -22,6 +22,11 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, globalLead
   const [countdown, setCountdown] = useState(GAME_OVER_RESTART_DELAY_SECONDS);
   const { playSound } = useSound();
 
+  const autoRestartRef = useRef(onAutoRestart);
+  useEffect(() => {
+    autoRestartRef.current = onAutoRestart;
+  }, [onAutoRestart]);
+
   useEffect(() => {
     playSound('gameOver');
   }, [playSound]);
@@ -31,9 +36,9 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ leaderboard, globalLead
       const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
       return () => clearTimeout(timer);
     } else {
-      onAutoRestart();
+      autoRestartRef.current();
     }
-  }, [countdown, onAutoRestart]);
+  }, [countdown]);
 
   const topSessionPlayers = leaderboard.slice(0, 10);
   const topGlobalPlayers = globalLeaderboard.slice(0, 10);
