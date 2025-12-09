@@ -34,6 +34,23 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    @keyframes shimmer {
+        0% { background-position: 200% center; }
+        100% { background-position: -200% center; }
+    }
+    .shimmer-title {
+        font-weight: bold;
+        background-image: linear-gradient( to right, #fbbf24, #fde68a, #fbbf24 );
+        background-size: 200% auto;
+        color: #000;
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shimmer 3s linear infinite;
+    }
+    .dark .shimmer-title {
+        background-image: linear-gradient( to right, #fcd34d, #fef9c3, #fcd34d );
+    }
   </style>
 <script type="importmap">
 {
