@@ -9,6 +9,7 @@ interface TikTokChatEvent {
   comment: string;
   profilePictureUrl: string;
   msgId: string;
+  timestamp: number; // Add timestamp to the expected event data
 }
 
 const parseTikTokError = (reason: string): string => {
@@ -33,18 +34,23 @@ const indofinityDonationAdapter = (platform: DonationPlatform, data: any): Omit<
 
 export const useTikTokLive = (
     onMessage: (message: ChatMessage) => void,
-    onGift: (gift: Omit<GiftNotification, 'id'>) => void
+    onGift: (gift: Omit<GiftNotification, 'id'>) => void,
+    onSyncTime: (timestamp: number) => void
 ) => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<Socket | WebSocket | null>(null);
+  const timeSyncedRef = useRef(false);
 
   const onMessageRef = useRef(onMessage);
   const onGiftRef = useRef(onGift);
+  const onSyncTimeRef = useRef(onSyncTime);
+
   useEffect(() => {
     onMessageRef.current = onMessage;
     onGiftRef.current = onGift;
-  }, [onMessage, onGift]);
+    onSyncTimeRef.current = onSyncTime;
+  }, [onMessage, onGift, onSyncTime]);
 
   useEffect(() => {
     return () => { // Cleanup on unmount
@@ -58,11 +64,24 @@ export const useTikTokLive = (
     };
   }, []);
 
+  const disconnect = useCallback(() => {
+    if (connectionRef.current) {
+        if (connectionRef.current instanceof WebSocket) {
+            connectionRef.current.close();
+        } else {
+            connectionRef.current.disconnect();
+        }
+        connectionRef.current = null;
+    }
+    setConnectionStatus('idle');
+  }, []);
+
   const connect = useCallback((config: ServerConfig) => {
     if (connectionRef.current) disconnect();
 
     setConnectionStatus('connecting');
     setError(null);
+    timeSyncedRef.current = false; // Reset time sync flag on new connection
 
     switch (config.type) {
       case ServerType.RAILWAY_1:
@@ -77,11 +96,17 @@ export const useTikTokLive = (
         connectToIndoFinitySocketIO();
         break;
     }
-  }, []);
+  }, [disconnect]);
 
   const handleIndoFinityMessage = (event: string, data: any) => {
     const donationPlatforms: DonationPlatform[] = ['saweria', 'sociabuzz', 'trakteer', 'tako', 'bagibagi', 'sibagi'];
+    const timestamp = data.timestamp || Date.now();
     
+    if (!timeSyncedRef.current && data.timestamp) {
+        onSyncTimeRef.current(data.timestamp);
+        timeSyncedRef.current = true;
+    }
+
     if (event === 'chat') {
         onMessageRef.current({
             id: data.msgId || `${Date.now()}`,
@@ -90,6 +115,7 @@ export const useTikTokLive = (
             comment: data.comment,
             profilePictureUrl: data.profilePictureUrl,
             isWinner: false,
+            timestamp: timestamp,
         });
     } else if (event === 'gift') {
         onGiftRef.current({
@@ -182,6 +208,10 @@ export const useTikTokLive = (
       socket.disconnect();
     });
     socket.on('chat', (data: TikTokChatEvent) => {
+      if (!timeSyncedRef.current && data.timestamp) {
+        onSyncTimeRef.current(data.timestamp);
+        timeSyncedRef.current = true;
+      }
       onMessageRef.current({
         id: data.msgId,
         userId: data.uniqueId,
@@ -189,9 +219,14 @@ export const useTikTokLive = (
         comment: data.comment,
         profilePictureUrl: data.profilePictureUrl,
         isWinner: false,
+        timestamp: data.timestamp || Date.now(),
       });
     });
     socket.on('gift', (data: TikTokGiftEvent) => {
+        if (!timeSyncedRef.current && data.timestamp) {
+          onSyncTimeRef.current(data.timestamp);
+          timeSyncedRef.current = true;
+        }
         onGiftRef.current({
             userId: data.uniqueId,
             nickname: data.nickname,
@@ -214,18 +249,6 @@ export const useTikTokLive = (
       if (connectionStatus !== 'error') setConnectionStatus('disconnected');
     });
   };
-
-  const disconnect = useCallback(() => {
-    if (connectionRef.current) {
-        if (connectionRef.current instanceof WebSocket) {
-            connectionRef.current.close();
-        } else {
-            connectionRef.current.disconnect();
-        }
-        connectionRef.current = null;
-    }
-    setConnectionStatus('idle');
-  }, []);
 
   return { connectionStatus, connect, disconnect, error };
 };

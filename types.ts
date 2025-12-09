@@ -30,6 +30,7 @@ export interface ChatMessage {
   comment: string;
   profilePictureUrl?: string;
   isWinner?: boolean;
+  timestamp: number;
 }
 
 export interface LeaderboardEntry {
@@ -43,6 +44,7 @@ export interface RoundWinner extends LeaderboardEntry {
   time: number;
   answer?: string; // Jawaban spesifik untuk mode ABC 5 Dasar
   bonus?: number; // Poin bonus untuk jawaban unik
+  timestamp: number;
 }
 
 export interface GiftNotification {
@@ -77,6 +79,7 @@ export interface TikTokGiftEvent {
   giftName: string;
   giftCount: number;
   giftId: number; // e.g., 5655 for Rose
+  timestamp?: number;
 }
 
 export type DonationPlatform = 'saweria' | 'sociabuzz' | 'trakteer' | 'tako' | 'bagibagi' | 'sibagi';

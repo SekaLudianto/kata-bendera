@@ -24,7 +24,7 @@ import { useKnockoutChampions } from './hooks/useKnockoutChampions';
 import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CHAMPION_SCREEN_TIMEOUT_MS, DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
-import { KeyboardIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
+import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
 import AdminInputPanel from './components/AdminInputPanel';
 
 const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
@@ -40,6 +40,12 @@ const infoTips: (() => React.ReactNode)[] = [
         className="w-5 h-5 inline-block" 
       />
       untuk skip soal!
+    </div>
+  ),
+  () => (
+    <div className="flex items-center justify-center gap-1.5">
+        <ServerIcon className="w-4 h-4" />
+        <span>Jawaban dinilai berdasarkan Waktu Server.</span>
     </div>
   ),
 ];
@@ -68,33 +74,48 @@ const App: React.FC = () => {
 
   const [liveFeed, setLiveFeed] = useState<LiveFeedEvent[]>([]);
 
+  // Server Time Sync
+  const [serverTime, setServerTime] = useState<Date | null>(null);
+  const serverTimeOffset = useRef<number>(0);
+  const [isTimeSynced, setIsTimeSynced] = useState(false);
+
   const game = useGameLogic();
   const { champions, addChampion } = useKnockoutChampions();
   
   const handleGift = useCallback((gift: Omit<GiftNotificationType, 'id'>) => {
-      const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.userId}` };
-      giftQueue.current.push(gift);
-      setLiveFeed(prev => [fullGift, ...prev].slice(0, 100));
+    const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.userId}` };
+    
+    // Add to queue and live feed
+    giftQueue.current.push(gift);
+    setLiveFeed(prev => [fullGift, ...prev].slice(0, 100));
 
-      if (!currentGift) {
+    // Trigger the queue processing using a functional update to prevent race conditions
+    setCurrentGift(prevCurrentGift => {
+        // If a gift is already showing, do nothing. The useEffect will handle it later.
+        if (prevCurrentGift) {
+            return prevCurrentGift;
+        }
+        // If no gift is showing, pull from the queue.
         const nextGift = giftQueue.current.shift();
         if (nextGift) {
-            setCurrentGift({ ...nextGift, id: `${new Date().getTime()}-${nextGift.userId}` });
+            return { ...nextGift, id: `${new Date().getTime()}-${nextGift.userId}` };
         }
-      }
+        // If queue is somehow empty, return null.
+        return null;
+    });
 
-      // Gift-to-skip logic
-      const giftNameLower = gift.giftName.toLowerCase();
-      const isRoseGift = giftNameLower.includes('mawar') || giftNameLower.includes('rose') || gift.giftId === 5655;
+    // Gift-to-skip logic
+    const giftNameLower = gift.giftName.toLowerCase();
+    const isRoseGift = giftNameLower.includes('mawar') || giftNameLower.includes('rose') || gift.giftId === 5655;
 
-      if (isRoseGift && gameState === GameState.Playing) {
-          game.skipRound();
-      }
-  }, [currentGift, gameState, game]);
+    if (isRoseGift && gameState === GameState.Playing) {
+        game.skipRound();
+    }
+  }, [gameState, game]);
   
   const handleDonation = useCallback((donation: DonationEvent) => {
     // Convert donation to a gift notification for UI display
-    // FIX: Changed `GiftNotification` to `GiftNotificationType` as it is an alias for the imported type.
+    // FIX: Replaced 'GiftNotification' with its imported alias 'GiftNotificationType' to resolve a type error.
     const gift: Omit<GiftNotificationType, 'id'> = {
       userId: donation.from_name,
       nickname: donation.from_name,
@@ -124,14 +145,23 @@ const App: React.FC = () => {
   }, [currentGift]);
   
   const handleRankCheck = useCallback((rankInfo: Omit<RankNotificationType, 'id'>) => {
-      rankQueue.current.push(rankInfo);
-      if (!currentRank) {
+    rankQueue.current.push(rankInfo);
+
+    // Trigger the queue processing using a functional update to prevent race conditions
+    setCurrentRank(prevCurrentRank => {
+        // If a rank notification is already showing, do nothing.
+        if (prevCurrentRank) {
+            return prevCurrentRank;
+        }
+        // If no notification is showing, pull from the queue.
         const nextRank = rankQueue.current.shift();
         if (nextRank) {
-            setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.userId}` });
+            return { ...nextRank, id: `${new Date().getTime()}-${nextRank.userId}` };
         }
-      }
-  }, [currentRank]);
+        // If queue is somehow empty, return null.
+        return null;
+    });
+  }, []);
 
   useEffect(() => {
     if (currentRank) {
@@ -245,13 +275,33 @@ const App: React.FC = () => {
         comment: commentText,
         profilePictureUrl: `https://i.pravatar.cc/40?u=admin-${hostUsername}`,
         isWinner: false,
+        timestamp: Date.now(), // Admin timestamp is client-side
     };
     handleComment(adminMessage);
     setShowAdminKeyboard(false);
   };
 
+  const handleSyncTime = useCallback((serverTimestamp: number) => {
+    // Only set the offset once per connection session
+    if (!isTimeSynced) {
+        serverTimeOffset.current = serverTimestamp - Date.now();
+        setServerTime(new Date(serverTimestamp));
+        setIsTimeSynced(true);
+    }
+  }, [isTimeSynced]);
 
-  const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift);
+  useEffect(() => {
+    if (!isTimeSynced) return;
+
+    const intervalId = setInterval(() => {
+        setServerTime(new Date(Date.now() + serverTimeOffset.current));
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [isTimeSynced]);
+
+
+  const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift, handleSyncTime);
 
   const handleConnect = useCallback((config: ServerConfig, isSimulating: boolean) => {
     setLiveFeed([]);
@@ -259,16 +309,39 @@ const App: React.FC = () => {
     setIsDisconnected(false);
     setServerConfig(config);
     setIsSimulation(isSimulating);
+    setIsTimeSynced(false); // Reset time sync flag
+    setServerTime(null);
     
     game.setHostUsername(config.username);
 
     if (isSimulating) {
+        // For simulation, sync time immediately with client's local time
+        serverTimeOffset.current = 0;
+        setIsTimeSynced(true);
+        setServerTime(new Date());
         game.returnToModeSelection();
     } else {
         setGameState(GameState.Connecting);
         connect(config);
     }
   }, [connect, game]);
+
+  // Fallback timer for live connections to ensure the clock always starts.
+  useEffect(() => {
+    if (isSimulation) return;
+
+    let fallbackTimer: number;
+    if (connectionStatus === 'connected' && !isTimeSynced) {
+      fallbackTimer = window.setTimeout(() => {
+        if (!isTimeSynced) {
+          console.warn("Server time sync did not receive a message. Using client time as fallback.");
+          handleSyncTime(Date.now()); // Sync with current client time
+        }
+      }, 5000); // 5-second timeout
+    }
+
+    return () => clearTimeout(fallbackTimer);
+  }, [connectionStatus, isTimeSynced, isSimulation, handleSyncTime]);
 
   const handleStartClassic = useCallback((winnersCount: number, categories: GameMode[], useImportedOnly: boolean) => {
     setMaxWinners(winnersCount);
@@ -448,6 +521,7 @@ const App: React.FC = () => {
                   currentRank={currentRank}
                   currentInfo={currentInfo}
                   onFinishWinnerDisplay={game.finishWinnerDisplay}
+                  serverTime={serverTime}
                 />
               </motion.div>
             );

@@ -6,6 +6,15 @@ interface ChatTabProps {
   messages: ChatMessage[];
 }
 
+const formatTimestamp = (ms: number | undefined): string => {
+    if (!ms) return '';
+    const date = new Date(ms);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+};
+
 const ChatTab: React.FC<ChatTabProps> = ({ messages }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -51,9 +60,12 @@ const ChatTab: React.FC<ChatTabProps> = ({ messages }) => {
                 className="w-7 h-7 rounded-full mt-0.5 shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <p className={`font-semibold text-xs ${msg.isWinner ? 'text-amber-600 dark:text-amber-300' : 'text-sky-600 dark:text-sky-300'}`}>
-                  {msg.nickname}
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <p className={`font-semibold text-xs ${msg.isWinner ? 'text-amber-600 dark:text-amber-300' : 'text-sky-600 dark:text-sky-300'}`}>
+                    {msg.nickname}
+                  </p>
+                  <span className="text-[10px] text-gray-400 font-mono">{formatTimestamp(msg.timestamp)}</span>
+                </div>
                 <p className="text-slate-800 dark:text-white break-words text-sm">{msg.comment}</p>
               </div>
             </motion.div>

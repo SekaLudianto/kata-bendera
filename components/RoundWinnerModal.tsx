@@ -20,6 +20,16 @@ const getRankDisplay = (rank: number) => {
     return `${rank + 1}.`;
 };
 
+const formatTimestamp = (ms: number | undefined): string => {
+    if (!ms) return '';
+    const date = new Date(ms);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const millis = date.getMilliseconds().toString().padStart(3, '0');
+    return `${hours}:${minutes}:${seconds}.${millis}`;
+};
+
 const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gameMode, allAnswersFound, onScrollComplete }) => {
   const { playSound } = useSound();
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -113,11 +123,14 @@ const RoundWinnerModal: React.FC<RoundWinnerModalProps> = ({ winners, round, gam
                     <img src={winner.profilePictureUrl} alt={winner.nickname} className="w-8 h-8 rounded-full mx-2"/>
                     <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm text-slate-800 dark:text-white truncate">{winner.nickname}</p>
-                        {gameMode === GameMode.ABC5Dasar && winner.answer ? (
-                            <p className="text-xs text-slate-600 dark:text-gray-300 italic truncate">"{winner.answer}"</p>
-                        ) : (
-                            <p className="text-xs text-slate-500 dark:text-gray-400">{winner.time.toFixed(1)} detik</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {gameMode === GameMode.ABC5Dasar && winner.answer ? (
+                              <p className="text-xs text-slate-600 dark:text-gray-300 italic truncate">"{winner.answer}"</p>
+                          ) : (
+                              <p className="text-xs text-slate-500 dark:text-gray-400">{winner.time.toFixed(1)} detik</p>
+                          )}
+                          <p className="text-[10px] text-gray-400 font-mono">{formatTimestamp(winner.timestamp)}</p>
+                        </div>
                     </div>
                     <div className="text-right">
                         <p className="font-bold text-green-500 dark:text-green-400">+{winner.score} 🪙</p>

@@ -3,7 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LiveFeedEvent, ChatMessage, GiftNotification, DonationEvent } from '../types';
 import { GiftIcon } from './IconComponents';
 
-const ChatItem: React.FC<ChatMessage> = ({ id, nickname, comment, profilePictureUrl, isWinner }) => (
+const formatTimestamp = (ms: number | undefined): string => {
+    if (!ms) return '';
+    const date = new Date(ms);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+};
+
+const ChatItem: React.FC<ChatMessage> = ({ id, nickname, comment, profilePictureUrl, isWinner, timestamp }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -18,9 +27,12 @@ const ChatItem: React.FC<ChatMessage> = ({ id, nickname, comment, profilePicture
       className="w-8 h-8 rounded-full mt-0.5 shrink-0"
     />
     <div className="flex-1 min-w-0">
-      <p className={`font-semibold text-xs ${isWinner ? 'text-amber-600 dark:text-amber-300' : 'text-sky-600 dark:text-sky-300'}`}>
-        {nickname}
-      </p>
+      <div className="flex items-baseline gap-2">
+        <p className={`font-semibold text-xs ${isWinner ? 'text-amber-600 dark:text-amber-300' : 'text-sky-600 dark:text-sky-300'}`}>
+          {nickname}
+        </p>
+        <span className="text-[10px] text-gray-400 font-mono">{formatTimestamp(timestamp)}</span>
+      </div>
       <p className="text-slate-800 dark:text-white break-words text-sm">{comment}</p>
     </div>
   </motion.div>

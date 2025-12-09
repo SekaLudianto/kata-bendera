@@ -27,9 +27,10 @@ interface GameScreenProps {
   currentRank: RankNotificationType | null;
   currentInfo: InfoNotificationType | null;
   onFinishWinnerDisplay: () => void;
+  serverTime: Date | null;
 }
 
-const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay }) => {
+const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay, serverTime }) => {
   const [activeTab, setActiveTab] = useState<Tab>('game');
   const { playSound } = useSound();
 
@@ -89,7 +90,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
-            {activeTab === 'game' && <GameTab key="game" gameState={gameState} />}
+            {activeTab === 'game' && <GameTab key="game" gameState={gameState} serverTime={serverTime} />}
             {activeTab === 'chat' && <ChatTab key="chat" messages={gameState.chatMessages} />}
             {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} />}
         </AnimatePresence>
@@ -107,6 +108,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
       </main>
 
+      {/* FIX: The entire nav is now hidden on tablet screens and up, as its functionality is replaced by the side panel. */}
       <nav className="flex md:hidden justify-around p-1 border-t border-sky-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 rounded-b-3xl shrink-0">
         {navItems.map((item) => (
           <button

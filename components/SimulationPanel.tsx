@@ -53,6 +53,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
     e?.preventDefault();
     if (comment.trim() === '' || userId.trim() === '' || nickname.trim() === '') return;
 
+    // FIX: Added missing timestamp property.
     onComment({
       id: `${Date.now()}-${userId}`,
       userId: userId,
@@ -60,6 +61,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
       comment,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${userId}`,
       isWinner: false,
+      timestamp: Date.now(),
     });
 
     setComment('');
@@ -95,6 +97,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
   const handleSendCorrectAnswer = () => {
     if (currentAnswer.startsWith('(')) return; // Don't send for ABC 5 Dasar helper text
 
+    // FIX: Added missing timestamp property.
     onComment({
       id: `${Date.now()}-${userId}`,
       userId: userId,
@@ -102,6 +105,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
       comment: currentAnswer,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${userId}`,
       isWinner: false,
+      timestamp: Date.now(),
     });
   };
 
@@ -112,6 +116,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
     const rUserId = `random.user.${randomId}`;
     const rNickname = `Penebak Jitu ${randomId}`;
 
+    // FIX: Added missing timestamp property.
     onComment({
       id: `${Date.now()}-${rUserId}`,
       userId: rUserId,
@@ -119,6 +124,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
       comment: currentAnswer,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${rUserId}`,
       isWinner: false,
+      timestamp: Date.now(),
     });
   };
 

@@ -1,16 +1,27 @@
 
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 // FIX: Import LetterObject from types.ts instead of defining it locally.
 import { GameMode, GameStyle, LetterObject } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
+import { ServerIcon } from './IconComponents';
 
 // FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
 interface GameTabProps {
   gameState: InternalGameState;
+  serverTime: Date | null;
 }
+
+const formatServerTime = (date: Date | null): string => {
+    if (!date) return '00:00:00';
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+};
 
 const getLetterBoxSizeClasses = (totalLetters: number): string => {
   if (totalLetters > 22) return 'w-5 h-7 text-sm gap-0.5';
@@ -233,7 +244,7 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
     );
 };
 
-const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
+const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
   const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / TOTAL_ROUNDS) * 100;
   const firstWinner = roundWinners.length > 0 ? roundWinners[0] : null;
@@ -293,9 +304,20 @@ const GameTab: React.FC<GameTabProps> = ({ gameState }) => {
       transition={{ duration: 0.3 }}
       className="p-3 flex flex-col h-full relative"
     >
-      <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
-        <span>{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `🎯 Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
-        <span className='font-semibold'>{getRoundTitle()}</span>
+      <div className="grid grid-cols-3 items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
+        <span className="text-left">{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `🎯 Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
+        
+        <span className='font-semibold text-center'>{getRoundTitle()}</span>
+
+        <div className="group relative flex items-center gap-1 justify-self-end">
+            <ServerIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span className="text-sm font-mono font-semibold text-gray-600 dark:text-gray-300">
+                {formatServerTime(serverTime)}
+            </span>
+            <div className="absolute top-full right-0 mt-2 w-64 p-2 text-xs text-white bg-gray-900 dark:bg-black rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[60]">
+                Waktu Resmi Server. Semua jawaban dinilai berdasarkan waktu ini, bukan waktu di HP Anda, untuk memastikan keadilan bagi semua pemain karena adanya perbedaan latensi jaringan.
+            </div>
+        </div>
       </div>
 
       <div className="w-full bg-sky-100 dark:bg-gray-700 rounded-full h-2 my-2 shrink-0">
