@@ -247,7 +247,6 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
 const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
   const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / TOTAL_ROUNDS) * 100;
-  const firstWinner = roundWinners.length > 0 ? roundWinners[0] : null;
 
   const timerDuration = gameStyle === GameStyle.Knockout ? KNOCKOUT_ROUND_TIMER_SECONDS : ROUND_TIMER_SECONDS;
   const timerProgress = (roundTimer / timerDuration) * 100;
@@ -381,7 +380,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
 
         <div className="mt-3 w-full text-center min-h-[50px] shrink-0">
           <AnimatePresence mode="wait">
-            {firstWinner && gameStyle === GameStyle.Classic ? (
+            {roundWinners.length > 0 && gameStyle === GameStyle.Classic ? (
               <motion.div
                 key="winner"
                 initial={{ opacity: 0, y: 10 }}
@@ -389,11 +388,12 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
                 exit={{ opacity: 0, y: -10 }}
                 className="flex flex-col items-center"
               >
-                <div className="flex items-center gap-1.5 bg-amber-100 dark:bg-amber-500/10 px-2 py-1 rounded-lg">
-                  <img src={firstWinner.profilePictureUrl} alt={firstWinner.nickname} className="w-5 h-5 rounded-full"/>
-                  <p className="text-amber-600 dark:text-amber-300 font-semibold text-xs">{firstWinner.nickname} menemukan jawaban!</p>
+                <div className="flex flex-col items-center gap-1">
+                    <p className="text-green-600 dark:text-green-300 font-semibold text-sm">Jawaban Benar Ditemukan!</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                        Pemenang: <span className="font-bold text-slate-700 dark:text-white">{roundWinners.length}</span> / <span className="font-bold text-slate-700 dark:text-white">{maxWinnersForThisRound}</span>
+                    </p>
                 </div>
-                <p className="text-amber-500 dark:text-amber-400 text-xs mt-1 font-semibold">Pemenang: {roundWinners.length} / {maxWinnersForThisRound}</p>
               </motion.div>
             ) : (
               <motion.div
