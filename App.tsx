@@ -6,6 +6,8 @@
 
 
 
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import LoginScreen from './components/LoginScreen';
 import SetupScreen from './components/SetupScreen';
@@ -30,7 +32,7 @@ import { useKnockoutChampions } from './hooks/useKnockoutChampions';
 import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from './constants';
-import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
+import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon, EyeIcon } from './components/IconComponents';
 import AdminInputPanel from './components/AdminInputPanel';
 
 const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
@@ -121,7 +123,7 @@ const App: React.FC = () => {
     const giftNameLower = gift.giftName.toLowerCase();
     const isRoseGift = giftNameLower.includes('mawar') || giftNameLower.includes('rose') || gift.giftId === 5655;
 
-    if (gameState === GameState.Playing) {
+    if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
         if (isRoseGift && gift.giftCount >= 5) {
             game.skipRound();
         } else if (game.state.isHardMode) {
@@ -653,6 +655,19 @@ const App: React.FC = () => {
             <AnimatePresence>
               {showAdminButtons && (
                 <>
+                {game.state.isHardMode && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        onClick={game.revealClue}
+                        className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-900 focus:ring-sky-500"
+                        aria-label="Buka 1 Clue"
+                        title="Buka 1 Clue (Admin)"
+                    >
+                        <EyeIcon className="w-5 h-5 text-purple-500" />
+                    </motion.button>
+                )}
                 <motion.button
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
