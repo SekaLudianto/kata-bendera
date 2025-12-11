@@ -140,9 +140,14 @@ const App: React.FC = () => {
         if (isFingerHeart) {
             game.skipRound();
         } else if (game.state.isHardMode) {
+            // Fix: Robust gift count parsing. Defaults to 1 if invalid/missing/zero.
+            // This ensures "1 coin" (e.g. 1 Rose) always triggers at least 1 clue reveal.
+            let count = parseInt(String(gift.giftCount || 1), 10);
+            if (isNaN(count) || count < 1) count = 1;
+
             // Any other gift (Rose, Coin, etc) triggers clue reveal
             // Loop based on count, so 10 Roses = 10 Reveal calls
-            for (let i = 0; i < gift.giftCount; i++) {
+            for (let i = 0; i < count; i++) {
                 game.revealClue();
             }
         }
