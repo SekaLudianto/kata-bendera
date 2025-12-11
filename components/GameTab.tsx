@@ -67,7 +67,7 @@ const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundA
             ))}
             {isRoundActive && isHardMode && revealedCount < totalLetters && (
                 <div className="mt-2 text-xs font-bold text-red-500 animate-pulse bg-red-100 dark:bg-red-900/50 px-2 py-1 rounded">
-                    Butuh Koin untuk Buka Clue! (5x Gift = Skip Soal)
+                    Butuh Mawar/Koin untuk Clue! (Kirim Finger Heart untuk Skip)
                 </div>
             )}
         </div>
@@ -108,7 +108,7 @@ const FlagOverlay: React.FC<{ isRoundActive: boolean, isHardMode: boolean, revea
             })}
              {blocksToReveal < totalBlocks && (
                 <div className="absolute inset-x-0 bottom-0 flex justify-center pb-1 pointer-events-none">
-                     <span className="text-[10px] font-bold text-white bg-black/50 px-2 rounded backdrop-blur-sm">Butuh Koin</span>
+                     <span className="text-[10px] font-bold text-white bg-black/50 px-2 rounded backdrop-blur-sm">Butuh Mawar/Koin</span>
                 </div>
             )}
         </div>

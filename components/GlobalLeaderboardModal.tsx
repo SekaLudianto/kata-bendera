@@ -103,9 +103,14 @@ const GlobalLeaderboardModal: React.FC<GlobalLeaderboardModalProps> = ({ leaderb
             {formatDateTime(currentTime)}
           </p>
           <div className="w-full overflow-hidden whitespace-nowrap my-2 shrink-0">
-              <marquee behavior="scroll" direction="left" className="text-xs text-gray-500 dark:text-gray-400">
+              <motion.div 
+                className="text-xs text-gray-500 dark:text-gray-400 inline-block min-w-full"
+                initial={{ x: "100%" }}
+                animate={{ x: "-100%" }}
+                transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
+              >
                 Selamat untuk para juara! ✨ Terus tingkatkan skormu! ✨ Jangan menyerah, kesempatan masih terbuka lebar! ✨
-              </marquee>
+              </motion.div>
           </div>
           
           <div ref={listRef} className="flex-grow overflow-y-auto pr-2 space-y-1.5 no-scrollbar">

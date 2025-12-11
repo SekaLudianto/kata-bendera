@@ -1,13 +1,3 @@
-
-
-
-
-
-
-
-
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import LoginScreen from './components/LoginScreen';
 import SetupScreen from './components/SetupScreen';
@@ -40,15 +30,24 @@ const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
 const infoTips: (() => React.ReactNode)[] = [
   () => <>Ketik <b className="text-sky-300">!myrank</b> di chat untuk melihat peringkat & skormu!</>,
   () => (
-    <div className="flex items-center justify-center gap-1">
-      Kirim
-      <span className="font-bold text-amber-400 mx-0.5">5x</span>
-      <img 
-        src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
-        alt="Mawar" 
-        className="w-5 h-5 inline-block" 
-      />
-      (5 Koin) untuk skip soal!
+    <div className="flex items-center justify-center gap-3 text-xs sm:text-sm">
+      <div className="flex items-center gap-1">
+         <span>Buka Clue:</span>
+         <img 
+            src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
+            alt="Mawar" 
+            className="w-5 h-5" 
+         />
+      </div>
+      <span className="text-white/30">|</span>
+      <div className="flex items-center gap-1">
+         <span>Skip Soal:</span>
+         <img 
+            src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/a4c4dc437fd3a6632aba149769491f49.png~tplv-obj.webp" 
+            alt="Finger Heart" 
+            className="w-5 h-5" 
+         />
+      </div>
     </div>
   ),
   () => (
@@ -119,14 +118,18 @@ const App: React.FC = () => {
         return null;
     });
 
-    // Gift-to-skip logic
+    // Gift Logic
     const giftNameLower = gift.giftName.toLowerCase();
-    const isRoseGift = giftNameLower.includes('mawar') || giftNameLower.includes('rose') || gift.giftId === 5655;
+    
+    // Finger Heart for SKIP (detect by name or common variations)
+    const isFingerHeart = giftNameLower.includes('finger') && giftNameLower.includes('heart') || giftNameLower.replace(/\s/g, '').includes('fingerheart');
 
     if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
-        if (isRoseGift && gift.giftCount >= 5) {
+        if (isFingerHeart) {
             game.skipRound();
         } else if (game.state.isHardMode) {
+            // Any other gift (Rose, Coin, etc) triggers clue reveal
+            // Loop based on count, so 10 Roses = 10 Reveal calls
             for (let i = 0; i < gift.giftCount; i++) {
                 game.revealClue();
             }
