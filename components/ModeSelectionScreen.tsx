@@ -1,13 +1,15 @@
 
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './IconComponents';
-import { DEFAULT_MAX_WINNERS_PER_ROUND } from '../constants';
+import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from '../constants';
 import { GameMode, GameStyle, KnockoutCategory } from '../types';
 
 interface ModeSelectionScreenProps {
-  onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean) => void;
+  onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean, totalRounds: number) => void;
   onStartKnockout: (category: KnockoutCategory, useImportedOnly: boolean) => void;
   onShowLeaderboard: () => void;
   onResetGlobalLeaderboard: () => void;
@@ -62,6 +64,10 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     const saved = localStorage.getItem('tiktok-quiz-maxwinners');
     return saved ? parseInt(saved, 10) : DEFAULT_MAX_WINNERS_PER_ROUND;
   });
+  const [totalRounds, setTotalRounds] = useState(() => {
+    const saved = localStorage.getItem('tiktok-quiz-totalrounds');
+    return saved ? parseInt(saved, 10) : TOTAL_ROUNDS;
+  });
   const [gameStyle, setGameStyle] = useState<GameStyle>(GameStyle.Classic);
   const [knockoutCategory, setKnockoutCategory] = useState<KnockoutCategory>('GuessTheCountry');
   const [selectedClassicCategories, setSelectedClassicCategories] = useState<GameMode[]>(() => {
@@ -92,6 +98,10 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   useEffect(() => {
     localStorage.setItem('tiktok-quiz-maxwinners', String(maxWinners));
   }, [maxWinners]);
+
+  useEffect(() => {
+    localStorage.setItem('tiktok-quiz-totalrounds', String(totalRounds));
+  }, [totalRounds]);
   
   useEffect(() => {
     localStorage.setItem('tiktok-quiz-classic-categories', JSON.stringify(selectedClassicCategories));
@@ -114,10 +124,19 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     }
   };
 
+  const handleTotalRoundsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (value >= 1) {
+      setTotalRounds(value);
+    } else if (e.target.value === '') {
+      setTotalRounds(1);
+    }
+  };
+
   const handleStartGame = () => {
     if (gameStyle === GameStyle.Classic) {
       if (selectedClassicCategories.length > 0) {
-        onStartClassic(maxWinners, selectedClassicCategories, useImportedOnly);
+        onStartClassic(maxWinners, selectedClassicCategories, useImportedOnly, totalRounds);
       }
     } else {
       onStartKnockout(knockoutCategory, useImportedOnly);
@@ -234,18 +253,33 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
               exit={{ opacity: 0, height: 0, marginTop: 0, transition: { duration: 0.2 } }}
               className="overflow-hidden space-y-3"
             >
-              <div>
-                 <label htmlFor="max-winners" className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1">Jumlah Pemenang per Ronde</label>
-                <input
-                  type="number"
-                  id="max-winners"
-                  value={maxWinners}
-                  onChange={handleMaxWinnersChange}
-                  min="1"
-                  className="w-full px-4 py-2 bg-sky-100 border-2 border-sky-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 dark:focus:border-sky-500"
-                  aria-label="Jumlah Pemenang Maksimum"
-                />
+              <div className="p-3 bg-sky-50 dark:bg-gray-700/50 rounded-xl border border-sky-100 dark:border-gray-600">
+                  <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="max-winners" className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1 font-semibold">Jumlah Pemenang</label>
+                        <input
+                        type="number"
+                        id="max-winners"
+                        value={maxWinners}
+                        onChange={handleMaxWinnersChange}
+                        min="1"
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-sky-200 dark:border-gray-600 rounded-lg text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="total-rounds" className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1 font-semibold">Jumlah Ronde</label>
+                        <input
+                        type="number"
+                        id="total-rounds"
+                        value={totalRounds}
+                        onChange={handleTotalRoundsChange}
+                        min="1"
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-sky-200 dark:border-gray-600 rounded-lg text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:text-white"
+                        />
+                      </div>
+                  </div>
               </div>
+
               <div>
                 <button
                   type="button"

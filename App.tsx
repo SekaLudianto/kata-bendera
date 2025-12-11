@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import LoginScreen from './components/LoginScreen';
 import SetupScreen from './components/SetupScreen';
@@ -23,7 +25,7 @@ import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
 import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DEFAULT_MAX_WINNERS_PER_ROUND } from './constants';
+import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from './constants';
 import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon } from './components/IconComponents';
 import AdminInputPanel from './components/AdminInputPanel';
 
@@ -64,6 +66,11 @@ const App: React.FC = () => {
   const [showAdminKeyboard, setShowAdminKeyboard] = useState(false);
   const [isSwitchModeModalOpen, setIsSwitchModeModalOpen] = useState(false);
   const [isResetLeaderboardModalOpen, setIsResetLeaderboardModalOpen] = useState(false);
+  
+  // State to remember classic game settings for auto-restart
+  const [lastClassicCategories, setLastClassicCategories] = useState<GameMode[]>([]);
+  const [lastUseImportedOnly, setLastUseImportedOnly] = useState<boolean>(false);
+  const [lastTotalRounds, setLastTotalRounds] = useState<number>(TOTAL_ROUNDS);
   
   const [currentGift, setCurrentGift] = useState<GiftNotificationType | null>(null);
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
@@ -343,9 +350,12 @@ const App: React.FC = () => {
     return () => clearTimeout(fallbackTimer);
   }, [connectionStatus, isTimeSynced, isSimulation, handleSyncTime]);
 
-  const handleStartClassic = useCallback((winnersCount: number, categories: GameMode[], useImportedOnly: boolean) => {
+  const handleStartClassic = useCallback((winnersCount: number, categories: GameMode[], useImportedOnly: boolean, rounds: number) => {
     setMaxWinners(winnersCount);
-    game.startGame(GameStyle.Classic, winnersCount, { classicCategories: categories, useImportedOnly });
+    setLastClassicCategories(categories);
+    setLastUseImportedOnly(useImportedOnly);
+    setLastTotalRounds(rounds);
+    game.startGame(GameStyle.Classic, winnersCount, { classicCategories: categories, useImportedOnly, totalRounds: rounds });
   }, [game]);
 
   const handleStartKnockout = useCallback((category: KnockoutCategory, useImportedOnly: boolean) => {
@@ -357,13 +367,17 @@ const App: React.FC = () => {
   }, [game]);
   
   const handleAutoRestart = useCallback(() => {
-    // This needs to be smarter; it doesn't know the last selected categories.
-    // For now, it will restart with a default set. A better implementation
-    // would store last used classic settings.
+    // Use stored settings for auto-restart, fallback to defaults if somehow empty
+    const categoriesToUse = lastClassicCategories.length > 0 
+        ? lastClassicCategories 
+        : [GameMode.GuessTheFlag, GameMode.ABC5Dasar, GameMode.Trivia, GameMode.GuessTheCity];
+        
     game.startGame(GameStyle.Classic, maxWinners, {
-      classicCategories: [GameMode.GuessTheFlag, GameMode.ABC5Dasar, GameMode.Trivia, GameMode.GuessTheCity]
+      classicCategories: categoriesToUse,
+      useImportedOnly: lastUseImportedOnly,
+      totalRounds: lastTotalRounds
     });
-  }, [game, maxWinners]);
+  }, [game, maxWinners, lastClassicCategories, lastUseImportedOnly, lastTotalRounds]);
 
   const handleReconnect = useCallback(() => {
     if (!serverConfig) return;

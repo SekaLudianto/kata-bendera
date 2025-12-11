@@ -1,5 +1,7 @@
 
 
+
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
@@ -245,8 +247,8 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
 };
 
 const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
-  const { round, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
-  const progressPercentage = (round / TOTAL_ROUNDS) * 100;
+  const { round, totalRounds, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
+  const progressPercentage = (round / totalRounds) * 100;
 
   const timerDuration = gameStyle === GameStyle.Knockout ? KNOCKOUT_ROUND_TIMER_SECONDS : ROUND_TIMER_SECONDS;
   const timerProgress = (roundTimer / timerDuration) * 100;
@@ -304,7 +306,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
       className="p-3 flex flex-col h-full relative"
     >
       <div className="grid grid-cols-3 items-center text-xs text-gray-500 dark:text-gray-400 shrink-0">
-        <span className="text-left">{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${TOTAL_ROUNDS}` : `🎯 Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
+        <span className="text-left">{gameStyle === GameStyle.Classic ? `Ronde ${round} / ${totalRounds}` : `🎯 Rally Point (Target ${KNOCKOUT_TARGET_SCORE})`}</span>
         
         <span className='font-semibold text-center'>{getRoundTitle()}</span>
 
@@ -323,7 +325,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
         {gameStyle === GameStyle.Classic ? (
           <motion.div
             className="bg-gradient-to-r from-sky-500 to-teal-400 h-2 rounded-full"
-            initial={{ width: `${((round - 1) / TOTAL_ROUNDS) * 100}%` }}
+            initial={{ width: `${((round - 1) / totalRounds) * 100}%` }}
             animate={{ width: `${progressPercentage}%` }}
             transition={{ duration: 0.5, ease: "easeInOut" }}
           />

@@ -187,6 +187,7 @@ export interface GameActionPayloads {
     'START_GAME': { 
       gameStyle: GameStyle; 
       maxWinners: number; 
+      totalRounds?: number;
       knockoutCategory?: KnockoutCategory; 
       classicRoundDeck?: GameMode[];
       firstRoundData?: {

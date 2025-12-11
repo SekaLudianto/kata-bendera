@@ -23,6 +23,7 @@ export interface InternalGameState {
   gameStyle: GameStyle;
   hostUsername: string | null;
   round: number;
+  totalRounds: number; // Added to state
   gameMode: GameMode | null;
   currentCountry: Country | null;
   currentLetter: string | null;
@@ -45,7 +46,7 @@ export interface InternalGameState {
   maxWinners: number;
   isPausedByAdmin: boolean;
   countdownValue: number | null;
-  chatMessages: ChatMessage[]; // Added for ChatTab
+  chatMessages: ChatMessage[];
   classicRoundDeck: GameMode[];
 
   // Knockout state
@@ -106,6 +107,7 @@ const createInitialState = (): InternalGameState => ({
   gameStyle: GameStyle.Classic,
   hostUsername: null,
   round: 0,
+  totalRounds: TOTAL_ROUNDS, // Default value
   gameMode: null,
   currentCountry: null,
   currentLetter: null,
@@ -243,7 +245,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
   switch (action.type) {
     case 'START_GAME': {
       const initialState = createInitialState();
-      const { gameStyle, maxWinners, knockoutCategory, classicRoundDeck, firstRoundData } = action.payload;
+      const { gameStyle, maxWinners, totalRounds, knockoutCategory, classicRoundDeck, firstRoundData } = action.payload;
 
       if (gameStyle === GameStyle.Classic && firstRoundData) {
         return {
@@ -252,6 +254,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
           leaderboard: state.leaderboard, // Preserve global leaderboard across sessions
           gameStyle: gameStyle,
           maxWinners: maxWinners,
+          totalRounds: totalRounds || TOTAL_ROUNDS,
           classicRoundDeck: classicRoundDeck || [],
           gameState: GameState.Playing,
           round: 1,
@@ -282,7 +285,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
       }
     }
     case 'NEXT_ROUND': {
-      if (state.round >= TOTAL_ROUNDS) {
+      if (state.round >= state.totalRounds) {
         return { ...state, gameState: GameState.Champion, isRoundActive: false };
       }
       const newRound = state.round + 1;
@@ -858,14 +861,16 @@ export const useGameLogic = () => {
     options?: { 
       knockoutCategory?: KnockoutCategory, 
       classicCategories?: GameMode[],
-      useImportedOnly?: boolean
+      useImportedOnly?: boolean,
+      totalRounds?: number
     }) => {
     prepareNewDecks(options?.useImportedOnly ?? false);
     if (gameStyle === GameStyle.Classic) {
         const classicCategories = options?.classicCategories || [];
+        const roundsToPlay = options?.totalRounds || TOTAL_ROUNDS;
         let roundDeck: GameMode[] = [];
         if (classicCategories.length > 0) {
-          for (let i = 0; i < TOTAL_ROUNDS; i++) {
+          for (let i = 0; i < roundsToPlay; i++) {
             roundDeck.push(classicCategories[i % classicCategories.length]);
           }
         }
@@ -903,7 +908,7 @@ export const useGameLogic = () => {
             firstRoundData.triviaQuestion = getNextKpopTrivia();
         }
         
-        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, classicRoundDeck, firstRoundData } });
+        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, totalRounds: roundsToPlay, classicRoundDeck, firstRoundData } });
 
     } else { // Knockout
         dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory: options?.knockoutCategory } });
@@ -911,8 +916,18 @@ export const useGameLogic = () => {
   }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia]);
   
   const nextRound = useCallback(() => {
+    // Check against dynamic totalRounds in state, not constant
+    if (state.round >= state.totalRounds) {
+        // This case should be handled by the reducer state check, but double check here
+        return;
+    }
     const nextRoundNumber = state.round + 1;
-    if (nextRoundNumber > TOTAL_ROUNDS || state.gameStyle !== GameStyle.Classic) return;
+    
+    // Safety check if we ran out of deck
+    if (nextRoundNumber > state.classicRoundDeck.length) {
+         dispatch({ type: 'FINISH_GAME' });
+         return;
+    }
 
     const nextGameMode = state.classicRoundDeck[state.round]; // round is 1-based, deck is 0-based
     const payload: Partial<GameActionPayloads['NEXT_ROUND']> = { gameMode: nextGameMode };
@@ -946,16 +961,17 @@ export const useGameLogic = () => {
         payload.nextTriviaQuestion = getNextKpopTrivia();
     }
     dispatch({ type: 'NEXT_ROUND', payload: payload as GameActionPayloads['NEXT_ROUND'] });
-  }, [state.round, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia]);
+  }, [state.round, state.totalRounds, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia]);
 
   const finishWinnerDisplay = useCallback(() => {
       dispatch({ type: 'HIDE_WINNER_MODAL' });
-      if (state.round < TOTAL_ROUNDS) {
+      // Check against dynamic totalRounds
+      if (state.round < state.totalRounds) {
           dispatch({ type: 'START_COUNTDOWN' });
       } else {
           dispatch({ type: 'NEXT_ROUND', payload: {} as GameActionPayloads['NEXT_ROUND'] });
       }
-  }, [state.round]);
+  }, [state.round, state.totalRounds]);
 
   const resetGame = useCallback(() => dispatch({ type: 'RESET_GAME' }), []);
   
