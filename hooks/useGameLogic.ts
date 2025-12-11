@@ -1,3 +1,4 @@
+
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 // FIX: The type `LetterObject` is now correctly exported from `types.ts`.
 import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject } from '../types';
@@ -761,10 +762,11 @@ export const useGameLogic = () => {
   const animalDeck = useRef<string[]>([]);
   
   const usedQuestionIdentifiers = useRef<Record<string, Set<string>>>({});
+  const useImportedOnlyRef = useRef(false);
 
   const getNextUniqueItem = useCallback(<T,>(
     deckRef: React.MutableRefObject<T[]>,
-    sourceData: T[],
+    builtInSourceData: T[],
     categoryKey: string,
     identifierFn: (item: T) => string
   ): T => {
@@ -772,28 +774,71 @@ export const useGameLogic = () => {
         usedQuestionIdentifiers.current[categoryKey] = new Set();
     }
 
-    if (deckRef.current.length === 0) {
-        const unusedItems = sourceData.filter(item => !usedQuestionIdentifiers.current[categoryKey]!.has(identifierFn(item)));
+    const isUsed = (item: T) => usedQuestionIdentifiers.current[categoryKey]!.has(identifierFn(item));
 
-        if (unusedItems.length > 0) {
-            deckRef.current = shuffleArray(unusedItems);
+    // 1. Try to pop from current deck until we find an unused item
+    while (deckRef.current.length > 0) {
+        // Peek at the last item
+        const candidate = deckRef.current[deckRef.current.length - 1];
+        if (isUsed(candidate)) {
+            deckRef.current.pop(); // Discard used item
         } else {
-            // All items have been used in this session, reset tracking for this category and use all again
-            usedQuestionIdentifiers.current[categoryKey]!.clear();
-            deckRef.current = shuffleArray([...sourceData]);
+            const item = deckRef.current.pop()!;
+            usedQuestionIdentifiers.current[categoryKey]!.add(identifierFn(item));
+            return item;
         }
     }
 
-    const nextItem = deckRef.current.pop()!;
-    usedQuestionIdentifiers.current[categoryKey]!.add(identifierFn(nextItem));
-    return nextItem;
+    // 2. Deck is empty or contained only used items. We need to refill.
+    let fullSourceData: T[] = [];
+    
+    // Logic to get custom data based on categoryKey
+    try {
+        const customQuestionsRaw = localStorage.getItem('custom-questions');
+        const customData = customQuestionsRaw ? JSON.parse(customQuestionsRaw) : {};
+        const customItems = (customData[categoryKey] && Array.isArray(customData[categoryKey])) ? (customData[categoryKey] as T[]) : [];
+
+        if (useImportedOnlyRef.current && customItems.length > 0) {
+             fullSourceData = [...customItems];
+        } else {
+             // Combine custom and built-in
+             fullSourceData = [...customItems, ...builtInSourceData];
+        }
+    } catch (e) {
+        console.error("Error reading custom questions during refill", e);
+        fullSourceData = [...builtInSourceData];
+    }
+
+    // 3. Filter for truly unused items from the fresh source
+    const unusedItems = fullSourceData.filter(item => !isUsed(item));
+
+    if (unusedItems.length > 0) {
+        deckRef.current = shuffleArray(unusedItems);
+    } else {
+        // 4. Exhausted everything. Reset history for this category to allow looping.
+        usedQuestionIdentifiers.current[categoryKey]!.clear();
+        deckRef.current = shuffleArray([...fullSourceData]);
+    }
+
+    // 5. Pop and return
+    const nextItem = deckRef.current.pop();
+    // Safety check if nextItem exists (it should after refill logic)
+    if (nextItem) {
+        usedQuestionIdentifiers.current[categoryKey]!.add(identifierFn(nextItem));
+        return nextItem;
+    }
+    
+    // Fallback (should theoretically not happen)
+    return builtInSourceData[0];
   }, []);
 
   const prepareNewDecks = useCallback((useImportedOnly: boolean = false) => {
+    useImportedOnlyRef.current = useImportedOnly;
+    
     const customQuestionsRaw = localStorage.getItem('custom-questions');
     const customQuestions = customQuestionsRaw ? JSON.parse(customQuestionsRaw) : {};
     
-    usedQuestionIdentifiers.current = {}; // Reset session tracking
+    // NOTE: Removed usedQuestionIdentifiers.current = {}; to preserve session history
 
     const createDeck = <T,>(builtIn: T[], custom: T[] | undefined): T[] => {
         const customDeck = custom || [];

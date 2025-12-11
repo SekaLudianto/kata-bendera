@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import LoginScreen from './components/LoginScreen';
 import SetupScreen from './components/SetupScreen';
@@ -21,8 +22,8 @@ import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
 import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from './constants';
-import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon, EyeIcon } from './components/IconComponents';
+import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS, ADMIN_PASSWORD_HASH } from './constants';
+import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon, EyeIcon, LogOutIcon } from './components/IconComponents';
 import AdminInputPanel from './components/AdminInputPanel';
 
 const MODERATOR_USERNAMES = ['ahmadsyams.jpg', 'achmadsyams'];
@@ -61,7 +62,11 @@ const infoTips: (() => React.ReactNode)[] = [
 
 const App: React.FC = () => {
   useTheme(); // Initialize theme logic
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Check localStorage for persisted auth on initial load
+    const savedAuth = localStorage.getItem('tiktok-quiz-auth');
+    return savedAuth === ADMIN_PASSWORD_HASH;
+  });
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
   const [serverConfig, setServerConfig] = useState<ServerConfig | null>(null);
   const [isSimulation, setIsSimulation] = useState<boolean>(false);
@@ -120,9 +125,16 @@ const App: React.FC = () => {
 
     // Gift Logic
     const giftNameLower = gift.giftName.toLowerCase();
+    const giftId = gift.giftId;
     
-    // Finger Heart for SKIP (detect by name or common variations)
-    const isFingerHeart = giftNameLower.includes('finger') && giftNameLower.includes('heart') || giftNameLower.replace(/\s/g, '').includes('fingerheart');
+    // Enhanced Finger Heart Detection
+    // ID 6093 is standard for Finger Heart.
+    // Also checking for 'finger', 'heart', 'saranghaeyo' (Indonesian context often uses this for finger heart symbol).
+    const isFingerHeart = 
+        giftId === 6093 || 
+        (giftNameLower.includes('finger') && giftNameLower.includes('heart')) || 
+        giftNameLower.replace(/\s/g, '').includes('fingerheart') ||
+        giftNameLower.includes('saranghaeyo');
 
     if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
         if (isFingerHeart) {
@@ -420,6 +432,17 @@ const App: React.FC = () => {
       setIsResetLeaderboardModalOpen(false);
   };
 
+  const handleLoginSuccess = () => {
+    localStorage.setItem('tiktok-quiz-auth', ADMIN_PASSWORD_HASH);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('tiktok-quiz-auth');
+    setIsAuthenticated(false);
+    setGameState(GameState.Setup); // Reset to setup on logout
+  };
+
   useEffect(() => {
     if (isSimulation) return; // Don't run connection effects in simulation mode
 
@@ -623,7 +646,7 @@ const App: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4">
-        <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }
@@ -656,6 +679,19 @@ const App: React.FC = () => {
       </AnimatePresence>
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
             <AnimatePresence>
+              {isAuthenticated && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  onClick={handleLogout}
+                  className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-900 focus:ring-red-500"
+                  aria-label="Logout"
+                  title="Keluar"
+                >
+                  <LogOutIcon className="w-5 h-5" />
+                </motion.button>
+              )}
               {showAdminButtons && (
                 <>
                 {game.state.isHardMode && (
