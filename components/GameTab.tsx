@@ -1,7 +1,3 @@
-
-
-
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
@@ -32,15 +28,24 @@ const getLetterBoxSizeClasses = (totalLetters: number): string => {
   return 'w-9 h-11 text-2xl gap-1.5';
 };
 
-const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundActive: boolean }> = ({ scrambledWord, isRoundActive }) => {
+const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundActive: boolean, isHardMode: boolean, revealLevel: number }> = ({ scrambledWord, isRoundActive, isHardMode, revealLevel }) => {
     const totalLetters = scrambledWord.flat().length;
     const sizeClasses = getLetterBoxSizeClasses(totalLetters);
+    
+    // In Hard Mode, reveal 2 letters per level (starting from 0)
+    const revealedCount = isHardMode ? revealLevel * 2 : totalLetters;
+
+    let globalIndex = 0;
 
     return (
-        <div className="flex flex-col items-center gap-1 px-2">
+        <div className="flex flex-col items-center gap-1 px-2 relative">
             {scrambledWord.map((word, wordIndex) => (
                 <div key={wordIndex} className={`flex flex-wrap justify-center ${sizeClasses.split(' ')[2]}`}>
-                    {word.map((item: LetterObject) => (
+                    {word.map((item: LetterObject) => {
+                        const isHidden = isRoundActive && isHardMode && globalIndex >= revealedCount;
+                        globalIndex++;
+                        
+                        return (
                         <motion.div
                             key={item.id}
                             layout
@@ -51,17 +56,67 @@ const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundA
                                     : 'border-green-500 text-green-600 dark:text-green-300'
                                 }`}
                         >
-                            {item.letter}
+                            {isHidden ? (
+                                <span className="text-gray-400 dark:text-gray-500">🔒</span>
+                            ) : (
+                                item.letter
+                            )}
                         </motion.div>
-                    ))}
+                    )})}
                 </div>
             ))}
+            {isRoundActive && isHardMode && revealedCount < totalLetters && (
+                <div className="mt-2 text-xs font-bold text-red-500 animate-pulse bg-red-100 dark:bg-red-900/50 px-2 py-1 rounded">
+                    Butuh Koin untuk Buka Clue! (5x Gift = Skip Soal)
+                </div>
+            )}
+        </div>
+    );
+};
+
+const FlagOverlay: React.FC<{ isRoundActive: boolean, isHardMode: boolean, revealLevel: number }> = ({ isRoundActive, isHardMode, revealLevel }) => {
+    if (!isRoundActive || !isHardMode) return null;
+
+    // 4x4 Grid = 16 blocks.
+    // Reveal 2 blocks per level.
+    const totalBlocks = 16;
+    const blocksToReveal = revealLevel * 2; 
+    
+    // Create an array of 16 blocks
+    const blocks = Array.from({ length: totalBlocks }, (_, i) => i);
+
+    return (
+        <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 w-full h-full">
+            {blocks.map((index) => {
+                // Determine if this block should be hidden (revealed)
+                const isRevealed = index < blocksToReveal;
+                
+                return (
+                    <AnimatePresence key={index}>
+                        {!isRevealed && (
+                            <motion.div
+                                initial={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0 }}
+                                transition={{ duration: 0.5 }}
+                                className="bg-slate-300 dark:bg-slate-600 border border-slate-400/50 flex items-center justify-center"
+                            >
+                                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">?</span>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                );
+            })}
+             {blocksToReveal < totalBlocks && (
+                <div className="absolute inset-x-0 bottom-0 flex justify-center pb-1 pointer-events-none">
+                     <span className="text-[10px] font-bold text-white bg-black/50 px-2 rounded backdrop-blur-sm">Butuh Koin</span>
+                </div>
+            )}
         </div>
     );
 };
 
 const GuessTheFlagContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentCountry, scrambledWord, isRoundActive } = gameState;
+    const { currentCountry, scrambledWord, isRoundActive, isHardMode, revealLevel } = gameState;
     if (!currentCountry) return null;
 
     return (
@@ -69,14 +124,15 @@ const GuessTheFlagContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
             <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-2">
                 Tebak nama dari bendera ini:
             </h2>
-            <div className="my-2">
+            <div className="my-2 relative inline-block rounded-lg overflow-hidden shadow-md border border-gray-200 dark:border-gray-600">
                 <img 
                     src={`https://flagcdn.com/w160/${currentCountry.code}.png`} 
                     alt="Bendera" 
-                    className="h-24 mx-auto rounded-lg shadow-md border border-gray-200 dark:border-gray-600" 
+                    className="h-24 w-auto object-cover" 
                 />
+                <FlagOverlay isRoundActive={isRoundActive} isHardMode={isHardMode} revealLevel={revealLevel} />
             </div>
-            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} isHardMode={isHardMode} revealLevel={revealLevel} />
         </>
     );
 };
@@ -90,7 +146,8 @@ const GuessTheCountryKnockoutContent: React.FC<{ gameState: InternalGameState }>
             <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
                 Tebak Nama Negara:
             </h2>
-            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+            {/* Knockout usually doesn't have hard mode flag obscuring logic requested, but could apply the text masking if desired. For now, standard behavior. */}
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} isHardMode={false} revealLevel={0} />
             
             <AnimatePresence>
             {!isRoundActive && (
@@ -126,14 +183,14 @@ const ABC5DasarContent: React.FC<{ gameState: InternalGameState }> = ({ gameStat
 
 
 const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentWord, currentWordCategory, scrambledWord, isRoundActive } = gameState;
+    const { currentWord, currentWordCategory, scrambledWord, isRoundActive, isHardMode, revealLevel } = gameState;
   
     return (
       <>
         <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
             Kategori: {currentWordCategory}
         </h2>
-        <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+        <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} isHardMode={isHardMode} revealLevel={revealLevel} />
         <AnimatePresence>
             {!isRoundActive && currentWord && (
                  <motion.div
@@ -152,7 +209,7 @@ const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
 };
 
 const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentTriviaQuestion, isRoundActive, scrambledWord } = gameState;
+    const { currentTriviaQuestion, isRoundActive, scrambledWord, isHardMode, revealLevel } = gameState;
     if (!currentTriviaQuestion) return null;
   
     return (
@@ -161,7 +218,7 @@ const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }
             {currentTriviaQuestion.question}
         </h2>
         
-        <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+        <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} isHardMode={isHardMode} revealLevel={revealLevel} />
 
         <AnimatePresence>
         {!isRoundActive && (
@@ -182,7 +239,7 @@ const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }
 };
 
 const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentCity, scrambledWord, isRoundActive } = gameState;
+    const { currentCity, scrambledWord, isRoundActive, isHardMode, revealLevel } = gameState;
     if (!currentCity) return null;
 
     return (
@@ -190,7 +247,7 @@ const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
             <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
                 Tebak Nama Kota:
             </h2>
-            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} isHardMode={isHardMode} revealLevel={revealLevel} />
             
             <AnimatePresence>
             {!isRoundActive && (
@@ -213,7 +270,7 @@ const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
 };
 
 const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
-    const { currentWord, currentWordCategory, currentStadium, scrambledWord, isRoundActive } = gameState;
+    const { currentWord, currentWordCategory, currentStadium, scrambledWord, isRoundActive, isHardMode, revealLevel } = gameState;
     const answer = currentWord || currentStadium?.name;
     const location = currentStadium?.location;
 
@@ -222,7 +279,7 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
             <h2 className="text-xl sm:text-2xl font-bold text-sky-600 dark:text-sky-300 text-center mb-3">
                 Tebak: <span className="text-amber-500">{currentWordCategory}</span>
             </h2>
-            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} />
+            <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} isHardMode={isHardMode} revealLevel={revealLevel} />
             
             <AnimatePresence>
             {!isRoundActive && answer && (

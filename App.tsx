@@ -2,6 +2,10 @@
 
 
 
+
+
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import LoginScreen from './components/LoginScreen';
 import SetupScreen from './components/SetupScreen';
@@ -36,12 +40,13 @@ const infoTips: (() => React.ReactNode)[] = [
   () => (
     <div className="flex items-center justify-center gap-1">
       Kirim
+      <span className="font-bold text-amber-400 mx-0.5">5x</span>
       <img 
         src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
         alt="Mawar" 
         className="w-5 h-5 inline-block" 
       />
-      untuk skip soal!
+      (5 Koin) untuk skip soal!
     </div>
   ),
   () => (
@@ -71,6 +76,7 @@ const App: React.FC = () => {
   const [lastClassicCategories, setLastClassicCategories] = useState<GameMode[]>([]);
   const [lastUseImportedOnly, setLastUseImportedOnly] = useState<boolean>(false);
   const [lastTotalRounds, setLastTotalRounds] = useState<number>(TOTAL_ROUNDS);
+  const [lastIsHardMode, setLastIsHardMode] = useState<boolean>(false);
   
   const [currentGift, setCurrentGift] = useState<GiftNotificationType | null>(null);
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
@@ -115,8 +121,14 @@ const App: React.FC = () => {
     const giftNameLower = gift.giftName.toLowerCase();
     const isRoseGift = giftNameLower.includes('mawar') || giftNameLower.includes('rose') || gift.giftId === 5655;
 
-    if (isRoseGift && gameState === GameState.Playing) {
-        game.skipRound();
+    if (gameState === GameState.Playing) {
+        if (isRoseGift && gift.giftCount >= 5) {
+            game.skipRound();
+        } else if (game.state.isHardMode) {
+            for (let i = 0; i < gift.giftCount; i++) {
+                game.revealClue();
+            }
+        }
     }
   }, [gameState, game]);
   
@@ -350,12 +362,13 @@ const App: React.FC = () => {
     return () => clearTimeout(fallbackTimer);
   }, [connectionStatus, isTimeSynced, isSimulation, handleSyncTime]);
 
-  const handleStartClassic = useCallback((winnersCount: number, categories: GameMode[], useImportedOnly: boolean, rounds: number) => {
+  const handleStartClassic = useCallback((winnersCount: number, categories: GameMode[], useImportedOnly: boolean, rounds: number, isHardMode: boolean) => {
     setMaxWinners(winnersCount);
     setLastClassicCategories(categories);
     setLastUseImportedOnly(useImportedOnly);
     setLastTotalRounds(rounds);
-    game.startGame(GameStyle.Classic, winnersCount, { classicCategories: categories, useImportedOnly, totalRounds: rounds });
+    setLastIsHardMode(isHardMode);
+    game.startGame(GameStyle.Classic, winnersCount, { classicCategories: categories, useImportedOnly, totalRounds: rounds, isHardMode });
   }, [game]);
 
   const handleStartKnockout = useCallback((category: KnockoutCategory, useImportedOnly: boolean) => {
@@ -375,9 +388,10 @@ const App: React.FC = () => {
     game.startGame(GameStyle.Classic, maxWinners, {
       classicCategories: categoriesToUse,
       useImportedOnly: lastUseImportedOnly,
-      totalRounds: lastTotalRounds
+      totalRounds: lastTotalRounds,
+      isHardMode: lastIsHardMode,
     });
-  }, [game, maxWinners, lastClassicCategories, lastUseImportedOnly, lastTotalRounds]);
+  }, [game, maxWinners, lastClassicCategories, lastUseImportedOnly, lastTotalRounds, lastIsHardMode]);
 
   const handleReconnect = useCallback(() => {
     if (!serverConfig) return;

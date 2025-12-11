@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './IconComponents';
@@ -9,7 +11,7 @@ import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from '../constants';
 import { GameMode, GameStyle, KnockoutCategory } from '../types';
 
 interface ModeSelectionScreenProps {
-  onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean, totalRounds: number) => void;
+  onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean, totalRounds: number, isHardMode: boolean) => void;
   onStartKnockout: (category: KnockoutCategory, useImportedOnly: boolean) => void;
   onShowLeaderboard: () => void;
   onResetGlobalLeaderboard: () => void;
@@ -76,6 +78,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   });
   const [importFeedback, setImportFeedback] = useState<string | null>(null);
   const [useImportedOnly, setUseImportedOnly] = useState(false);
+  const [isHardMode, setIsHardMode] = useState(false);
   const [hasImportedQuestions, setHasImportedQuestions] = useState(false);
   const [isCategoryListOpen, setIsCategoryListOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +139,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   const handleStartGame = () => {
     if (gameStyle === GameStyle.Classic) {
       if (selectedClassicCategories.length > 0) {
-        onStartClassic(maxWinners, selectedClassicCategories, useImportedOnly, totalRounds);
+        onStartClassic(maxWinners, selectedClassicCategories, useImportedOnly, totalRounds, isHardMode);
       }
     } else {
       onStartKnockout(knockoutCategory, useImportedOnly);
@@ -277,6 +280,25 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
                         className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-sky-200 dark:border-gray-600 rounded-lg text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:text-white"
                         />
                       </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <label htmlFor="hard-mode" className="flex items-center cursor-pointer">
+                        <div className="relative">
+                            <input 
+                                type="checkbox" 
+                                id="hard-mode" 
+                                className="sr-only" 
+                                checked={isHardMode} 
+                                onChange={() => setIsHardMode(!isHardMode)} 
+                            />
+                            <div className="block bg-gray-200 dark:bg-gray-600 w-10 h-6 rounded-full"></div>
+                            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isHardMode ? 'translate-x-full' : ''}`}></div>
+                        </div>
+                        <div className="ml-3 text-xs font-semibold text-slate-700 dark:text-gray-300">
+                            Mode Sulit (Butuh Koin untuk Clue)
+                        </div>
+                    </label>
                   </div>
               </div>
 

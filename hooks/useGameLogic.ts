@@ -1,5 +1,3 @@
-
-
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 // FIX: The type `LetterObject` is now correctly exported from `types.ts`.
 import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject } from '../types';
@@ -23,7 +21,9 @@ export interface InternalGameState {
   gameStyle: GameStyle;
   hostUsername: string | null;
   round: number;
-  totalRounds: number; // Added to state
+  totalRounds: number;
+  isHardMode: boolean; // New State
+  revealLevel: number; // New State
   gameMode: GameMode | null;
   currentCountry: Country | null;
   currentLetter: string | null;
@@ -63,7 +63,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
 };
 
-const scrambleWord = (name:string): LetterObject[][] => {
+const scrambleWord = (name:string, isHardMode: boolean): LetterObject[][] => {
     const words = name.toUpperCase().split(' ');
     const VOWELS = ['A', 'I', 'U', 'E', 'O'];
 
@@ -85,8 +85,9 @@ const scrambleWord = (name:string): LetterObject[][] => {
             isDecoy: false,
         }));
 
-        // Add 3 decoy vowels only to the longest word
-        if (wordIndex === longestWordIndex) {
+        // Add 3 decoy vowels only to the longest word AND ONLY IF NOT HARD MODE
+        // In Hard Mode, we remove decoys to make the reveal mechanic cleaner/harder in a different way (hidden letters)
+        if (!isHardMode && wordIndex === longestWordIndex) {
             for (let i = 0; i < 3; i++) {
                 lettersWithDecoys.push({
                     id: `decoy-${wordIndex}-${i}`,
@@ -107,7 +108,9 @@ const createInitialState = (): InternalGameState => ({
   gameStyle: GameStyle.Classic,
   hostUsername: null,
   round: 0,
-  totalRounds: TOTAL_ROUNDS, // Default value
+  totalRounds: TOTAL_ROUNDS,
+  isHardMode: false,
+  revealLevel: 0,
   gameMode: null,
   currentCountry: null,
   currentLetter: null,
@@ -245,7 +248,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
   switch (action.type) {
     case 'START_GAME': {
       const initialState = createInitialState();
-      const { gameStyle, maxWinners, totalRounds, knockoutCategory, classicRoundDeck, firstRoundData } = action.payload;
+      const { gameStyle, maxWinners, totalRounds, isHardMode, knockoutCategory, classicRoundDeck, firstRoundData } = action.payload;
+      const hardModeActive = isHardMode || false;
 
       if (gameStyle === GameStyle.Classic && firstRoundData) {
         return {
@@ -255,6 +259,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
           gameStyle: gameStyle,
           maxWinners: maxWinners,
           totalRounds: totalRounds || TOTAL_ROUNDS,
+          isHardMode: hardModeActive,
+          revealLevel: 0,
           classicRoundDeck: classicRoundDeck || [],
           gameState: GameState.Playing,
           round: 1,
@@ -268,7 +274,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
           currentWordCategory: firstRoundData.wordCategory || null,
           currentStadium: firstRoundData.stadium || null,
           availableAnswersCount: firstRoundData.availableAnswersCount || null,
-          scrambledWord: firstRoundData.country ? scrambleWord(firstRoundData.country.name) : firstRoundData.triviaQuestion ? scrambleWord(firstRoundData.triviaQuestion.answer) : firstRoundData.city ? scrambleWord(firstRoundData.city.name) : firstRoundData.word ? scrambleWord(firstRoundData.word) : firstRoundData.stadium ? scrambleWord(firstRoundData.stadium.name) : [],
+          scrambledWord: firstRoundData.country ? scrambleWord(firstRoundData.country.name, hardModeActive) : firstRoundData.triviaQuestion ? scrambleWord(firstRoundData.triviaQuestion.answer, hardModeActive) : firstRoundData.city ? scrambleWord(firstRoundData.city.name, hardModeActive) : firstRoundData.word ? scrambleWord(firstRoundData.word, hardModeActive) : firstRoundData.stadium ? scrambleWord(firstRoundData.stadium.name, hardModeActive) : [],
           isRoundActive: true,
           roundTimer: ROUND_TIMER_SECONDS,
         };
@@ -296,6 +302,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         gameState: GameState.Playing,
         round: newRound,
         gameMode: gameMode,
+        revealLevel: 0, // Reset reveal level
         currentCountry: nextCountry || null,
         currentLetter: nextLetter || null,
         currentCategory: nextCategory || null,
@@ -305,7 +312,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         currentCity: nextCity || null,
         currentStadium: nextStadium || null,
         availableAnswersCount: availableAnswersCount || null,
-        scrambledWord: nextCountry ? scrambleWord(nextCountry.name) : nextWord ? scrambleWord(nextWord) : nextTriviaQuestion ? scrambleWord(nextTriviaQuestion.answer) : nextCity ? scrambleWord(nextCity.name) : nextStadium ? scrambleWord(nextStadium.name) : [],
+        scrambledWord: nextCountry ? scrambleWord(nextCountry.name, state.isHardMode) : nextWord ? scrambleWord(nextWord, state.isHardMode) : nextTriviaQuestion ? scrambleWord(nextTriviaQuestion.answer, state.isHardMode) : nextCity ? scrambleWord(nextCity.name, state.isHardMode) : nextStadium ? scrambleWord(nextStadium.name, state.isHardMode) : [],
         usedAnswers: [],
         isRoundActive: true,
         roundWinners: [],
@@ -316,6 +323,8 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         countdownValue: null,
       };
     }
+    case 'REVEAL_CLUE':
+        return { ...state, revealLevel: state.revealLevel + 1 };
     case 'PROCESS_COMMENT': {
         const message = action.payload;
         const newChatMessages = [message, ...state.chatMessages].slice(0, 100);
@@ -499,9 +508,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
       if (state.countdownValue && state.countdownValue > 0) {
         return { ...state, countdownValue: state.countdownValue - 1 };
       }
-      if (state.gameState === GameState.KnockoutPrepareMatch && state.countdownValue === 1) {
-          return { ...state, countdownValue: 0, gameState: GameState.KnockoutPlaying }
-      }
       return state;
     case 'SET_HOST_USERNAME':
         return { ...state, hostUsername: action.payload.username };
@@ -539,6 +545,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         return {
             ...state,
             gameState: GameState.KnockoutPlaying,
+            countdownValue: null, // Ensure countdown doesn't trigger wrong state transitions
             knockoutMatchPoints: { player1: 0, player2: 0 },
             currentCountry: null,
             currentTriviaQuestion: null,
@@ -634,7 +641,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             ...state,
             gameMode: GameMode.GuessTheFlag,
             currentCountry: action.payload.country,
-            scrambledWord: scrambleWord(action.payload.country.name),
+            scrambledWord: scrambleWord(action.payload.country.name, state.isHardMode),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -644,7 +651,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             ...state,
             gameMode: GameMode.Trivia,
             currentTriviaQuestion: action.payload.question,
-            scrambledWord: scrambleWord(action.payload.question.answer),
+            scrambledWord: scrambleWord(action.payload.question.answer, state.isHardMode),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -658,7 +665,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentWordCategory: type,
             currentWord: type !== 'Stadion Bola' ? name : null,
             currentStadium: type === 'Stadion Bola' ? (data as FootballStadium) : null,
-            scrambledWord: scrambleWord(name),
+            scrambledWord: scrambleWord(name, state.isHardMode),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -669,7 +676,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.GuessTheWord,
             currentWordCategory: 'Buah-buahan',
             currentWord: action.payload.fruit,
-            scrambledWord: scrambleWord(action.payload.fruit),
+            scrambledWord: scrambleWord(action.payload.fruit, state.isHardMode),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -680,7 +687,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.GuessTheWord,
             currentWordCategory: 'Hewan',
             currentWord: action.payload.animal,
-            scrambledWord: scrambleWord(action.payload.animal),
+            scrambledWord: scrambleWord(action.payload.animal, state.isHardMode),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -690,7 +697,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             ...state,
             gameMode: GameMode.Trivia,
             currentTriviaQuestion: action.payload.question,
-            scrambledWord: scrambleWord(action.payload.question.answer),
+            scrambledWord: scrambleWord(action.payload.question.answer, state.isHardMode),
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
         };
@@ -862,7 +869,8 @@ export const useGameLogic = () => {
       knockoutCategory?: KnockoutCategory, 
       classicCategories?: GameMode[],
       useImportedOnly?: boolean,
-      totalRounds?: number
+      totalRounds?: number,
+      isHardMode?: boolean
     }) => {
     prepareNewDecks(options?.useImportedOnly ?? false);
     if (gameStyle === GameStyle.Classic) {
@@ -908,7 +916,7 @@ export const useGameLogic = () => {
             firstRoundData.triviaQuestion = getNextKpopTrivia();
         }
         
-        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, totalRounds: roundsToPlay, classicRoundDeck, firstRoundData } });
+        dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, totalRounds: roundsToPlay, isHardMode: options?.isHardMode, classicRoundDeck, firstRoundData } });
 
     } else { // Knockout
         dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory: options?.knockoutCategory } });
@@ -998,6 +1006,10 @@ export const useGameLogic = () => {
     }
   }, [state.isRoundActive, state.gameStyle, state.gameState]);
 
+  const revealClue = useCallback(() => {
+      dispatch({ type: 'REVEAL_CLUE' });
+  }, []);
+
   const registerPlayer = useCallback((player: KnockoutPlayer) => {
     if(state.gameState === GameState.KnockoutRegistration) {
       dispatch({ type: 'REGISTER_PLAYER', payload: player });
@@ -1069,12 +1081,12 @@ export const useGameLogic = () => {
     } else if (state.countdownValue === 0) {
         if(state.gameState === GameState.KnockoutPrepareMatch) {
             dispatch({ type: 'START_MATCH' });
-        } else {
+        } else if (state.gameStyle === GameStyle.Classic) {
             nextRound();
         }
     }
     return () => clearInterval(timerId);
-  }, [state.countdownValue, state.gameState, nextRound]);
+  }, [state.countdownValue, state.gameState, nextRound, state.gameStyle]);
   
   useEffect(() => {
     if(state.gameState === GameState.KnockoutDrawing) {
@@ -1206,5 +1218,5 @@ export const useGameLogic = () => {
     }
   };
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, finishWinnerDisplay, setHostUsername, resetGlobalLeaderboard, currentAnswer: getCurrentAnswer() };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, finishWinnerDisplay, setHostUsername, resetGlobalLeaderboard, revealClue, currentAnswer: getCurrentAnswer() };
 };
