@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import GameTab from './GameTab';
 import ChatTab from './ChatTab';
@@ -10,7 +9,7 @@ import { AnimatePresence } from 'framer-motion';
 import RoundWinnerModal from './RoundWinnerModal';
 import ReconnectOverlay from './ReconnectOverlay';
 import { useSound } from '../hooks/useSound';
-import { GiftNotification as GiftNotificationType, RankNotification as RankNotificationType, GameMode, GameStyle, InfoNotification as InfoNotificationType } from '../types';
+import { GiftNotification as GiftNotificationType, RankNotification as RankNotificationType, GameMode, GameStyle, InfoNotification as InfoNotificationType, LeaderboardEntry } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
 import GiftNotification from './GiftNotification';
 import RankNotification from './RankNotification';
@@ -28,9 +27,10 @@ interface GameScreenProps {
   currentInfo: InfoNotificationType | null;
   onFinishWinnerDisplay: () => void;
   serverTime: Date | null;
+  gifterLeaderboard: LeaderboardEntry[];
 }
 
-const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay, serverTime }) => {
+const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay, serverTime, gifterLeaderboard }) => {
   const [activeTab, setActiveTab] = useState<Tab>('game');
   const { playSound } = useSound();
 
@@ -78,7 +78,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
             {currentRank && <RankNotification key={currentRank.id} {...currentRank} />}
           </AnimatePresence>
           <AnimatePresence>
-             {/* FIX: The 'id' prop was missing, which is required by the 'InfoNotification' component's type definition. It is now correctly passed from 'currentInfo'. */}
              {currentInfo && <InfoNotification key={currentInfo.id} id={currentInfo.id} content={currentInfo.content} />}
           </AnimatePresence>
         </div>
@@ -90,9 +89,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
-            {activeTab === 'game' && <GameTab key="game" gameState={gameState} serverTime={serverTime} />}
+            {activeTab === 'game' && <GameTab key="game" gameState={gameState} serverTime={serverTime} topGifter={gifterLeaderboard[0]} />}
             {activeTab === 'chat' && <ChatTab key="chat" messages={gameState.chatMessages} />}
-            {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} />}
+            {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} gifterLeaderboard={gifterLeaderboard} />}
         </AnimatePresence>
         <AnimatePresence>
           {gameState.showWinnerModal && gameState.gameStyle === GameStyle.Classic && <RoundWinnerModal 
@@ -108,7 +107,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
       </main>
 
-      {/* FIX: The entire nav is now hidden on tablet screens and up, as its functionality is replaced by the side panel. */}
       <nav className="flex md:hidden justify-around p-1 border-t border-sky-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 rounded-b-3xl shrink-0">
         {navItems.map((item) => (
           <button

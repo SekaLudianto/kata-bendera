@@ -20,7 +20,7 @@ import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode, LeaderboardEntry } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS, ADMIN_PASSWORD_HASH } from './constants';
 import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon, EyeIcon, LogOutIcon } from './components/IconComponents';
@@ -92,6 +92,9 @@ const App: React.FC = () => {
   const infoTipIndex = useRef(0);
 
   const [liveFeed, setLiveFeed] = useState<LiveFeedEvent[]>([]);
+  
+  // Gifter Leaderboard State
+  const [gifterLeaderboard, setGifterLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   // Server Time Sync
   const [serverTime, setServerTime] = useState<Date | null>(null);
@@ -107,6 +110,29 @@ const App: React.FC = () => {
     // Add to queue and live feed
     giftQueue.current.push(gift);
     setLiveFeed(prev => [fullGift, ...prev].slice(0, 100));
+
+    // Update Gifter Leaderboard (Track all gifts, even if game not playing)
+    setGifterLeaderboard(prev => {
+        const newBoard = [...prev];
+        const existingIndex = newBoard.findIndex(p => p.userId === gift.userId);
+        // Use a safe gift count
+        const giftValue = parseInt(String(gift.giftCount || 1), 10) || 1;
+
+        if (existingIndex > -1) {
+            newBoard[existingIndex].score += giftValue;
+            // Update profile details if changed
+            newBoard[existingIndex].nickname = gift.nickname;
+            newBoard[existingIndex].profilePictureUrl = gift.profilePictureUrl;
+        } else {
+            newBoard.push({
+                userId: gift.userId,
+                nickname: gift.nickname,
+                profilePictureUrl: gift.profilePictureUrl,
+                score: giftValue
+            });
+        }
+        return newBoard.sort((a, b) => b.score - a.score);
+    });
 
     // Trigger the queue processing using a functional update to prevent race conditions
     setCurrentGift(prevCurrentGift => {
@@ -352,6 +378,7 @@ const App: React.FC = () => {
     setIsSimulation(isSimulating);
     setIsTimeSynced(false); // Reset time sync flag
     setServerTime(null);
+    setGifterLeaderboard([]); // Reset gifter leaderboard on new connection
     
     game.setHostUsername(config.username);
 
@@ -568,6 +595,7 @@ const App: React.FC = () => {
                   currentInfo={currentInfo}
                   onFinishWinnerDisplay={game.finishWinnerDisplay}
                   serverTime={serverTime}
+                  gifterLeaderboard={gifterLeaderboard}
                 />
               </motion.div>
             );

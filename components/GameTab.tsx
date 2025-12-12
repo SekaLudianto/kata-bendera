@@ -1,16 +1,18 @@
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 // FIX: Import LetterObject from types.ts instead of defining it locally.
-import { GameMode, GameStyle, LetterObject } from '../types';
+import { GameMode, GameStyle, LetterObject, LeaderboardEntry } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
-import { ServerIcon } from './IconComponents';
+import { ServerIcon, CrownIcon } from './IconComponents';
 
 // FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
 interface GameTabProps {
   gameState: InternalGameState;
   serverTime: Date | null;
+  topGifter?: LeaderboardEntry;
 }
 
 const formatServerTime = (date: Date | null): string => {
@@ -303,7 +305,7 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
     );
 };
 
-const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
+const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, topGifter }) => {
   const { round, totalRounds, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / totalRounds) * 100;
 
@@ -390,6 +392,32 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime }) => {
             <div className="bg-gradient-to-r from-red-500 to-orange-500 h-2 rounded-full w-full" />
         )}
       </div>
+      
+      {/* Top Sultan Widget */}
+      <AnimatePresence>
+        {topGifter && (
+            <motion.div 
+                key={topGifter.userId}
+                initial={{ opacity: 0, y: -10, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="mb-2 shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30 rounded-full border border-amber-300 dark:border-amber-600 shadow-sm"
+            >
+                <div className="relative">
+                    <img src={topGifter.profilePictureUrl || 'https://i.pravatar.cc/40'} alt={topGifter.nickname} className="w-6 h-6 rounded-full border border-amber-500" />
+                    <div className="absolute -top-2 -left-1">
+                        <CrownIcon className="w-4 h-4 text-yellow-500 fill-yellow-300 drop-shadow-sm" />
+                    </div>
+                </div>
+                <div className="flex flex-col leading-none">
+                    <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold uppercase tracking-wider">Top Sultan</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-white truncate max-w-[120px]">{topGifter.nickname}</span>
+                </div>
+                <div className="w-[1px] h-4 bg-amber-300 dark:bg-amber-600 mx-1"></div>
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{topGifter.score.toLocaleString()} 🎁</span>
+            </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-grow flex flex-col items-center justify-center">
         {currentMatch && currentMatch.player1 && currentMatch.player2 && (
