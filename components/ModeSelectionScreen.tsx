@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './IconComponents';
@@ -26,9 +21,10 @@ const classicCategories: { id: GameMode, name: string }[] = [
     { id: GameMode.GuessTheFruit, name: 'Tebak Buah' },
     { id: GameMode.GuessTheAnimal, name: 'Tebak Hewan' },
     { id: GameMode.KpopTrivia, name: 'Zona KPOP' },
+    { id: GameMode.ZonaFilm, name: 'Zona Film' },
 ];
 
-const validImportKeys = ['countries', 'trivia', 'cities', 'footballPlayers', 'footballClubs', 'footballStadiums', 'fruits', 'animals', 'kpopTrivia'];
+const validImportKeys = ['countries', 'trivia', 'cities', 'footballPlayers', 'footballClubs', 'footballStadiums', 'fruits', 'animals', 'kpopTrivia', 'movies'];
 
 const jsonExampleFormat = `{
   "countries": [
@@ -57,6 +53,9 @@ const jsonExampleFormat = `{
   ],
   "kpopTrivia": [
     { "question": "Lagu debut Aespa?", "answer": "Black Mamba" }
+  ],
+  "movies": [
+    "Avengers Endgame"
   ]
 }`;
 
@@ -220,6 +219,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     { id: 'GuessTheFruit', name: 'Tebak Buah' },
     { id: 'GuessTheAnimal', name: 'Tebak Hewan' },
     { id: 'KpopTrivia', name: 'Zona KPOP' },
+    { id: 'ZonaFilm', name: 'Zona Film' },
   ];
 
   return (

@@ -28,9 +28,10 @@ interface GameScreenProps {
   onFinishWinnerDisplay: () => void;
   serverTime: Date | null;
   gifterLeaderboard: LeaderboardEntry[];
+  likerLeaderboard: LeaderboardEntry[];
 }
 
-const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay, serverTime, gifterLeaderboard }) => {
+const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay, serverTime, gifterLeaderboard, likerLeaderboard }) => {
   const [activeTab, setActiveTab] = useState<Tab>('game');
   const { playSound } = useSound();
 
@@ -89,7 +90,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
-            {activeTab === 'game' && <GameTab key="game" gameState={gameState} serverTime={serverTime} topGifter={gifterLeaderboard[0]} />}
+            {activeTab === 'game' && <GameTab key="game" gameState={gameState} serverTime={serverTime} gifterLeaderboard={gifterLeaderboard} likerLeaderboard={likerLeaderboard} />}
             {activeTab === 'chat' && <ChatTab key="chat" messages={gameState.chatMessages} />}
             {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} gifterLeaderboard={gifterLeaderboard} />}
         </AnimatePresence>

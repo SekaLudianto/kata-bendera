@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChatMessage, GameState, KnockoutPlayer, GiftNotification, DonationEvent, DonationPlatform } from '../types';
+import { giftValues } from '../data/gifts';
 
 interface SimulationPanelProps {
   onComment: (comment: ChatMessage) => void;
@@ -71,12 +73,16 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
     e?.preventDefault();
     if (userId.trim() === '' || nickname.trim() === '' || giftName.trim() === '' || giftCount < 1) return;
 
+    // Use the local gift map to calculate the total coin value for the simulation
+    const singleGiftValue = giftValues.get(giftId) || 1;
+    const totalValue = singleGiftValue * giftCount;
+
     onGift({
       userId: userId,
       nickname: nickname,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${userId}`,
       giftName,
-      giftCount,
+      giftCount: totalValue, // Send the calculated total coin value
       giftId,
     });
   };

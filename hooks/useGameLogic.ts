@@ -15,6 +15,7 @@ import { footballStadiums } from '../data/football_stadiums';
 import { triviaQuestions } from '../data/trivia';
 import { kpopTrivia } from '../data/kpop_trivia';
 import { cities } from '../data/cities';
+import { movies } from '../data/movies';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, BASE_POINTS, SPEED_BONUS_MULTIPLIER, WINNER_MODAL_TIMEOUT_MS, UNIQUENESS_BONUS_POINTS, KNOCKOUT_TARGET_SCORE, KNOCKOUT_PREPARE_SECONDS, KNOCKOUT_WINNER_VIEW_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, ANSWER_REVEAL_DELAY_SECONDS, CHAMPION_SCREEN_TIMEOUT_MS } from '../constants';
 
 export interface InternalGameState {
@@ -331,15 +332,23 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         const newChatMessages = [message, ...state.chatMessages].slice(0, 100);
         if (!state.isRoundActive) return { ...state, chatMessages: newChatMessages };
         
-        const comment = message.comment.trim();
+        // FIX: Handle undefined comment
+        const comment = (message.comment || '').trim();
 
         // Helper function to check for a whole word/phrase match, case-insensitively
         const checkAnswer = (commentText: string, answer: string): boolean => {
           if (!answer) return false;
           // Escape special regex characters in the answer
           const escapedAnswer = answer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          // Create a regex to find the answer as a whole word/phrase
-          const regex = new RegExp(`\\b${escapedAnswer}\\b`, 'i');
+          
+          // Conditionally apply word boundaries. A simple \b...\b fails for answers containing non-word characters.
+          // This new logic checks if the answer starts/ends with a word character and applies \b accordingly.
+          const startsWithWordChar = /^\w/.test(answer);
+          const endsWithWordChar = /\w$/.test(answer);
+
+          const pattern = `${startsWithWordChar ? '\\b' : ''}${escapedAnswer}${endsWithWordChar ? '\\b' : ''}`;
+          
+          const regex = new RegExp(pattern, 'i');
           return regex.test(commentText);
         };
         
@@ -367,6 +376,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                 case GameMode.GuessTheWord: 
                 case GameMode.GuessTheFruit:
                 case GameMode.GuessTheAnimal:
+                case GameMode.ZonaFilm:
                     expectedAnswer = state.currentWord || ''; break;
                 case GameMode.GuessTheCity: expectedAnswer = state.currentCity?.name || ''; break;
                 case GameMode.Trivia: 
@@ -703,6 +713,17 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             isRoundActive: true,
         };
     }
+    case 'SET_KNOCKOUT_ZONA_FILM': {
+        return {
+            ...state,
+            gameMode: GameMode.ZonaFilm,
+            currentWordCategory: 'Film',
+            currentWord: action.payload.movie,
+            scrambledWord: scrambleWord(action.payload.movie, state.isHardMode),
+            roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
+            isRoundActive: true,
+        };
+    }
     case 'KNOCKOUT_QUESTION_TIMEOUT': {
         return { ...state, isRoundActive: false };
     }
@@ -760,6 +781,7 @@ export const useGameLogic = () => {
   const cityDeck = useRef<City[]>([]);
   const fruitDeck = useRef<string[]>([]);
   const animalDeck = useRef<string[]>([]);
+  const movieDeck = useRef<string[]>([]);
   
   const usedQuestionIdentifiers = useRef<Record<string, Set<string>>>({});
   const useImportedOnlyRef = useRef(false);
@@ -857,6 +879,7 @@ export const useGameLogic = () => {
     cityDeck.current = createDeck(cities, customQuestions.cities);
     fruitDeck.current = createDeck(fruits, customQuestions.fruits);
     animalDeck.current = createDeck(animals, customQuestions.animals);
+    movieDeck.current = createDeck(movies, customQuestions.movies);
   }, []);
 
   const getNextCountry = useCallback(() => getNextUniqueItem(countryDeck, countries, 'countries', c => c.name), [getNextUniqueItem]);
@@ -868,6 +891,7 @@ export const useGameLogic = () => {
   const getNextCity = useCallback(() => getNextUniqueItem(cityDeck, cities, 'cities', c => c.name), [getNextUniqueItem]);
   const getNextFruit = useCallback(() => getNextUniqueItem(fruitDeck, fruits, 'fruits', f => f), [getNextUniqueItem]);
   const getNextAnimal = useCallback(() => getNextUniqueItem(animalDeck, animals, 'animals', a => a), [getNextUniqueItem]);
+  const getNextMovie = useCallback(() => getNextUniqueItem(movieDeck, movies, 'movies', m => m), [getNextUniqueItem]);
   
   const getNextAbcCombo = useCallback(() => {
     const categoryKey = 'abc_5_dasar';
@@ -959,6 +983,9 @@ export const useGameLogic = () => {
             firstRoundData.wordCategory = 'Hewan';
         } else if (firstRoundMode === GameMode.KpopTrivia) {
             firstRoundData.triviaQuestion = getNextKpopTrivia();
+        } else if (firstRoundMode === GameMode.ZonaFilm) {
+            firstRoundData.word = getNextMovie();
+            firstRoundData.wordCategory = 'Film';
         }
         
         dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, totalRounds: roundsToPlay, isHardMode: options?.isHardMode, classicRoundDeck, firstRoundData } });
@@ -966,7 +993,7 @@ export const useGameLogic = () => {
     } else { // Knockout
         dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory: options?.knockoutCategory } });
     }
-  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia]);
+  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie]);
   
   const nextRound = useCallback(() => {
     // Check against dynamic totalRounds in state, not constant
@@ -1012,9 +1039,12 @@ export const useGameLogic = () => {
         payload.nextWordCategory = 'Hewan';
     } else if (nextGameMode === GameMode.KpopTrivia) {
         payload.nextTriviaQuestion = getNextKpopTrivia();
+    } else if (nextGameMode === GameMode.ZonaFilm) {
+        payload.nextWord = getNextMovie();
+        payload.nextWordCategory = 'Film';
     }
     dispatch({ type: 'NEXT_ROUND', payload: payload as GameActionPayloads['NEXT_ROUND'] });
-  }, [state.round, state.totalRounds, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia]);
+  }, [state.round, state.totalRounds, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie]);
 
   const finishWinnerDisplay = useCallback(() => {
       dispatch({ type: 'HIDE_WINNER_MODAL' });
@@ -1169,9 +1199,12 @@ export const useGameLogic = () => {
         } else if (state.knockoutCategory === 'KpopTrivia') {
             const question = getNextKpopTrivia();
             dispatch({ type: 'SET_KNOCKOUT_KPOP_TRIVIA', payload: { question } });
+        } else if (state.knockoutCategory === 'ZonaFilm') {
+            const movie = getNextMovie();
+            dispatch({ type: 'SET_KNOCKOUT_ZONA_FILM', payload: { movie } });
         }
     }
-  }, [state.gameState, state.isRoundActive, state.knockoutCategory, getNextCountry, getNextTrivia, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia]);
+  }, [state.gameState, state.isRoundActive, state.knockoutCategory, getNextCountry, getNextTrivia, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie]);
 
   // This effect handles advancing the knockout game after a question is finished
   useEffect(() => {
@@ -1203,13 +1236,16 @@ export const useGameLogic = () => {
           } else if (state.knockoutCategory === 'KpopTrivia') {
               const question = getNextKpopTrivia();
               dispatch({ type: 'SET_KNOCKOUT_KPOP_TRIVIA', payload: { question } });
+          } else if (state.knockoutCategory === 'ZonaFilm') {
+            const movie = getNextMovie();
+            dispatch({ type: 'SET_KNOCKOUT_ZONA_FILM', payload: { movie } });
           }
         }
       }, 3000); // 3-second delay to show the answer
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.isRoundActive, state.gameState, state.knockoutMatchPoints, state.knockoutCategory, getCurrentKnockoutMatch, getNextCountry, getNextTrivia, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia]);
+  }, [state.isRoundActive, state.gameState, state.knockoutMatchPoints, state.knockoutCategory, getCurrentKnockoutMatch, getNextCountry, getNextTrivia, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie]);
   
   useEffect(() => {
     // FIX: This logic incorrectly checked if the gameState was Classic, but the gameState is always 'Playing'
@@ -1248,6 +1284,7 @@ export const useGameLogic = () => {
       case GameMode.GuessTheWord:
       case GameMode.GuessTheFruit:
       case GameMode.GuessTheAnimal:
+      case GameMode.ZonaFilm:
         return state.currentWord || '';
       case GameMode.GuessTheCity:
         return state.currentCity?.name || '';

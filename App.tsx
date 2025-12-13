@@ -93,69 +93,118 @@ const App: React.FC = () => {
 
   const [liveFeed, setLiveFeed] = useState<LiveFeedEvent[]>([]);
   
-  // Gifter Leaderboard State
+  // Gifter & Liker Leaderboard State
   const [gifterLeaderboard, setGifterLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [likerLeaderboard, setLikerLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   // Server Time Sync
   const [serverTime, setServerTime] = useState<Date | null>(null);
   const serverTimeOffset = useRef<number>(0);
   const [isTimeSynced, setIsTimeSynced] = useState(false);
 
+  // Deduplication Cache (Map for better performance and history)
+  const processedGiftsCache = useRef<Map<string, number>>(new Map());
+  const processedMsgIds = useRef<Map<string, number>>(new Map());
+
   const game = useGameLogic();
   const { champions, addChampion } = useKnockoutChampions();
   
   const handleGift = useCallback((gift: Omit<GiftNotificationType, 'id'>) => {
-    const fullGift = { ...gift, id: `${new Date().getTime()}-${gift.userId}` };
+    // --- DATA NORMALIZATION ---
+    const safeGiftCount = typeof gift.giftCount === 'number' ? gift.giftCount : parseInt(String(gift.giftCount || 1), 10) || 1;
+    const safeGiftName = gift.giftName || 'Gift';
+    const safeGiftId = gift.giftId || 0;
+    const safeUserId = gift.userId || 'unknown';
     
-    // Add to queue and live feed
-    giftQueue.current.push(gift);
+    const normalizedGift = {
+        ...gift,
+        userId: safeUserId,
+        giftCount: safeGiftCount,
+        giftName: safeGiftName,
+        giftId: safeGiftId
+    };
+
+    // --- MORE ROBUST DEDUPLICATION LOGIC ---
+    const currentTimestamp = Date.now();
+    const cleanupThreshold = 10000; // Keep history for 10 seconds.
+    const duplicateThreshold = 1500; // 1.5 seconds for signature-based duplicates.
+
+    // 1. Cleanup old entries from both caches
+    for (const [key, timestamp] of processedMsgIds.current.entries()) {
+        if (currentTimestamp - timestamp > cleanupThreshold) processedMsgIds.current.delete(key);
+    }
+    for (const [key, timestamp] of processedGiftsCache.current.entries()) {
+        if (currentTimestamp - timestamp > cleanupThreshold) processedGiftsCache.current.delete(key);
+    }
+
+    // 2. PRIMARY CHECK: A time-sensitive signature.
+    // This catches rapid, near-identical events from different sources (e.g., two servers sending the same gift).
+    // We exclude giftName as it could be localized differently ("Rose" vs "Mawar").
+    const giftSignature = `${normalizedGift.userId}-${normalizedGift.giftId}-${normalizedGift.giftCount}`;
+    const lastSeenSignatureTime = processedGiftsCache.current.get(giftSignature);
+
+    if (lastSeenSignatureTime && (currentTimestamp - lastSeenSignatureTime < duplicateThreshold)) {
+        console.log(`[SIG] Duplicate blocked within ${duplicateThreshold}ms: ${giftSignature}`);
+        return;
+    }
+
+    // 3. SECONDARY CHECK: The unique message ID from the server.
+    // This catches an exact event being re-broadcast, even if it's after the signature threshold.
+    const msgId = gift.msgId;
+    if (typeof msgId === 'string' && msgId.length > 0) {
+        if (processedMsgIds.current.has(msgId)) {
+            console.log(`[ID] Duplicate blocked: ${msgId}`);
+            return;
+        }
+    }
+
+    // 4. If all checks pass, it's a unique gift. Update caches and process it.
+    processedGiftsCache.current.set(giftSignature, currentTimestamp);
+    if (typeof msgId === 'string' && msgId.length > 0) {
+        processedMsgIds.current.set(msgId, currentTimestamp);
+    }
+    // --- END DEDUPLICATION LOGIC ---
+
+    const fullGift = { ...normalizedGift, id: `${new Date().getTime()}-${normalizedGift.userId}` };
+    
+    // Add to queue and live feed using normalized data
+    giftQueue.current.push(normalizedGift);
     setLiveFeed(prev => [fullGift, ...prev].slice(0, 100));
 
-    // Update Gifter Leaderboard (Track all gifts, even if game not playing)
+    // Update Gifter Leaderboard
     setGifterLeaderboard(prev => {
         const newBoard = [...prev];
-        const existingIndex = newBoard.findIndex(p => p.userId === gift.userId);
-        // Use a safe gift count
-        const giftValue = parseInt(String(gift.giftCount || 1), 10) || 1;
-
+        const existingIndex = newBoard.findIndex(p => p.userId === normalizedGift.userId);
+        
         if (existingIndex > -1) {
-            newBoard[existingIndex].score += giftValue;
-            // Update profile details if changed
-            newBoard[existingIndex].nickname = gift.nickname;
-            newBoard[existingIndex].profilePictureUrl = gift.profilePictureUrl;
+            newBoard[existingIndex].score += normalizedGift.giftCount;
+            newBoard[existingIndex].nickname = normalizedGift.nickname;
+            newBoard[existingIndex].profilePictureUrl = normalizedGift.profilePictureUrl;
         } else {
             newBoard.push({
-                userId: gift.userId,
-                nickname: gift.nickname,
-                profilePictureUrl: gift.profilePictureUrl,
-                score: giftValue
+                userId: normalizedGift.userId,
+                nickname: normalizedGift.nickname,
+                profilePictureUrl: normalizedGift.profilePictureUrl,
+                score: normalizedGift.giftCount
             });
         }
         return newBoard.sort((a, b) => b.score - a.score);
     });
 
-    // Trigger the queue processing using a functional update to prevent race conditions
+    // Trigger the queue processing
     setCurrentGift(prevCurrentGift => {
-        // If a gift is already showing, do nothing. The useEffect will handle it later.
-        if (prevCurrentGift) {
-            return prevCurrentGift;
-        }
-        // If no gift is showing, pull from the queue.
+        if (prevCurrentGift) return prevCurrentGift;
         const nextGift = giftQueue.current.shift();
         if (nextGift) {
             return { ...nextGift, id: `${new Date().getTime()}-${nextGift.userId}` };
         }
-        // If queue is somehow empty, return null.
         return null;
     });
 
     // Gift Logic
-    const giftNameLower = gift.giftName.toLowerCase();
-    const giftId = gift.giftId;
+    const giftNameLower = normalizedGift.giftName.toLowerCase();
+    const giftId = normalizedGift.giftId;
     
-    // Enhanced Finger Heart Detection
-    // ID 6093 is standard for Finger Heart.
-    // Also checking for 'finger', 'heart', 'saranghaeyo' (Indonesian context often uses this for finger heart symbol).
     const isFingerHeart = 
         giftId === 6093 || 
         (giftNameLower.includes('finger') && giftNameLower.includes('heart')) || 
@@ -166,30 +215,47 @@ const App: React.FC = () => {
         if (isFingerHeart) {
             game.skipRound();
         } else if (game.state.isHardMode) {
-            // Fix: Robust gift count parsing. Defaults to 1 if invalid/missing/zero.
-            // This ensures "1 coin" (e.g. 1 Rose) always triggers at least 1 clue reveal.
-            let count = parseInt(String(gift.giftCount || 1), 10);
-            if (isNaN(count) || count < 1) count = 1;
-
-            // Any other gift (Rose, Coin, etc) triggers clue reveal
-            // Loop based on count, so 10 Roses = 10 Reveal calls
-            for (let i = 0; i < count; i++) {
+            for (let i = 0; i < normalizedGift.giftCount; i++) {
                 game.revealClue();
             }
         }
     }
   }, [gameState, game]);
   
+  const handleLike = useCallback((like: Omit<LeaderboardEntry, 'score'> & { score: number }) => {
+    // Likes are cumulative
+    setLikerLeaderboard(prev => {
+        const newBoard = [...prev];
+        const existingIndex = newBoard.findIndex(p => p.userId === like.userId);
+
+        if (existingIndex > -1) {
+            newBoard[existingIndex].score += like.score;
+            // Update profile info in case it changes
+            newBoard[existingIndex].nickname = like.nickname;
+            newBoard[existingIndex].profilePictureUrl = like.profilePictureUrl;
+        } else {
+            newBoard.push({
+                userId: like.userId,
+                nickname: like.nickname,
+                profilePictureUrl: like.profilePictureUrl,
+                score: like.score
+            });
+        }
+        // Sort and return the new board
+        return newBoard.sort((a, b) => b.score - a.score);
+    });
+  }, []);
+  
   const handleDonation = useCallback((donation: DonationEvent) => {
-    // Convert donation to a gift notification for UI display
-    // FIX: Replaced 'GiftNotification' with its imported alias 'GiftNotificationType' to resolve a type error.
     const gift: Omit<GiftNotificationType, 'id'> = {
       userId: donation.from_name,
       nickname: donation.from_name,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${donation.from_name}`,
       giftName: `${donation.message || `Donasi via ${donation.platform}`} (Rp ${donation.amount.toLocaleString()})`,
-      giftCount: 1,
+      // Use the donation amount as the score for the gifter leaderboard.
+      giftCount: donation.amount,
       giftId: 99999, // generic ID for donations
+      msgId: donation.id, // Use donation ID as msgId for deduplication
     };
     handleGift(gift);
   }, [handleGift]);
@@ -214,18 +280,14 @@ const App: React.FC = () => {
   const handleRankCheck = useCallback((rankInfo: Omit<RankNotificationType, 'id'>) => {
     rankQueue.current.push(rankInfo);
 
-    // Trigger the queue processing using a functional update to prevent race conditions
     setCurrentRank(prevCurrentRank => {
-        // If a rank notification is already showing, do nothing.
         if (prevCurrentRank) {
             return prevCurrentRank;
         }
-        // If no notification is showing, pull from the queue.
         const nextRank = rankQueue.current.shift();
         if (nextRank) {
             return { ...nextRank, id: `${new Date().getTime()}-${nextRank.userId}` };
         }
-        // If queue is somehow empty, return null.
         return null;
     });
   }, []);
@@ -284,7 +346,7 @@ const App: React.FC = () => {
 
   const handleComment = useCallback((message: ChatMessage) => {
     setLiveFeed(prev => [message, ...prev].slice(0,100));
-    const commentText = message.comment.trim().toLowerCase();
+    const commentText = (message.comment || '').trim().toLowerCase();
     const isModerator = MODERATOR_USERNAMES.includes(message.userId.toLowerCase().replace(/^@/, ''));
     
     if (commentText === '!myrank') {
@@ -342,14 +404,13 @@ const App: React.FC = () => {
         comment: commentText,
         profilePictureUrl: `https://i.pravatar.cc/40?u=admin-${hostUsername}`,
         isWinner: false,
-        timestamp: Date.now(), // Admin timestamp is client-side
+        timestamp: Date.now(),
     };
     handleComment(adminMessage);
     setShowAdminKeyboard(false);
   };
 
   const handleSyncTime = useCallback((serverTimestamp: number) => {
-    // Only set the offset once per connection session
     if (!isTimeSynced) {
         serverTimeOffset.current = serverTimestamp - Date.now();
         setServerTime(new Date(serverTimestamp));
@@ -368,7 +429,7 @@ const App: React.FC = () => {
   }, [isTimeSynced]);
 
 
-  const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift, handleSyncTime);
+  const { connectionStatus, connect, disconnect, error } = useTikTokLive(handleComment, handleGift, handleLike, handleSyncTime);
 
   const handleConnect = useCallback((config: ServerConfig, isSimulating: boolean) => {
     setLiveFeed([]);
@@ -376,14 +437,17 @@ const App: React.FC = () => {
     setIsDisconnected(false);
     setServerConfig(config);
     setIsSimulation(isSimulating);
-    setIsTimeSynced(false); // Reset time sync flag
+    setIsTimeSynced(false);
     setServerTime(null);
-    setGifterLeaderboard([]); // Reset gifter leaderboard on new connection
+    setGifterLeaderboard([]);
+    setLikerLeaderboard([]);
+    
+    processedGiftsCache.current.clear();
+    processedMsgIds.current.clear();
     
     game.setHostUsername(config.username);
 
     if (isSimulating) {
-        // For simulation, sync time immediately with client's local time
         serverTimeOffset.current = 0;
         setIsTimeSynced(true);
         setServerTime(new Date());
@@ -394,7 +458,6 @@ const App: React.FC = () => {
     }
   }, [connect, game]);
 
-  // Fallback timer for live connections to ensure the clock always starts.
   useEffect(() => {
     if (isSimulation) return;
 
@@ -403,9 +466,9 @@ const App: React.FC = () => {
       fallbackTimer = window.setTimeout(() => {
         if (!isTimeSynced) {
           console.warn("Server time sync did not receive a message. Using client time as fallback.");
-          handleSyncTime(Date.now()); // Sync with current client time
+          handleSyncTime(Date.now());
         }
-      }, 5000); // 5-second timeout
+      }, 5000);
     }
 
     return () => clearTimeout(fallbackTimer);
@@ -429,7 +492,6 @@ const App: React.FC = () => {
   }, [game]);
   
   const handleAutoRestart = useCallback(() => {
-    // Use stored settings for auto-restart, fallback to defaults if somehow empty
     const categoriesToUse = lastClassicCategories.length > 0 
         ? lastClassicCategories 
         : [GameMode.GuessTheFlag, GameMode.ABC5Dasar, GameMode.Trivia, GameMode.GuessTheCity];
@@ -472,11 +534,11 @@ const App: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem('tiktok-quiz-auth');
     setIsAuthenticated(false);
-    setGameState(GameState.Setup); // Reset to setup on logout
+    setGameState(GameState.Setup);
   };
 
   useEffect(() => {
-    if (isSimulation) return; // Don't run connection effects in simulation mode
+    if (isSimulation) return;
 
     if (connectionStatus === 'connected') {
       if (gameState === GameState.Connecting) {
@@ -498,14 +560,12 @@ const App: React.FC = () => {
     }
   }, [connectionStatus, gameState, error, disconnect, isSimulation]);
 
-  // Game logic state transitions
   useEffect(() => {
     if (game.state.gameState !== gameState) {
         setGameState(game.state.gameState);
     }
   }, [game.state.gameState]);
 
-  // Champion effect
   useEffect(() => {
     if (gameState === GameState.Champion) {
         if (game.state.gameStyle === GameStyle.Knockout) {
@@ -517,9 +577,8 @@ const App: React.FC = () => {
     }
   }, [gameState, game.state.gameStyle, game.state.sessionLeaderboard, addChampion]);
 
-  // Keyboard shortcuts
   useEffect(() => {
-    if (!isAuthenticated) return; // Disable shortcuts if not logged in
+    if (!isAuthenticated) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (document.activeElement?.tagName.toLowerCase() === 'input') {
         return;
@@ -596,6 +655,7 @@ const App: React.FC = () => {
                   onFinishWinnerDisplay={game.finishWinnerDisplay}
                   serverTime={serverTime}
                   gifterLeaderboard={gifterLeaderboard}
+                  likerLeaderboard={likerLeaderboard}
                 />
               </motion.div>
             );
@@ -626,7 +686,7 @@ const App: React.FC = () => {
                         match={game.getCurrentKnockoutMatch()}
                         timeRemaining={game.state.countdownValue}
                         champions={champions}
-                    />
+                    />;
         case GameState.Paused:
             return (
               <motion.div
@@ -780,14 +840,12 @@ const App: React.FC = () => {
             <ThemeToggle />
         </div>
       <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start justify-center gap-4">
-        {/* Left Column: Game Screen */}
         <div className="w-full md:w-96 lg:w-[420px] h-[95vh] min-h-[600px] max-h-[800px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors duration-300">
           <AnimatePresence mode="wait">
             {renderContent()}
           </AnimatePresence>
         </div>
         
-        {/* Right Column: Feed or Simulation Panel */}
         <div className="hidden md:flex flex-1">
             <AnimatePresence>
             {showLiveFeed && <LiveFeedPanel feed={liveFeed} />}

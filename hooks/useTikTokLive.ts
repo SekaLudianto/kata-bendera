@@ -1,6 +1,8 @@
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ConnectionStatus, ChatMessage, GiftNotification, TikTokGiftEvent, ServerConfig, ServerType, DonationPlatform } from '../types';
+import { ConnectionStatus, ChatMessage, GiftNotification, TikTokGiftEvent, ServerConfig, ServerType, DonationPlatform, TikTokLikeEvent, LeaderboardEntry } from '../types';
+import { giftValues } from '../data/gifts';
 
 // Define the shape of the chat data coming from the backend
 interface TikTokChatEvent {
@@ -27,7 +29,7 @@ const indofinityDonationAdapter = (platform: DonationPlatform, data: any): Omit<
     nickname: data.from_name || 'Donatur',
     profilePictureUrl: `https://i.pravatar.cc/40?u=${data.from_name || platform}`,
     giftName: `${data.message || `Donasi via ${platform}`} (Rp ${data.amount.toLocaleString()})`,
-    giftCount: 1,
+    giftCount: data.amount,
     giftId: 99999, // generic ID for donations
   };
 };
@@ -35,6 +37,7 @@ const indofinityDonationAdapter = (platform: DonationPlatform, data: any): Omit<
 export const useTikTokLive = (
     onMessage: (message: ChatMessage) => void,
     onGift: (gift: Omit<GiftNotification, 'id'>) => void,
+    onLike: (like: Omit<LeaderboardEntry, 'score'> & { score: number; totalLikeCount?: number }) => void, // score is likeCount
     onSyncTime: (timestamp: number) => void
 ) => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
@@ -44,13 +47,15 @@ export const useTikTokLive = (
 
   const onMessageRef = useRef(onMessage);
   const onGiftRef = useRef(onGift);
+  const onLikeRef = useRef(onLike);
   const onSyncTimeRef = useRef(onSyncTime);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
     onGiftRef.current = onGift;
+    onLikeRef.current = onLike;
     onSyncTimeRef.current = onSyncTime;
-  }, [onMessage, onGift, onSyncTime]);
+  }, [onMessage, onGift, onLike, onSyncTime]);
 
   useEffect(() => {
     return () => { // Cleanup on unmount
@@ -98,7 +103,7 @@ export const useTikTokLive = (
     }
   }, [disconnect]);
 
-  const handleIndoFinityMessage = (event: string, data: any) => {
+  const handleIndoFinityMessage = (event: string, data: TikTokGiftEvent | TikTokLikeEvent) => {
     const donationPlatforms: DonationPlatform[] = ['saweria', 'sociabuzz', 'trakteer', 'tako', 'bagibagi', 'sibagi'];
     const timestamp = data.timestamp || Date.now();
     
@@ -108,23 +113,48 @@ export const useTikTokLive = (
     }
 
     if (event === 'chat') {
+        const chatData = data as TikTokGiftEvent; // Can be treated same as gift event for user info
         onMessageRef.current({
-            id: data.msgId || `${Date.now()}`,
-            userId: data.uniqueId,
-            nickname: data.nickname,
-            comment: data.comment,
-            profilePictureUrl: data.profilePictureUrl,
+            id: chatData.msgId || `${Date.now()}`,
+            userId: chatData.uniqueId,
+            nickname: chatData.nickname,
+            comment: (data as any).comment || '', // Fallback to empty string if undefined
+            profilePictureUrl: chatData.profilePictureUrl,
             isWinner: false,
             timestamp: timestamp,
         });
     } else if (event === 'gift') {
+        const giftData = data as TikTokGiftEvent;
+        // Handle gift streaks. Only process the final event of a streak.
+        if (giftData.giftType === 1 && !giftData.repeatEnd) {
+            // Streak in progress, ignore this intermediate event.
+            return;
+        }
+
+        // Prioritize server-sent diamondCount, otherwise use local gift map as fallback.
+        const singleGiftValue = giftData.diamondCount && giftData.diamondCount > 0 
+            ? giftData.diamondCount 
+            : giftValues.get(giftData.giftId) || 1; // Fallback to 1 if unknown
+
+        const totalValue = singleGiftValue * (giftData.giftCount || 1);
+        
         onGiftRef.current({
-            userId: data.uniqueId,
-            nickname: data.nickname,
-            profilePictureUrl: data.profilePictureUrl,
-            giftName: data.giftName,
-            giftCount: data.giftCount,
-            giftId: data.giftId,
+            msgId: giftData.msgId, // Pass msgId for deduplication
+            userId: giftData.uniqueId,
+            nickname: giftData.nickname,
+            profilePictureUrl: giftData.profilePictureUrl,
+            giftName: giftData.giftName,
+            giftCount: totalValue,
+            giftId: giftData.giftId,
+        });
+    } else if (event === 'like') {
+        const likeData = data as TikTokLikeEvent;
+        onLikeRef.current({
+            userId: likeData.uniqueId,
+            nickname: likeData.nickname,
+            profilePictureUrl: likeData.profilePictureUrl || `https://i.pravatar.cc/40?u=${likeData.uniqueId}`,
+            score: likeData.likeCount,
+            totalLikeCount: likeData.totalLikeCount
         });
     } else if (donationPlatforms.includes(event as DonationPlatform)) {
         const giftData = indofinityDonationAdapter(event as DonationPlatform, data);
@@ -216,7 +246,7 @@ export const useTikTokLive = (
         id: data.msgId,
         userId: data.uniqueId,
         nickname: data.nickname,
-        comment: data.comment,
+        comment: data.comment || '', // Fallback to empty string if undefined
         profilePictureUrl: data.profilePictureUrl,
         isWinner: false,
         timestamp: data.timestamp || Date.now(),
@@ -227,13 +257,41 @@ export const useTikTokLive = (
           onSyncTimeRef.current(data.timestamp);
           timeSyncedRef.current = true;
         }
+
+        // Handle gift streaks. Only process the final event of a streak.
+        if (data.giftType === 1 && !data.repeatEnd) {
+            // Streak in progress, ignore this intermediate event.
+            return;
+        }
+        
+        // Prioritize server-sent diamondCount, otherwise use local gift map as fallback.
+        const singleGiftValue = data.diamondCount && data.diamondCount > 0 
+            ? data.diamondCount 
+            : giftValues.get(data.giftId) || 1; // Fallback to 1 if unknown
+
+        const totalValue = singleGiftValue * (data.giftCount || 1);
+
         onGiftRef.current({
+            msgId: data.msgId, // Pass msgId for deduplication
             userId: data.uniqueId,
             nickname: data.nickname,
             profilePictureUrl: data.profilePictureUrl,
             giftName: data.giftName,
-            giftCount: data.giftCount,
+            giftCount: totalValue,
             giftId: data.giftId,
+        });
+    });
+    socket.on('like', (data: TikTokLikeEvent) => {
+        if (!timeSyncedRef.current && data.timestamp) {
+          onSyncTimeRef.current(data.timestamp);
+          timeSyncedRef.current = true;
+        }
+        onLikeRef.current({
+            userId: data.uniqueId,
+            nickname: data.nickname,
+            profilePictureUrl: data.profilePictureUrl || `https://i.pravatar.cc/40?u=${data.uniqueId}`,
+            score: data.likeCount, // score is the number of likes in this batch
+            totalLikeCount: data.totalLikeCount
         });
     });
     socket.on('streamEnd', () => {

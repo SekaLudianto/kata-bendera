@@ -50,6 +50,7 @@ export interface RoundWinner extends LeaderboardEntry {
 
 export interface GiftNotification {
   id: string;
+  msgId?: string; // Added for deduplication
   userId: string;
   nickname: string;
   profilePictureUrl: string;
@@ -74,14 +75,30 @@ export interface InfoNotification {
 
 // Raw event from backend
 export interface TikTokGiftEvent {
+  msgId?: string;
   uniqueId: string;
   nickname: string;
   profilePictureUrl: string;
   giftName: string;
-  giftCount: number;
-  giftId: number; // e.g., 5655 for Rose
+  giftCount: number; // Number of items in a streak (repeat_count)
+  diamondCount?: number; // Coin value of a single item
+  giftId: number;
   timestamp?: number;
+  giftType?: number;
+  repeatEnd?: boolean;
 }
+
+// Raw like event from backend
+export interface TikTokLikeEvent {
+  uniqueId: string;
+  nickname: string;
+  profilePictureUrl: string;
+  likeCount: number; // Number of likes in this batch
+  totalLikeCount?: number; // Total likes for the stream (optional)
+  timestamp?: number;
+  msgId?: string; // for potential deduplication
+}
+
 
 export type DonationPlatform = 'saweria' | 'sociabuzz' | 'trakteer' | 'tako' | 'bagibagi' | 'sibagi';
 
@@ -142,15 +159,16 @@ export enum GameMode {
   GuessTheFruit = 'guess_the_fruit',
   GuessTheAnimal = 'guess_the_animal',
   KpopTrivia = 'kpop_trivia',
+  ZonaFilm = 'zona_film',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
-export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-buahan' | 'Hewan';
+export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-buahan' | 'Hewan' | 'Film';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 // --- Knockout Mode Types ---
-export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia';
+export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia' | 'ZonaFilm';
 
 export interface TriviaQuestion {
   question: string;
@@ -226,6 +244,7 @@ export interface GameActionPayloads {
     'SET_KNOCKOUT_GUESS_THE_FRUIT': { fruit: string };
     'SET_KNOCKOUT_GUESS_THE_ANIMAL': { animal: string };
     'SET_KNOCKOUT_KPOP_TRIVIA': { question: TriviaQuestion };
+    'SET_KNOCKOUT_ZONA_FILM': { movie: string };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer; score: string; };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };

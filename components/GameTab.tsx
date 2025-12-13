@@ -5,14 +5,15 @@ import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKO
 // FIX: Import LetterObject from types.ts instead of defining it locally.
 import { GameMode, GameStyle, LetterObject, LeaderboardEntry } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
-import { ServerIcon, CrownIcon } from './IconComponents';
+import { ServerIcon, HeartIcon, GiftIcon, InfoIcon } from './IconComponents';
 
 // FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
 interface GameTabProps {
   gameState: InternalGameState;
   serverTime: Date | null;
-  topGifter?: LeaderboardEntry;
+  gifterLeaderboard: LeaderboardEntry[];
+  likerLeaderboard: LeaderboardEntry[];
 }
 
 const formatServerTime = (date: Date | null): string => {
@@ -34,8 +35,9 @@ const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundA
     const totalLetters = scrambledWord.flat().length;
     const sizeClasses = getLetterBoxSizeClasses(totalLetters);
     
-    // In Hard Mode, reveal 2 letters per level (starting from 0)
-    const revealedCount = isHardMode ? revealLevel * 2 : totalLetters;
+    // In Hard Mode, reveal 1 letter per level (starting from 0)
+    // Fixed: Previously multiplied by 2, causing "double" reading perception.
+    const revealedCount = isHardMode ? revealLevel : totalLetters;
 
     let globalIndex = 0;
 
@@ -68,8 +70,24 @@ const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundA
                 </div>
             ))}
             {isRoundActive && isHardMode && revealedCount < totalLetters && (
-                <div className="mt-2 text-xs font-bold text-red-500 animate-pulse bg-red-100 dark:bg-red-900/50 px-2 py-1 rounded">
-                    Butuh Mawar/Koin untuk Clue! (Kirim Finger Heart untuk Skip)
+                <div className="mt-2 flex items-center justify-center gap-4 bg-black/20 dark:bg-black/40 px-3 py-1.5 rounded-lg backdrop-blur-sm">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-white text-xs font-semibold">Clue:</span>
+                        <img 
+                            src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
+                            alt="1 Coin Gift" 
+                            className="w-5 h-5" 
+                        />
+                    </div>
+                    <div className="w-px h-5 bg-white/30"></div> {/* Separator */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-white text-xs font-semibold">Skip:</span>
+                        <img 
+                            src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/a4c4dc437fd3a6632aba149769491f49.png~tplv-obj.webp" 
+                            alt="Finger Heart" 
+                            className="w-5 h-5" 
+                        />
+                    </div>
                 </div>
             )}
         </div>
@@ -80,9 +98,9 @@ const FlagOverlay: React.FC<{ isRoundActive: boolean, isHardMode: boolean, revea
     if (!isRoundActive || !isHardMode) return null;
 
     // 4x4 Grid = 16 blocks.
-    // Reveal 2 blocks per level.
+    // Reveal 1 block per level.
     const totalBlocks = 16;
-    const blocksToReveal = revealLevel * 2; 
+    const blocksToReveal = revealLevel; 
     
     // Create an array of 16 blocks
     const blocks = Array.from({ length: totalBlocks }, (_, i) => i);
@@ -109,8 +127,15 @@ const FlagOverlay: React.FC<{ isRoundActive: boolean, isHardMode: boolean, revea
                 );
             })}
              {blocksToReveal < totalBlocks && (
-                <div className="absolute inset-x-0 bottom-0 flex justify-center pb-1 pointer-events-none">
-                     <span className="text-[10px] font-bold text-white bg-black/50 px-2 rounded backdrop-blur-sm">Butuh Mawar/Koin</span>
+                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center pb-1 pointer-events-none">
+                     <div className="flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">
+                        <span className="text-[10px] font-semibold text-white">Clue:</span>
+                        <img 
+                            src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
+                            alt="1 Coin Gift" 
+                            className="w-4 h-4" 
+                        />
+                     </div>
                 </div>
             )}
         </div>
@@ -305,7 +330,65 @@ const ZonaBolaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState
     );
 };
 
-const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, topGifter }) => {
+const Top3List: React.FC<{ title: string; icon: React.ReactNode; data: LeaderboardEntry[]; emptyText: string; theme: 'like' | 'gift'; infoTooltip?: string }> = ({ title, icon, data, emptyText, theme, infoTooltip }) => {
+    const top3 = data.slice(0, 3);
+    
+    const themeClasses = {
+        like: {
+            bg: 'bg-pink-50 dark:bg-pink-900/20',
+            border: 'border-pink-200 dark:border-pink-500/30',
+            title: 'text-pink-600 dark:text-pink-400',
+            score: 'text-pink-500 dark:text-pink-400',
+        },
+        gift: {
+            bg: 'bg-amber-50 dark:bg-amber-900/20',
+            border: 'border-amber-200 dark:border-amber-500/30',
+            title: 'text-amber-600 dark:text-amber-400',
+            score: 'text-amber-500 dark:text-amber-400',
+        }
+    };
+
+    const currentTheme = themeClasses[theme];
+
+    return (
+        <div className={`rounded-xl p-2 ${currentTheme.bg} border ${currentTheme.border}`}>
+            <div className="flex items-center gap-1.5 mb-1.5 px-1">
+                {icon}
+                <h3 className={`text-xs font-bold uppercase tracking-wider ${currentTheme.title}`}>{title}</h3>
+                {infoTooltip && (
+                    <div className="group relative">
+                        <InfoIcon className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 text-xs text-white bg-gray-900 dark:bg-black rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            {infoTooltip}
+                        </div>
+                    </div>
+                )}
+            </div>
+            {top3.length > 0 ? (
+                <div className="space-y-1">
+                    {top3.map((entry, index) => (
+                        <motion.div
+                            key={entry.userId}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="flex items-center gap-2 text-xs"
+                        >
+                            <span className="font-bold w-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</span>
+                            <img src={entry.profilePictureUrl || 'https://i.pravatar.cc/40'} alt={entry.nickname} className="w-5 h-5 rounded-full" />
+                            <span className="font-semibold truncate flex-1 text-slate-700 dark:text-slate-300">{entry.nickname}</span>
+                            <span className={`font-bold ${currentTheme.score}`}>{entry.score.toLocaleString()}</span>
+                        </motion.div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-center text-xs text-slate-400 dark:text-slate-500 py-2">{emptyText}</p>
+            )}
+        </div>
+    );
+};
+
+const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, gifterLeaderboard, likerLeaderboard }) => {
   const { round, totalRounds, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
   const progressPercentage = (round / totalRounds) * 100;
 
@@ -324,6 +407,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, topGifter }) =
         if (knockoutCategory === 'GuessTheFruit') return "Tebak Kata: Buah";
         if (knockoutCategory === 'GuessTheAnimal') return "Tebak Kata: Hewan";
         if (knockoutCategory === 'KpopTrivia') return "Trivia: Zona KPOP";
+        if (knockoutCategory === 'ZonaFilm') return "Zona Film";
 
         if (currentBracketRoundIndex === null || !knockoutBracket || !knockoutBracket[currentBracketRoundIndex]) {
             return "Mode Knockout";
@@ -348,6 +432,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, topGifter }) =
     if (gameMode === GameMode.GuessTheFruit) return 'Tebak Buah';
     if (gameMode === GameMode.GuessTheAnimal) return 'Tebak Hewan';
     if (gameMode === GameMode.KpopTrivia) return 'Trivia: Zona KPOP';
+    if (gameMode === GameMode.ZonaFilm) return 'Zona Film';
     return '';
   }
 
@@ -393,31 +478,23 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, topGifter }) =
         )}
       </div>
       
-      {/* Top Sultan Widget */}
-      <AnimatePresence>
-        {topGifter && (
-            <motion.div 
-                key={topGifter.userId}
-                initial={{ opacity: 0, y: -10, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="mb-2 shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30 rounded-full border border-amber-300 dark:border-amber-600 shadow-sm"
-            >
-                <div className="relative">
-                    <img src={topGifter.profilePictureUrl || 'https://i.pravatar.cc/40'} alt={topGifter.nickname} className="w-6 h-6 rounded-full border border-amber-500" />
-                    <div className="absolute -top-2 -left-1">
-                        <CrownIcon className="w-4 h-4 text-yellow-500 fill-yellow-300 drop-shadow-sm" />
-                    </div>
-                </div>
-                <div className="flex flex-col leading-none">
-                    <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold uppercase tracking-wider">Top Sultan</span>
-                    <span className="text-xs font-bold text-slate-800 dark:text-white truncate max-w-[120px]">{topGifter.nickname}</span>
-                </div>
-                <div className="w-[1px] h-4 bg-amber-300 dark:bg-amber-600 mx-1"></div>
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{topGifter.score.toLocaleString()} 🎁</span>
-            </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="grid grid-cols-2 gap-2 my-2 shrink-0">
+        <Top3List 
+            title="ORANG GABUT"
+            icon={<HeartIcon className="w-3.5 h-3.5 text-pink-500" />}
+            data={likerLeaderboard}
+            emptyText="Belum ada yang gabut."
+            theme="like"
+            infoTooltip="Jumlah 'like' adalah perkiraan berdasarkan data yang dikirim oleh TikTok, bukan hitungan pasti setiap tap."
+        />
+        <Top3List 
+            title="ORANG BAIK"
+            icon={<GiftIcon className="w-3.5 h-3.5 text-amber-500" />}
+            data={gifterLeaderboard}
+            emptyText="Belum ada orang baik."
+            theme="gift"
+        />
+      </div>
 
       <div className="flex-grow flex flex-col items-center justify-center">
         {currentMatch && currentMatch.player1 && currentMatch.player2 && (
@@ -444,7 +521,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, topGifter }) =
         )}
         
         {/* Main game content */}
-        {(gameState.gameMode === GameMode.GuessTheWord || gameState.gameMode === GameMode.GuessTheFruit || gameState.gameMode === GameMode.GuessTheAnimal) && <GuessTheWordContent gameState={gameState} />}
+        {(gameState.gameMode === GameMode.GuessTheWord || gameState.gameMode === GameMode.GuessTheFruit || gameState.gameMode === GameMode.GuessTheAnimal || gameState.gameMode === GameMode.ZonaFilm) && <GuessTheWordContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheFlag && (
           gameState.gameStyle === GameStyle.Classic 
             ? <GuessTheFlagContent gameState={gameState} /> 
