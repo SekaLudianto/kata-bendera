@@ -3,9 +3,10 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 // FIX: Import LetterObject from types.ts instead of defining it locally.
-import { GameMode, GameStyle, LetterObject, LeaderboardEntry } from '../types';
+import { GameMode, GameStyle, LetterObject, LeaderboardEntry, ChatMessage, QuoteNotification } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
-import { ServerIcon, HeartIcon, GiftIcon, InfoIcon } from './IconComponents';
+import { ServerIcon, HeartIcon, GiftIcon, InfoIcon, MessageCircleIcon } from './IconComponents';
+import QuoteDisplay from './QuoteDisplay';
 
 // FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
@@ -14,6 +15,7 @@ interface GameTabProps {
   serverTime: Date | null;
   gifterLeaderboard: LeaderboardEntry[];
   likerLeaderboard: LeaderboardEntry[];
+  currentQuote: QuoteNotification | null;
 }
 
 const formatServerTime = (date: Date | null): string => {
@@ -30,6 +32,62 @@ const getLetterBoxSizeClasses = (totalLetters: number): string => {
   if (totalLetters > 12) return 'w-7 h-9 text-xl gap-1';
   return 'w-9 h-11 text-2xl gap-1.5';
 };
+
+// --- DANMAKU COMPONENT ---
+const DanmakuBar: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
+    // Show only the very latest few, allowing them to flow horizontally
+    const displayMessages = messages.slice(0, 8); 
+
+    return (
+        <div className="w-full h-9 mb-2 relative flex items-center overflow-hidden bg-sky-50/50 dark:bg-gray-800/50 rounded-xl border border-sky-100 dark:border-gray-700 shrink-0">
+            {/* Mask gradients for smooth fade in/out */}
+            <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white dark:from-gray-800 to-transparent z-10 pointer-events-none"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white dark:from-gray-800 to-transparent z-10 pointer-events-none"></div>
+            
+            <div className="flex items-center gap-2 px-2 overflow-hidden w-full">
+                <div className="bg-sky-100 dark:bg-sky-900/30 p-1 rounded-full shrink-0 z-0">
+                    <MessageCircleIcon className="w-3 h-3 text-sky-500" />
+                </div>
+                <div className="flex items-center gap-2 flex-1 justify-end">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        {displayMessages.map((msg) => (
+                            <motion.div 
+                                key={msg.id}
+                                layout
+                                initial={{ opacity: 0, x: 50, scale: 0.8 }}
+                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0, width: 0 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-700 rounded-full shadow-sm border border-sky-100 dark:border-gray-600 shrink-0 whitespace-nowrap"
+                            >
+                                <img 
+                                    src={msg.profilePictureUrl || 'https://i.pravatar.cc/40'} 
+                                    alt="avatar" 
+                                    className="w-4 h-4 rounded-full" 
+                                />
+                                <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 max-w-[60px] truncate">
+                                    {msg.nickname}
+                                </span>
+                                <span className="text-[10px] text-slate-600 dark:text-slate-300 max-w-[120px] truncate">
+                                    {msg.comment}
+                                </span>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                    {displayMessages.length === 0 && (
+                        <motion.span 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }}
+                            className="text-[10px] text-gray-400 italic w-full text-center"
+                        >
+                            Menunggu komentar masuk...
+                        </motion.span>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
 
 const ScrambledWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundActive: boolean, isHardMode: boolean, revealLevel: number }> = ({ scrambledWord, isRoundActive, isHardMode, revealLevel }) => {
     const totalLetters = scrambledWord.flat().length;
@@ -388,8 +446,8 @@ const Top3List: React.FC<{ title: string; icon: React.ReactNode; data: Leaderboa
     );
 };
 
-const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, gifterLeaderboard, likerLeaderboard }) => {
-  const { round, totalRounds, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory } = gameState;
+const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, gifterLeaderboard, likerLeaderboard, currentQuote }) => {
+  const { round, totalRounds, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory, chatMessages } = gameState;
   const progressPercentage = (round / totalRounds) * 100;
 
   const timerDuration = gameStyle === GameStyle.Knockout ? KNOCKOUT_ROUND_TIMER_SECONDS : ROUND_TIMER_SECONDS;
@@ -495,6 +553,12 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, gifterLeaderbo
             theme="gift"
         />
       </div>
+
+      <DanmakuBar messages={chatMessages} />
+      
+      <AnimatePresence>
+        {currentQuote && <QuoteDisplay key={currentQuote.id} {...currentQuote} />}
+      </AnimatePresence>
 
       <div className="flex-grow flex flex-col items-center justify-center">
         {currentMatch && currentMatch.player1 && currentMatch.player2 && (

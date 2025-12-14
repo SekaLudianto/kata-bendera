@@ -20,7 +20,7 @@ import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode, LeaderboardEntry } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode, LeaderboardEntry, QuoteNotification } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS, ADMIN_PASSWORD_HASH } from './constants';
 import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon, EyeIcon, LogOutIcon } from './components/IconComponents';
@@ -88,6 +88,10 @@ const App: React.FC = () => {
   const giftQueue = useRef<Omit<GiftNotificationType, 'id'>[]>([]);
   const [currentRank, setCurrentRank] = useState<RankNotificationType | null>(null);
   const rankQueue = useRef<Omit<RankNotificationType, 'id'>[]>([]);
+  
+  const [currentQuote, setCurrentQuote] = useState<QuoteNotification | null>(null);
+  const quoteQueue = useRef<QuoteNotification[]>([]);
+
   const [currentInfo, setCurrentInfo] = useState<InfoNotificationType | null>(null);
   const infoTipIndex = useRef(0);
 
@@ -309,6 +313,24 @@ const App: React.FC = () => {
     }
   }, [currentRank]);
 
+  // Handle Quote Queue processing
+  useEffect(() => {
+    if (currentQuote) {
+        const timer = setTimeout(() => {
+            setCurrentQuote(null);
+        }, 7000); // Quote shows for 7s
+        return () => clearTimeout(timer);
+    } else if (quoteQueue.current.length > 0) {
+        const nextQuote = quoteQueue.current.shift();
+        if (nextQuote) {
+            const timer = setTimeout(() => {
+                setCurrentQuote(nextQuote);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }
+  }, [currentQuote]);
+
   // Periodic Info Notification Logic
   useEffect(() => {
       const activeGameStates = [
@@ -346,10 +368,12 @@ const App: React.FC = () => {
 
   const handleComment = useCallback((message: ChatMessage) => {
     setLiveFeed(prev => [message, ...prev].slice(0,100));
-    const commentText = (message.comment || '').trim().toLowerCase();
+    const commentText = (message.comment || '').trim();
+    const commentLower = commentText.toLowerCase();
     const isModerator = MODERATOR_USERNAMES.includes(message.userId.toLowerCase().replace(/^@/, ''));
     
-    if (commentText === '!myrank') {
+    // Command to check rank
+    if (commentLower === '!myrank') {
       const playerRank = game.state.leaderboard.findIndex(p => p.userId === message.userId);
       if (playerRank !== -1) {
           const playerScore = game.state.leaderboard[playerRank].score;
@@ -372,27 +396,47 @@ const App: React.FC = () => {
       return;
     }
 
+    // Command to send a quote
+    const quoteMatch = commentText.match(/^!quote\s+(.+)/i);
+    if (quoteMatch) {
+        const quoteContent = quoteMatch[1].substring(0, 100); // Limit to 100 chars
+        const quote: QuoteNotification = {
+            id: message.id,
+            userId: message.userId,
+            nickname: message.nickname,
+            profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.userId}`,
+            content: quoteContent
+        };
+        quoteQueue.current.push(quote);
+        // Trigger queue processing if empty
+        if (!currentQuote) {
+             const next = quoteQueue.current.shift();
+             if(next) setCurrentQuote(next);
+        }
+        return;
+    }
+
     if (isModerator) {
-      if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentText === '!skip') {
+      if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentLower === '!skip') {
         game.skipRound();
         return;
       }
-      if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentText === '!pause') {
+      if ((gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) && commentLower === '!pause') {
         game.pauseGame();
         return;
       }
-      if (gameState === GameState.Paused && commentText === '!resume') {
+      if (gameState === GameState.Paused && commentLower === '!resume') {
         game.resumeGame();
         return;
       }
     }
 
-    if (gameState === GameState.KnockoutRegistration && commentText === '!ikut') {
+    if (gameState === GameState.KnockoutRegistration && commentLower === '!ikut') {
       game.registerPlayer({ userId: message.userId, nickname: message.nickname, profilePictureUrl: message.profilePictureUrl });
     } else if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
       game.processComment(message);
     }
-  }, [gameState, game, handleRankCheck]);
+  }, [gameState, game, handleRankCheck, currentQuote]);
   
   const handleAdminSubmit = (commentText: string) => {
     if (!serverConfig?.username && !isSimulation) return;
@@ -651,6 +695,7 @@ const App: React.FC = () => {
                   connectionError={connectionError}
                   currentGift={currentGift}
                   currentRank={currentRank}
+                  currentQuote={currentQuote}
                   currentInfo={currentInfo}
                   onFinishWinnerDisplay={game.finishWinnerDisplay}
                   serverTime={serverTime}

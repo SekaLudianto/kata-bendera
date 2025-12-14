@@ -9,7 +9,7 @@ import { AnimatePresence } from 'framer-motion';
 import RoundWinnerModal from './RoundWinnerModal';
 import ReconnectOverlay from './ReconnectOverlay';
 import { useSound } from '../hooks/useSound';
-import { GiftNotification as GiftNotificationType, RankNotification as RankNotificationType, GameMode, GameStyle, InfoNotification as InfoNotificationType, LeaderboardEntry } from '../types';
+import { GiftNotification as GiftNotificationType, RankNotification as RankNotificationType, GameMode, GameStyle, InfoNotification as InfoNotificationType, LeaderboardEntry, QuoteNotification } from '../types';
 import { InternalGameState } from '../hooks/useGameLogic';
 import GiftNotification from './GiftNotification';
 import RankNotification from './RankNotification';
@@ -24,6 +24,7 @@ interface GameScreenProps {
   connectionError: string | null;
   currentGift: GiftNotificationType | null;
   currentRank: RankNotificationType | null;
+  currentQuote: QuoteNotification | null;
   currentInfo: InfoNotificationType | null;
   onFinishWinnerDisplay: () => void;
   serverTime: Date | null;
@@ -31,7 +32,7 @@ interface GameScreenProps {
   likerLeaderboard: LeaderboardEntry[];
 }
 
-const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentInfo, onFinishWinnerDisplay, serverTime, gifterLeaderboard, likerLeaderboard }) => {
+const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentQuote, currentInfo, onFinishWinnerDisplay, serverTime, gifterLeaderboard, likerLeaderboard }) => {
   const [activeTab, setActiveTab] = useState<Tab>('game');
   const { playSound } = useSound();
 
@@ -90,7 +91,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
-            {activeTab === 'game' && <GameTab key="game" gameState={gameState} serverTime={serverTime} gifterLeaderboard={gifterLeaderboard} likerLeaderboard={likerLeaderboard} />}
+            {activeTab === 'game' && <GameTab key="game" gameState={gameState} serverTime={serverTime} gifterLeaderboard={gifterLeaderboard} likerLeaderboard={likerLeaderboard} currentQuote={currentQuote} />}
             {activeTab === 'chat' && <ChatTab key="chat" messages={gameState.chatMessages} />}
             {activeTab === 'leaderboard' && <LeaderboardTab key="leaderboard" leaderboard={gameState.leaderboard} gifterLeaderboard={gifterLeaderboard} />}
         </AnimatePresence>

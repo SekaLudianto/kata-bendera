@@ -68,6 +68,14 @@ export interface RankNotification {
   score: number;
 }
 
+export interface QuoteNotification {
+  id: string;
+  userId: string;
+  nickname: string;
+  profilePictureUrl: string;
+  content: string;
+}
+
 export interface InfoNotification {
   id: string;
   content: React.ReactNode;
