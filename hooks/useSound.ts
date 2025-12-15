@@ -26,7 +26,7 @@ const getAudioContext = () => {
 
 // BGM Global Instance (Singleton)
 // Updated URL to ensure accessibility
-const BGM_URL = "https://raw.githubusercontent.com/SekaLudianto/kata-bendera/main/bgm.mp3"; 
+const BGM_URL = "https://raw.githubusercontent.com/SekaLudianto/kata-bendera/main/bgm-geo.mp3"; 
 let bgmAudio: HTMLAudioElement | null = null;
 let shouldBgmPlay = false; // Global flag to track if game logic wants BGM to play
 
