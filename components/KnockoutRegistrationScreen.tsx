@@ -1,9 +1,9 @@
 
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KnockoutPlayer, KnockoutChampions } from '../types';
 import { UsersIcon, TrophyIcon } from './IconComponents';
+import { useSound } from '../hooks/useSound';
 
 interface KnockoutRegistrationScreenProps {
   players: KnockoutPlayer[];
@@ -15,6 +15,16 @@ interface KnockoutRegistrationScreenProps {
 
 const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({ players, onEndRegistration, onResetRegistration, champions, isSimulation }) => {
   const [activeTab, setActiveTab] = useState<'register' | 'leaderboard'>('register');
+  const { playSound } = useSound();
+  const prevPlayersCount = useRef(players.length);
+
+  // Trigger sound when player joins
+  useEffect(() => {
+      if (players.length > prevPlayersCount.current) {
+          playSound('playerJoin');
+      }
+      prevPlayersCount.current = players.length;
+  }, [players.length, playSound]);
 
   // FIX: Replaced Object.entries with Object.keys to correctly infer the types of champion data.
   // This resolves the issue where `data.wins` and `data.nickname` were inaccessible because `data` was of type `unknown`.
@@ -35,6 +45,16 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
     return `${rank + 1}.`;
   };
 
+  const handleEndRegistration = () => {
+      playSound('uiClick');
+      onEndRegistration();
+  }
+
+  const handleReset = () => {
+      playSound('uiClick');
+      onResetRegistration();
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -54,14 +74,14 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
 
       <div className="flex gap-2 my-2 shrink-0">
           <button
-            onClick={() => setActiveTab('register')}
+            onClick={() => { setActiveTab('register'); playSound('tabSwitch'); }}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'register' ? 'bg-sky-500 text-white' : 'bg-sky-100 text-sky-600 dark:bg-gray-700 dark:text-gray-400'}`}
           >
               <UsersIcon className="w-4 h-4"/>
               Pendaftar ({players.length})
           </button>
           <button
-            onClick={() => setActiveTab('leaderboard')}
+            onClick={() => { setActiveTab('leaderboard'); playSound('tabSwitch'); }}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'leaderboard' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-600 dark:bg-gray-700 dark:text-gray-400'}`}
           >
               <TrophyIcon className="w-4 h-4"/>
@@ -144,7 +164,7 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={onEndRegistration}
+          onClick={handleEndRegistration}
           disabled={players.length < 2}
           className="w-full px-4 py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 hover:bg-green-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
         >
@@ -153,7 +173,7 @@ const KnockoutRegistrationScreen: React.FC<KnockoutRegistrationScreenProps> = ({
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={onResetRegistration}
+          onClick={handleReset}
           className="w-full mt-2 px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all"
         >
           Ulang Pendaftaran (Kosongkan Daftar)

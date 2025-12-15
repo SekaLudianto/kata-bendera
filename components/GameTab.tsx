@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOTAL_ROUNDS, ROUND_TIMER_SECONDS, KNOCKOUT_ROUND_TIMER_SECONDS, KNOCKOUT_TARGET_SCORE } from '../constants';
 // FIX: Import LetterObject from types.ts instead of defining it locally.
@@ -7,6 +7,7 @@ import { GameMode, GameStyle, LetterObject, LeaderboardEntry, ChatMessage, Quote
 import { InternalGameState } from '../hooks/useGameLogic';
 import { ServerIcon, HeartIcon, GiftIcon, InfoIcon, MessageCircleIcon } from './IconComponents';
 import QuoteDisplay from './QuoteDisplay';
+import { useSound } from '../hooks/useSound';
 
 // FIX: Removed local definition of LetterObject as it's now imported from types.ts.
 
@@ -449,9 +450,16 @@ const Top3List: React.FC<{ title: string; icon: React.ReactNode; data: Leaderboa
 const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, gifterLeaderboard, likerLeaderboard, currentQuote }) => {
   const { round, totalRounds, roundWinners, roundTimer, gameMode, currentCategory, availableAnswersCount, maxWinners, gameStyle, knockoutBracket, currentBracketRoundIndex, currentMatchIndex, knockoutMatchPoints, knockoutCategory, chatMessages } = gameState;
   const progressPercentage = (round / totalRounds) * 100;
+  const { playSound } = useSound();
 
   const timerDuration = gameStyle === GameStyle.Knockout ? KNOCKOUT_ROUND_TIMER_SECONDS : ROUND_TIMER_SECONDS;
   const timerProgress = (roundTimer / timerDuration) * 100;
+
+  useEffect(() => {
+      if (currentQuote) {
+          playSound('quotePop');
+      }
+  }, [currentQuote, playSound]);
 
   const maxWinnersForThisRound = gameMode === GameMode.ABC5Dasar && availableAnswersCount != null
     ? Math.min(maxWinners, availableAnswersCount)

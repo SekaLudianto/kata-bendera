@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './IconComponents';
 import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from '../constants';
 import { GameMode, GameStyle, KnockoutCategory } from '../types';
+import { useSound } from '../hooks/useSound';
 
 interface ModeSelectionScreenProps {
   onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean, totalRounds: number, isHardMode: boolean) => void;
@@ -81,6 +82,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   const [hasImportedQuestions, setHasImportedQuestions] = useState(false);
   const [isCategoryListOpen, setIsCategoryListOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { playSound } = useSound();
 
   useEffect(() => {
     const checkStorage = () => {
@@ -110,6 +112,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   }, [selectedClassicCategories]);
 
   const handleCategoryToggle = (categoryId: GameMode) => {
+    playSound('uiClick');
     setSelectedClassicCategories(prev => 
       prev.includes(categoryId) 
         ? prev.filter(id => id !== categoryId)
@@ -136,6 +139,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   };
 
   const handleStartGame = () => {
+    playSound('roundStart');
     if (gameStyle === GameStyle.Classic) {
       if (selectedClassicCategories.length > 0) {
         onStartClassic(maxWinners, selectedClassicCategories, useImportedOnly, totalRounds, isHardMode);
@@ -151,6 +155,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   };
 
   const handleImportClick = () => {
+    playSound('uiClick');
     fileInputRef.current?.click();
   };
 
@@ -195,6 +200,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   };
   
   const handleClearImported = () => {
+      playSound('uiClick');
       localStorage.removeItem('custom-questions');
       setImportFeedback('Semua soal yang diimpor telah dihapus.');
       setHasImportedQuestions(false);
@@ -222,6 +228,11 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     { id: 'ZonaFilm', name: 'Zona Film' },
   ];
 
+  const toggleStyle = (style: GameStyle) => {
+      playSound('tabSwitch');
+      setGameStyle(style);
+  }
+
   return (
     <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
       <div className="flex-grow flex flex-col items-center justify-center text-center">
@@ -239,10 +250,10 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
         <form onSubmit={handleSubmit} className="w-full max-w-xs mt-6">
           
           <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setGameStyle(GameStyle.Classic)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Classic ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+              <button type="button" onClick={() => toggleStyle(GameStyle.Classic)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Classic ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
                   Klasik
               </button>
-               <button type="button" onClick={() => setGameStyle(GameStyle.Knockout)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Knockout ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+               <button type="button" onClick={() => toggleStyle(GameStyle.Knockout)} className={`px-4 py-2.5 font-bold rounded-lg transition-all text-sm ${gameStyle === GameStyle.Knockout ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-sky-100 text-sky-700 dark:bg-gray-700 dark:text-gray-300'}`}>
                   Knockout
               </button>
           </div>
@@ -356,7 +367,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
                          <button 
                             key={cat.id}
                             type="button" 
-                            onClick={() => setKnockoutCategory(cat.id)} 
+                            onClick={() => { setKnockoutCategory(cat.id); playSound('uiClick'); }} 
                             className={`px-2 py-2 font-semibold rounded-lg transition-all text-xs ${knockoutCategory === cat.id ? 'bg-amber-500 text-white shadow' : 'bg-amber-100 text-amber-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                             {cat.name}
                         </button>
@@ -379,7 +390,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
           </motion.button>
         </form>
           <button 
-            onClick={onShowLeaderboard}
+            onClick={() => { onShowLeaderboard(); playSound('uiClick'); }}
             className="mt-2 text-sm text-sky-500 dark:text-sky-400 font-semibold hover:underline"
           >
             Lihat Peringkat Global
@@ -413,7 +424,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
             </button>
             <button
               type="button"
-              onClick={onResetGlobalLeaderboard}
+              onClick={() => { onResetGlobalLeaderboard(); playSound('uiClick'); }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all text-sm"
             >
               <TrashIcon className="w-4 h-4" />

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import GameTab from './GameTab';
 import ChatTab from './ChatTab';
 import LeaderboardTab from './LeaderboardTab';
@@ -34,7 +34,21 @@ interface GameScreenProps {
 
 const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onReconnect, connectionError, currentGift, currentRank, currentQuote, currentInfo, onFinishWinnerDisplay, serverTime, gifterLeaderboard, likerLeaderboard }) => {
   const [activeTab, setActiveTab] = useState<Tab>('game');
-  const { playSound } = useSound();
+  const { playSound, playBgm, stopBgm } = useSound();
+  const lastTimerRef = useRef(gameState.roundTimer);
+
+  // Control Thinking Music (BGM) based on round active state
+  useEffect(() => {
+    if (gameState.isRoundActive) {
+      playBgm();
+    } else {
+      stopBgm();
+    }
+    // Cleanup on unmount to ensure music stops if user navigates away
+    return () => {
+        stopBgm();
+    };
+  }, [gameState.isRoundActive, playBgm, stopBgm]);
 
   // Play sound on new round start
   useEffect(() => {
@@ -49,6 +63,22 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
       playSound('correctAnswer');
     }
   }, [gameState.roundWinners.length, gameState.gameStyle, playSound]);
+
+  // Play tension tick sound for the last 5 seconds
+  useEffect(() => {
+    // Only play if round is active, timer changed, and it's 5 seconds or less (but > 0)
+    if (gameState.isRoundActive && gameState.roundTimer <= 5 && gameState.roundTimer > 0 && gameState.roundTimer !== lastTimerRef.current) {
+        playSound('timerTick');
+    }
+    lastTimerRef.current = gameState.roundTimer;
+  }, [gameState.roundTimer, gameState.isRoundActive, playSound]);
+
+  const handleTabChange = (tab: Tab) => {
+      if (tab !== activeTab) {
+          playSound('tabSwitch');
+          setActiveTab(tab);
+      }
+  };
 
   const navItems = [
     { id: 'game', label: 'Game', icon: GamepadIcon },
@@ -113,7 +143,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ gameState, isDisconnected, onRe
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveTab(item.id as Tab)}
+            onClick={() => handleTabChange(item.id as Tab)}
             className={`flex flex-col items-center justify-center w-20 h-14 rounded-lg transition-colors duration-200 ${
               activeTab === item.id ? 'text-sky-500 bg-sky-500/10 dark:text-sky-400 dark:bg-sky-400/10' : 'text-gray-500 hover:bg-sky-100 dark:text-gray-400 dark:hover:bg-gray-700'
             }`}

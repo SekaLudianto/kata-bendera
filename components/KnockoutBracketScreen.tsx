@@ -1,8 +1,8 @@
 
-
-import React, { useState, useRef, useLayoutEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KnockoutBracket, KnockoutMatch, KnockoutPlayer, KnockoutChampions } from '../types';
+import { useSound } from '../hooks/useSound';
 
 interface KnockoutBracketScreenProps {
   bracket: KnockoutBracket | null;
@@ -26,10 +26,12 @@ const MatchCard: React.FC<{
     champions: KnockoutChampions;
 }> = ({ match, isCurrent, isReadyToPlay, onStartMatch, isTournamentOver, onDeclareWalkoverWinner, champions }) => {
     const [isSelectingWinner, setIsSelectingWinner] = useState(false);
+    const { playSound } = useSound();
     
     const isMatchReady = match.player1 && match.player2 && !match.winner;
 
     const handleDeclareWinner = (winner: KnockoutPlayer) => {
+        playSound('uiClick');
         onDeclareWalkoverWinner({
             roundIndex: match.roundIndex,
             matchIndex: match.matchIndex,
@@ -38,6 +40,11 @@ const MatchCard: React.FC<{
         setIsSelectingWinner(false); // Reset UI state
     };
     
+    const handleStart = () => {
+        playSound('roundStart');
+        onStartMatch({ roundIndex: match.roundIndex, matchIndex: match.matchIndex });
+    }
+
     const PlayerDisplay: React.FC<{ player: KnockoutPlayer | null, isWinner: boolean, isLoser: boolean }> = ({ player, isWinner, isLoser }) => {
         if (!player) return <span className="truncate italic text-gray-400">...</span>;
         
@@ -101,7 +108,7 @@ const MatchCard: React.FC<{
                             <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.95 }}
-                                onClick={() => onStartMatch({ roundIndex: match.roundIndex, matchIndex: match.matchIndex })}
+                                onClick={handleStart}
                                 className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-md shadow-md shadow-green-500/20 hover:bg-green-600 transition-all"
                             >
                                 Mulai
@@ -127,6 +134,12 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
   const roundRefs = useRef<(HTMLDivElement | null)[]>([]);
   const matchRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [lines, setLines] = useState<any[]>([]);
+  const { playSound } = useSound();
+
+  // Play shuffle sound when mounting (drawing bracket)
+  useEffect(() => {
+      playSound('bracketShuffle');
+  }, [playSound]);
 
   useLayoutEffect(() => {
     if (!bracket) return;
@@ -187,6 +200,21 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
     if (isTournamentOver) return "Turnamen Selesai!";
     if (isReadyToPlay) return "Pilih Match";
     return "Bagan Turnamen";
+  }
+
+  const handleRedraw = () => {
+      playSound('uiClick');
+      onRedrawBracket();
+  }
+
+  const handleRestart = () => {
+      playSound('uiClick');
+      onRestartCompetition();
+  }
+
+  const handleReturn = () => {
+      playSound('uiClick');
+      onReturnToModeSelection();
   }
 
   return (
@@ -253,14 +281,14 @@ const KnockoutBracketScreen: React.FC<KnockoutBracketScreenProps> = ({ bracket, 
         >
           <div className="flex flex-col items-center justify-center gap-2">
               <div className="flex w-full items-center justify-center gap-2">
-                  <button onClick={onRedrawBracket} className="flex-1 px-3 py-2 bg-sky-500 text-white text-xs font-bold rounded-md shadow-md shadow-sky-500/20 hover:bg-sky-600 transition-all">
+                  <button onClick={handleRedraw} className="flex-1 px-3 py-2 bg-sky-500 text-white text-xs font-bold rounded-md shadow-md shadow-sky-500/20 hover:bg-sky-600 transition-all">
                       Drawing Kembali
                   </button>
-                  <button onClick={onRestartCompetition} className="flex-1 px-3 py-2 bg-amber-500 text-white text-xs font-bold rounded-md shadow-md shadow-amber-500/20 hover:bg-amber-600 transition-all">
+                  <button onClick={handleRestart} className="flex-1 px-3 py-2 bg-amber-500 text-white text-xs font-bold rounded-md shadow-md shadow-amber-500/20 hover:bg-amber-600 transition-all">
                       Registrasi Ulang
                   </button>
               </div>
-              <button onClick={onReturnToModeSelection} className="w-full px-3 py-2 bg-gray-500 text-white text-xs font-bold rounded-md shadow-md shadow-gray-500/20 hover:bg-gray-600 transition-all">
+              <button onClick={handleReturn} className="w-full px-3 py-2 bg-gray-500 text-white text-xs font-bold rounded-md shadow-md shadow-gray-500/20 hover:bg-gray-600 transition-all">
                   Pilih Mode Lain (Menu Utama)
               </button>
           </div>
