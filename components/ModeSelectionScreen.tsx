@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './IconComponents';
+import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, DownloadIcon, CloudIcon } from './IconComponents';
 import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from '../constants';
 import { GameMode, GameStyle, KnockoutCategory } from '../types';
 import { useSound } from '../hooks/useSound';
+import CloudSyncModal from './CloudSyncModal';
 
 interface ModeSelectionScreenProps {
   onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean, totalRounds: number, isHardMode: boolean) => void;
@@ -81,7 +82,10 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   const [isHardMode, setIsHardMode] = useState(false);
   const [hasImportedQuestions, setHasImportedQuestions] = useState(false);
   const [isCategoryListOpen, setIsCategoryListOpen] = useState(true);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const leaderboardInputRef = useRef<HTMLInputElement>(null);
   const { playSound } = useSound();
 
   useEffect(() => {
@@ -206,6 +210,74 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
       setHasImportedQuestions(false);
   };
 
+  // --- Leaderboard Export/Import Logic ---
+  
+  const handleExportLeaderboard = () => {
+    playSound('uiClick');
+    try {
+        const data = localStorage.getItem('leaderboard');
+        if (!data || data === '[]') {
+            setImportFeedback('Data peringkat masih kosong, tidak ada yang diekspor.');
+            return;
+        }
+        
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const dateStr = new Date().toISOString().split('T')[0];
+        a.download = `leaderboard-backup-${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setImportFeedback('Data peringkat berhasil diunduh.');
+    } catch (e) {
+        console.error('Export failed:', e);
+        setImportFeedback('Gagal mengekspor data peringkat.');
+    }
+  };
+
+  const handleImportLeaderboardClick = () => {
+      playSound('uiClick');
+      leaderboardInputRef.current?.click();
+  };
+
+  const handleLeaderboardFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          try {
+              const text = e.target?.result as string;
+              const data = JSON.parse(text);
+
+              if (!Array.isArray(data)) {
+                  throw new Error('Format file salah (harus berupa array).');
+              }
+              
+              // Simple validation: check if first item has score or userId if array not empty
+              if (data.length > 0 && (!data[0].hasOwnProperty('score') || !data[0].hasOwnProperty('userId'))) {
+                   throw new Error('Struktur data peringkat tidak valid.');
+              }
+
+              localStorage.setItem('leaderboard', JSON.stringify(data));
+              setImportFeedback(`Berhasil mengimpor ${data.length} data peringkat! Halaman akan dimuat ulang...`);
+              
+              // Reload to reflect changes in app state
+              setTimeout(() => {
+                  window.location.reload();
+              }, 1500);
+
+          } catch (error: any) {
+              setImportFeedback(`Error Impor: ${error.message}`);
+          }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+  };
+
   const handleDownloadExample = () => {
     const blob = new Blob([jsonExampleFormat], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -234,7 +306,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   }
 
   return (
-    <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300">
+    <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300 relative">
       <div className="flex-grow flex flex-col items-center justify-center text-center">
         <motion.div
           animate={{ rotate: [0, 5, -5, 5, 0], scale: [1, 1.05, 1] }}
@@ -399,38 +471,76 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
 
       <div className="shrink-0 mt-4 pt-4 border-t border-sky-100 dark:border-gray-700">
         <div className="space-y-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".json"
-            className="hidden"
-          />
+          {/* Questions Import Section */}
+          <div className="flex gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={handleImportClick}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition-all text-xs"
+              >
+                <UploadCloudIcon className="w-4 h-4" />
+                Impor Soal
+              </button>
+              <button
+                type="button"
+                onClick={handleClearImported}
+                className="flex-1 px-3 py-2 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-all text-xs"
+              >
+                Hapus Soal
+              </button>
+          </div>
+
+          {/* Leaderboard Management Section */}
+          <div className="flex gap-2">
+              <input
+                type="file"
+                ref={leaderboardInputRef}
+                onChange={handleLeaderboardFileChange}
+                accept=".json"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => setIsCloudModalOpen(true)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-sky-600 text-white font-bold rounded-lg shadow-md hover:from-blue-600 hover:to-sky-700 transition-all text-xs"
+                title="Sinkronisasi Data ke Cloud"
+              >
+                <CloudIcon className="w-4 h-4" />
+                Cloud Sync (Best)
+              </button>
+              <button
+                type="button"
+                onClick={handleExportLeaderboard}
+                className="px-3 py-2 bg-cyan-600 text-white font-bold rounded-lg shadow-md hover:bg-cyan-700 transition-all text-xs flex items-center justify-center"
+                title="Ekspor Data Peringkat ke File JSON"
+              >
+                <DownloadIcon className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleImportLeaderboardClick}
+                className="px-3 py-2 bg-amber-600 text-white font-bold rounded-lg shadow-md hover:bg-amber-700 transition-all text-xs flex items-center justify-center"
+                title="Impor Data Peringkat dari File JSON"
+              >
+                <UploadCloudIcon className="w-4 h-4" />
+              </button>
+          </div>
+
           <button
             type="button"
-            onClick={handleImportClick}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/30 hover:bg-indigo-600 transition-all text-sm"
+            onClick={() => { onResetGlobalLeaderboard(); playSound('uiClick'); }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition-all text-xs"
           >
-            <UploadCloudIcon className="w-4 h-4" />
-            Impor Soal (JSON)
+            <TrashIcon className="w-4 h-4" />
+            Reset Peringkat Global
           </button>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleClearImported}
-              className="w-full px-4 py-2 bg-gray-500 text-white font-bold rounded-lg shadow-md shadow-gray-500/30 hover:bg-gray-600 transition-all text-sm"
-            >
-              Hapus Soal Impor
-            </button>
-            <button
-              type="button"
-              onClick={() => { onResetGlobalLeaderboard(); playSound('uiClick'); }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all text-sm"
-            >
-              <TrashIcon className="w-4 h-4" />
-              Reset Peringkat
-            </button>
-          </div>
         </div>
 
         <div className="mt-3">
@@ -458,24 +568,26 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
           onClick={handleDownloadExample}
           className="w-full mt-3 text-sm text-sky-500 dark:text-sky-400 font-semibold hover:underline"
         >
-          Unduh Contoh Format JSON
+          Unduh Contoh Format Soal
         </button>
-        <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
-          Catatan: Soal yang diimpor akan tersedia di mode Klasik & Knockout.
-        </p>
 
         <AnimatePresence>
         {importFeedback && (
           <motion.p 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-xs text-green-600 dark:text-green-400 mt-2 text-center"
+            exit={{ opacity: 0 }}
+            className="text-xs text-green-600 dark:text-green-400 mt-2 text-center bg-green-50 dark:bg-green-900/30 p-1 rounded"
           >
             {importFeedback}
           </motion.p>
         )}
         </AnimatePresence>
       </div>
+      
+      <AnimatePresence>
+        {isCloudModalOpen && <CloudSyncModal onClose={() => setIsCloudModalOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 };
