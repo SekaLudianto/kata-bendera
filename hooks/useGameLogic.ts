@@ -13,6 +13,7 @@ import { footballPlayers } from '../data/football_players';
 import { footballClubs } from '../data/football_clubs';
 import { footballStadiums } from '../data/football_stadiums';
 import { triviaQuestions } from '../data/trivia';
+import { bikinEmosiQuestions } from '../data/bikin_emosi';
 import { kpopTrivia } from '../data/kpop_trivia';
 import { cities } from '../data/cities';
 import { movies } from '../data/movies';
@@ -356,13 +357,74 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         let foundAnswer = '';
 
         if (state.gameMode === GameMode.ABC5Dasar && state.currentLetter && state.currentCategory) {
-            const validationList = getValidationList(state.currentCategory)
+            // Note: Validation logic is now handled in useGameLogic's `getValidationList` call context, 
+            // but the reducer receives the result of matching. 
+            // However, the reducer CANNOT access external state easily.
+            // The check must happen here if we want to update `usedAnswers`.
+            // But `validationList` is dynamic.
+            
+            // NOTE: Ideally, the validation list should be passed in payload or available in state.
+            // Since `validationList` is large, we can't store it in state every round.
+            // We'll rely on the `useGameLogic` hook to pass a flag or handle the logic.
+            // ACTUALLY: The reducer logic for ABC 5 Dasar is tricky without the list.
+            // We will defer the *check* to the Hook, but here we assume if it enters this block in Hook, it's valid.
+            // Wait, this reducer handles the check.
+            
+            // WORKAROUND: We will attach the `validationList` to the state temporarily or use a helper.
+            // Since we can't easily change the reducer signature without major refactor, 
+            // we will make `getValidationList` accessible globally or pass it in.
+            // BETTER: We will assume `action.payload` might contain the `isCorrect` flag if we move logic to Hook.
+            // BUT: current architecture has logic in reducer.
+            
+            // To support custom data in reducer:
+            // We need to pass the validation list into the state when starting the round.
+            // Let's modify `START_GAME` and `NEXT_ROUND` to include `validationList` if it's ABC mode? 
+            // No, that's too much data for state.
+            
+            // ALTERNATIVE: `useGameLogic` hook will handle the specific ABC check before dispatching?
+            // No, `processComment` calls dispatch directly.
+            
+            // SOLUTION: We will inject a static-like accessor for the validation data that the reducer can use,
+            // OR we accept that for ABC 5 Dasar, the reducer needs access to the data source.
+            // Since `countries`, `fruits` etc are imported at top of file, the reducer HAS access to built-ins.
+            // It just doesn't have access to `localStorage` custom data easily.
+            
+            // We will implement a `DataStore` singleton or similar pattern for the reducer to access combined data.
+            // For now, let's keep it simple: `useGameLogic` will update a module-level variable or we simply
+            // read localStorage inside the reducer (not pure, but works for this app).
+            
+            let validationList: string[] = [];
+            
+            // Try to load custom data
+            let customData: any = {};
+            try {
+                const stored = localStorage.getItem('custom-questions');
+                if(stored) customData = JSON.parse(stored);
+            } catch(e) {}
+
+            const combine = (builtin: string[], custom: string[] | undefined) => {
+                if (!custom || !Array.isArray(custom)) return builtin;
+                return [...new Set([...builtin, ...custom])]; // Deduplicate
+            };
+
+            switch(state.currentCategory){
+                case 'Negara': validationList = combine(countries.map(c => c.name), customData.countries?.map((c:any) => c.name)); break;
+                case 'Buah': validationList = combine(fruits, customData.fruits); break;
+                case 'Hewan': validationList = combine(animals, customData.animals); break;
+                case 'Benda': validationList = combine(objects, customData.objects); break;
+                case 'Profesi': validationList = combine(professions, customData.professions); break;
+                case 'Kota di Indonesia': validationList = combine(indonesianCities, customData.indonesianCities); break;
+                case 'Tumbuhan': validationList = combine(plants, customData.plants); break;
+            }
+
+            const validItems = validationList
                 .filter(item => item.toLowerCase().startsWith(state.currentLetter!.toLowerCase()))
                 .filter(item => !state.usedAnswers.includes(item.toLowerCase()));
             
-            validationList.sort((a, b) => b.length - a.length);
+            // Sort by length desc to match longest words first (e.g. "Apple Pie" before "Apple")
+            validItems.sort((a, b) => b.length - a.length);
 
-            for (const validItem of validationList) {
+            for (const validItem of validItems) {
                 if (checkAnswer(comment, validItem)) {
                     isCorrect = true;
                     foundAnswer = validItem;
@@ -381,6 +443,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
                 case GameMode.GuessTheCity: expectedAnswer = state.currentCity?.name || ''; break;
                 case GameMode.Trivia: 
                 case GameMode.KpopTrivia:
+                case GameMode.BikinEmosi:
                     expectedAnswer = state.currentTriviaQuestion?.answer || ''; break;
                 case GameMode.ZonaBola: expectedAnswer = state.currentWord || state.currentStadium?.name || ''; break;
             }
@@ -757,18 +820,6 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
 };
 
 const abcCategories: AbcCategory[] = ['Negara', 'Buah', 'Hewan', 'Benda', 'Profesi', 'Kota di Indonesia', 'Tumbuhan'];
-const getValidationList = (category: AbcCategory): string[] => {
-    switch(category){
-        case 'Negara': return countries.map(c => c.name);
-        case 'Buah': return fruits;
-        case 'Hewan': return animals;
-        case 'Benda': return objects;
-        case 'Profesi': return professions;
-        case 'Kota di Indonesia': return indonesianCities;
-        case 'Tumbuhan': return plants;
-        default: return [];
-    }
-};
 
 export const useGameLogic = () => {
   const [state, dispatch] = useReducer(gameReducer, createInitialState());
@@ -782,6 +833,10 @@ export const useGameLogic = () => {
   const fruitDeck = useRef<string[]>([]);
   const animalDeck = useRef<string[]>([]);
   const movieDeck = useRef<string[]>([]);
+  const bikinEmosiDeck = useRef<TriviaQuestion[]>([]);
+  
+  // Ref for validation lists used in ABC 5 Dasar
+  const validationLists = useRef<Record<string, string[]>>({});
   
   const usedQuestionIdentifiers = useRef<Record<string, Set<string>>>({});
   const useImportedOnlyRef = useRef(false);
@@ -860,8 +915,6 @@ export const useGameLogic = () => {
     const customQuestionsRaw = localStorage.getItem('custom-questions');
     const customQuestions = customQuestionsRaw ? JSON.parse(customQuestionsRaw) : {};
     
-    // NOTE: Removed usedQuestionIdentifiers.current = {}; to preserve session history
-
     const createDeck = <T,>(builtIn: T[], custom: T[] | undefined): T[] => {
         const customDeck = custom || [];
         if (useImportedOnly && customDeck.length > 0) {
@@ -880,6 +933,26 @@ export const useGameLogic = () => {
     fruitDeck.current = createDeck(fruits, customQuestions.fruits);
     animalDeck.current = createDeck(animals, customQuestions.animals);
     movieDeck.current = createDeck(movies, customQuestions.movies);
+    bikinEmosiDeck.current = createDeck(bikinEmosiQuestions, customQuestions.bikinEmosi);
+    
+    // Prepare validation lists for ABC 5 Dasar (merged built-in and custom)
+    const combine = (builtin: string[], custom: string[] | undefined) => {
+        const c = custom || [];
+        return [...new Set([...builtin, ...c])];
+    };
+    
+    // We assume custom.countries is array of objects {name, code}, so map to name.
+    const customCountryNames = customQuestions.countries ? customQuestions.countries.map((c: any) => c.name) : [];
+    
+    validationLists.current = {
+        'Negara': combine(countries.map(c => c.name), customCountryNames),
+        'Buah': combine(fruits, customQuestions.fruits),
+        'Hewan': combine(animals, customQuestions.animals),
+        'Benda': combine(objects, customQuestions.objects),
+        'Profesi': combine(professions, customQuestions.professions),
+        'Kota di Indonesia': combine(indonesianCities, customQuestions.indonesianCities),
+        'Tumbuhan': combine(plants, customQuestions.plants)
+    };
   }, []);
 
   const getNextCountry = useCallback(() => getNextUniqueItem(countryDeck, countries, 'countries', c => c.name), [getNextUniqueItem]);
@@ -892,6 +965,7 @@ export const useGameLogic = () => {
   const getNextFruit = useCallback(() => getNextUniqueItem(fruitDeck, fruits, 'fruits', f => f), [getNextUniqueItem]);
   const getNextAnimal = useCallback(() => getNextUniqueItem(animalDeck, animals, 'animals', a => a), [getNextUniqueItem]);
   const getNextMovie = useCallback(() => getNextUniqueItem(movieDeck, movies, 'movies', m => m), [getNextUniqueItem]);
+  const getNextBikinEmosi = useCallback(() => getNextUniqueItem(bikinEmosiDeck, bikinEmosiQuestions, 'bikinEmosi', q => q.question), [getNextUniqueItem]);
   
   const getNextAbcCombo = useCallback(() => {
     const categoryKey = 'abc_5_dasar';
@@ -911,11 +985,13 @@ export const useGameLogic = () => {
             // All combinations have been used, reset the set
             usedQuestionIdentifiers.current[categoryKey]!.clear();
         }
-    } while (usedQuestionIdentifiers.current[categoryKey]!.has(combo) && attempts < 150); // Increased attempts
+    } while (usedQuestionIdentifiers.current[categoryKey]!.has(combo) && attempts < 150);
     
     usedQuestionIdentifiers.current[categoryKey]!.add(combo);
-    const validationList = getValidationList(category);
-    const availableAnswers = validationList.filter(item => item.toLowerCase().startsWith(letter.toLowerCase()));
+    
+    // Use validationLists ref to check available answers
+    const list = validationLists.current[category] || [];
+    const availableAnswers = list.filter(item => item.toLowerCase().startsWith(letter.toLowerCase()));
     
     return { letter, category, availableAnswersCount: availableAnswers.length };
   }, []);
@@ -986,6 +1062,8 @@ export const useGameLogic = () => {
         } else if (firstRoundMode === GameMode.ZonaFilm) {
             firstRoundData.word = getNextMovie();
             firstRoundData.wordCategory = 'Film';
+        } else if (firstRoundMode === GameMode.BikinEmosi) {
+            firstRoundData.triviaQuestion = getNextBikinEmosi();
         }
         
         dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, totalRounds: roundsToPlay, isHardMode: options?.isHardMode, classicRoundDeck, firstRoundData } });
@@ -993,7 +1071,7 @@ export const useGameLogic = () => {
     } else { // Knockout
         dispatch({ type: 'START_GAME', payload: { gameStyle, maxWinners, knockoutCategory: options?.knockoutCategory } });
     }
-  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie]);
+  }, [prepareNewDecks, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie, getNextBikinEmosi]);
   
   const nextRound = useCallback(() => {
     // Check against dynamic totalRounds in state, not constant
@@ -1042,9 +1120,11 @@ export const useGameLogic = () => {
     } else if (nextGameMode === GameMode.ZonaFilm) {
         payload.nextWord = getNextMovie();
         payload.nextWordCategory = 'Film';
+    } else if (nextGameMode === GameMode.BikinEmosi) {
+        payload.nextTriviaQuestion = getNextBikinEmosi();
     }
     dispatch({ type: 'NEXT_ROUND', payload: payload as GameActionPayloads['NEXT_ROUND'] });
-  }, [state.round, state.totalRounds, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie]);
+  }, [state.round, state.totalRounds, state.gameStyle, state.classicRoundDeck, getNextCountry, getNextAbcCombo, getNextTrivia, getNextCity, getNextZonaBola, getNextFruit, getNextAnimal, getNextKpopTrivia, getNextMovie, getNextBikinEmosi]);
 
   const finishWinnerDisplay = useCallback(() => {
       dispatch({ type: 'HIDE_WINNER_MODAL' });
@@ -1292,6 +1372,7 @@ export const useGameLogic = () => {
         return `(Jawaban Kategori ${state.currentCategory} diawali huruf ${state.currentLetter})`;
       case GameMode.Trivia:
       case GameMode.KpopTrivia:
+      case GameMode.BikinEmosi:
         return state.currentTriviaQuestion?.answer || '';
       case GameMode.ZonaBola:
         return state.currentWord || state.currentStadium?.name || '';

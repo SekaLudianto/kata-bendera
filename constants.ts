@@ -1,3 +1,4 @@
+
 export const TOTAL_ROUNDS = 15;
 export const ROUND_TIMER_SECONDS = 180;
 export const DEFAULT_MAX_WINNERS_PER_ROUND = 5;
@@ -22,3 +23,6 @@ export const UNIQUENESS_BONUS_POINTS = 50; // Bonus untuk jawaban unik di ABC 5 
 
 // SHA-256 hash for 'BajajBajuri2014'
 export const ADMIN_PASSWORD_HASH = '49fe3cf2afd702dd1278b066ccede5ae94e20e8f484847d63dcfa46b3b208306';
+
+// JSONBin API Key Default
+export const DEFAULT_JSONBIN_API_KEY = '$2a$10$8Kf8oENOwyp.d1giZfSzi.y8APSN1jjnS9T2qPEASFiRd8yivLJ0e';

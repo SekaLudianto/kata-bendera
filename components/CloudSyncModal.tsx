@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CloudIcon, KeyIcon, DownloadIcon, UploadCloudIcon, CheckIcon, CopyIcon, LinkIcon } from './IconComponents';
+import { DEFAULT_JSONBIN_API_KEY } from '../constants';
 
 interface CloudSyncModalProps {
   onClose: () => void;
@@ -10,7 +11,7 @@ interface CloudSyncModalProps {
 const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
 
 const CloudSyncModal: React.FC<CloudSyncModalProps> = ({ onClose }) => {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('jsonbin_api_key') || '');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('jsonbin_api_key') || DEFAULT_JSONBIN_API_KEY);
   const [binId, setBinId] = useState(() => localStorage.getItem('jsonbin_bin_id') || '');
   const [activeTab, setActiveTab] = useState<'upload' | 'download' | 'settings'>('upload');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -253,7 +254,7 @@ const CloudSyncModal: React.FC<CloudSyncModalProps> = ({ onClose }) => {
               <motion.div key="settings" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-4">
                 <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-100 dark:border-amber-800/30">
                     <p className="text-xs text-amber-800 dark:text-amber-200">
-                        Fitur ini menggunakan layanan gratis <b>JSONBin.io</b>. Anda perlu mendaftar (gratis) untuk mendapatkan API Key.
+                        Fitur ini menggunakan layanan gratis <b>JSONBin.io</b>. API Key default telah diatur.
                     </p>
                     <a 
                         href="https://jsonbin.io/login" 
@@ -262,7 +263,7 @@ const CloudSyncModal: React.FC<CloudSyncModalProps> = ({ onClose }) => {
                         className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
                     >
                         <LinkIcon className="w-3 h-3" />
-                        Dapatkan API Key di sini
+                        Website JSONBin
                     </a>
                 </div>
 

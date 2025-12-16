@@ -168,6 +168,7 @@ export enum GameMode {
   GuessTheAnimal = 'guess_the_animal',
   KpopTrivia = 'kpop_trivia',
   ZonaFilm = 'zona_film',
+  BikinEmosi = 'bikin_emosi',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
@@ -181,6 +182,7 @@ export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'Gues
 export interface TriviaQuestion {
   question: string;
   answer: string;
+  explanation?: string; // Penjelasan untuk jawaban (opsional, terutama untuk mode Bikin Emosi)
 }
 
 export interface KnockoutPlayer {

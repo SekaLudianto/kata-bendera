@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, DownloadIcon, CloudIcon } from './IconComponents';
-import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS } from '../constants';
+import { GamepadIcon, UploadCloudIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon, DownloadIcon, CloudIcon, DatabaseIcon, InfoIcon } from './IconComponents';
+import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS, ADMIN_PASSWORD_HASH } from '../constants';
 import { GameMode, GameStyle, KnockoutCategory } from '../types';
 import { useSound } from '../hooks/useSound';
 import CloudSyncModal from './CloudSyncModal';
+import AdminQuestionDashboard from './AdminQuestionDashboard';
 
 interface ModeSelectionScreenProps {
   onStartClassic: (maxWinners: number, categories: GameMode[], useImportedOnly: boolean, totalRounds: number, isHardMode: boolean) => void;
@@ -18,6 +19,7 @@ const classicCategories: { id: GameMode, name: string }[] = [
     { id: GameMode.GuessTheFlag, name: 'Tebak Bendera' },
     { id: GameMode.ABC5Dasar, name: 'ABC 5 Dasar' },
     { id: GameMode.Trivia, name: 'Trivia Umum' },
+    { id: GameMode.BikinEmosi, name: 'Bikin Emosi (Jebakan)' },
     { id: GameMode.GuessTheCity, name: 'Tebak Kota' },
     { id: GameMode.ZonaBola, name: 'Zona Bola' },
     { id: GameMode.GuessTheFruit, name: 'Tebak Buah' },
@@ -26,7 +28,7 @@ const classicCategories: { id: GameMode, name: string }[] = [
     { id: GameMode.ZonaFilm, name: 'Zona Film' },
 ];
 
-const validImportKeys = ['countries', 'trivia', 'cities', 'footballPlayers', 'footballClubs', 'footballStadiums', 'fruits', 'animals', 'kpopTrivia', 'movies'];
+const validImportKeys = ['countries', 'trivia', 'cities', 'footballPlayers', 'footballClubs', 'footballStadiums', 'fruits', 'animals', 'kpopTrivia', 'movies', 'objects', 'professions', 'plants', 'indonesianCities', 'bikinEmosi'];
 
 const jsonExampleFormat = `{
   "countries": [
@@ -34,6 +36,9 @@ const jsonExampleFormat = `{
   ],
   "trivia": [
     { "question": "Siapa Iron Man?", "answer": "Tony Stark" }
+  ],
+  "bikinEmosi": [
+    { "question": "Bangun tidur ku terus...", "answer": "Melek", "explanation": "Ya melek dulu baru mandi dong." }
   ],
   "cities": [
     { "name": "Gotham", "region": "DC Universe" }
@@ -58,6 +63,18 @@ const jsonExampleFormat = `{
   ],
   "movies": [
     "Avengers Endgame"
+  ],
+  "objects": [
+    "Mesin Waktu"
+  ],
+  "professions": [
+    "Pahlawan"
+  ],
+  "plants": [
+    "Bunga Matahari"
+  ],
+  "indonesianCities": [
+    "Konoha"
   ]
 }`;
 
@@ -83,10 +100,14 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   const [hasImportedQuestions, setHasImportedQuestions] = useState(false);
   const [isCategoryListOpen, setIsCategoryListOpen] = useState(true);
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leaderboardInputRef = useRef<HTMLInputElement>(null);
   const { playSound } = useSound();
+
+  // Check if admin is authenticated
+  const isAuthenticated = localStorage.getItem('tiktok-quiz-auth') === ADMIN_PASSWORD_HASH;
 
   useEffect(() => {
     const checkStorage = () => {
@@ -101,7 +122,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
     // Listen to storage changes from other tabs/windows
     window.addEventListener('storage', checkStorage);
     return () => window.removeEventListener('storage', checkStorage);
-  }, []);
+  }, [isAdminDashboardOpen]); // Re-check when closing dashboard
 
   useEffect(() => {
     localStorage.setItem('tiktok-quiz-maxwinners', String(maxWinners));
@@ -307,6 +328,19 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
 
   return (
     <div className="flex flex-col h-full p-4 bg-white dark:bg-gray-800 rounded-3xl transition-colors duration-300 relative">
+        {/* Admin Dashboard Button */}
+        {isAuthenticated && (
+            <div className="absolute top-4 left-4 z-10">
+                <button
+                    onClick={() => setIsAdminDashboardOpen(true)}
+                    className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-sky-100 dark:hover:bg-sky-900 hover:text-sky-600 dark:hover:text-sky-400 transition-colors shadow-sm"
+                    title="Dashboard Kelola Soal"
+                >
+                    <DatabaseIcon className="w-5 h-5" />
+                </button>
+            </div>
+        )}
+
       <div className="flex-grow flex flex-col items-center justify-center text-center">
         <motion.div
           animate={{ rotate: [0, 5, -5, 5, 0], scale: [1, 1.05, 1] }}
@@ -557,16 +591,24 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
                   <div className="block bg-gray-200 dark:bg-gray-700 w-10 h-6 rounded-full"></div>
                   <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${useImportedOnly ? 'translate-x-full' : ''}`}></div>
               </div>
-              <div className="ml-3 text-gray-700 dark:text-gray-300 font-medium text-sm">
-                  Hanya Gunakan Soal Impor
+              <div className="ml-3 text-gray-700 dark:text-gray-300 font-medium text-xs text-left max-w-[200px]">
+                  {useImportedOnly 
+                    ? "Hanya Gunakan Soal Kustom (Nonaktifkan Bawaan)" 
+                    : "Campur Soal Kustom & Bawaan (Default)"}
               </div>
           </label>
+          <div className="flex items-start gap-1.5 mt-2 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-[10px] text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+             <InfoIcon className="w-3 h-3 shrink-0 mt-0.5" />
+             <p>
+               Secara default, soal yang Anda tambahkan di Bank Soal akan <b>dicampur/digabungkan</b> dengan database bawaan game. Centang opsi di atas jika hanya ingin memakai soal buatan sendiri.
+             </p>
+          </div>
         </div>
         
         <button
           type="button"
           onClick={handleDownloadExample}
-          className="w-full mt-3 text-sm text-sky-500 dark:text-sky-400 font-semibold hover:underline"
+          className="w-full mt-2 text-sm text-sky-500 dark:text-sky-400 font-semibold hover:underline"
         >
           Unduh Contoh Format Soal
         </button>
@@ -587,6 +629,9 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
       
       <AnimatePresence>
         {isCloudModalOpen && <CloudSyncModal onClose={() => setIsCloudModalOpen(false)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isAdminDashboardOpen && <AdminQuestionDashboard onClose={() => setIsAdminDashboardOpen(false)} />}
       </AnimatePresence>
     </div>
   );

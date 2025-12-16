@@ -324,6 +324,47 @@ const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }
     );
 };
 
+const BikinEmosiContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
+    const { currentTriviaQuestion, isRoundActive, scrambledWord, isHardMode, revealLevel } = gameState;
+    if (!currentTriviaQuestion) return null;
+  
+    return (
+      <div className="text-center px-2 flex flex-col items-center justify-center gap-3">
+        <div className="bg-red-100 dark:bg-red-900/30 px-3 py-1 rounded-full text-xs font-bold text-red-600 dark:text-red-400 mb-1 uppercase tracking-wide">
+            ⚠️ Awas Jebakan!
+        </div>
+        <h2 className="text-lg sm:text-xl font-bold text-slate-700 dark:text-slate-200 leading-tight">
+            {currentTriviaQuestion.question}
+        </h2>
+        
+        <ScrambledWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} isHardMode={isHardMode} revealLevel={revealLevel} />
+
+        <AnimatePresence>
+        {!isRoundActive && (
+             <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-4 p-3 bg-amber-50 dark:bg-gray-700/50 rounded-lg border border-amber-200 dark:border-gray-600 w-full max-w-sm"
+             >
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Jawabannya:</p>
+                <p className="text-xl font-extrabold text-green-600 dark:text-green-400 mb-2">
+                    {currentTriviaQuestion.answer}
+                </p>
+                {currentTriviaQuestion.explanation && (
+                    <div className="pt-2 border-t border-dashed border-gray-300 dark:border-gray-500">
+                        <p className="text-xs font-bold text-sky-600 dark:text-sky-400 mb-0.5">Penjelasan:</p>
+                        <p className="text-sm italic text-slate-600 dark:text-slate-300">
+                            "{currentTriviaQuestion.explanation}"
+                        </p>
+                    </div>
+                )}
+             </motion.div>
+        )}
+        </AnimatePresence>
+      </div>
+    );
+};
+
 const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
     const { currentCity, scrambledWord, isRoundActive, isHardMode, revealLevel } = gameState;
     if (!currentCity) return null;
@@ -499,6 +540,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, gifterLeaderbo
     if (gameMode === GameMode.GuessTheAnimal) return 'Tebak Hewan';
     if (gameMode === GameMode.KpopTrivia) return 'Trivia: Zona KPOP';
     if (gameMode === GameMode.ZonaFilm) return 'Zona Film';
+    if (gameMode === GameMode.BikinEmosi) return 'Bikin Emosi (Jebakan)';
     return '';
   }
 
@@ -601,6 +643,7 @@ const GameTab: React.FC<GameTabProps> = ({ gameState, serverTime, gifterLeaderbo
         )}
         {gameState.gameMode === GameMode.ABC5Dasar && <ABC5DasarContent gameState={gameState} />}
         {(gameState.gameMode === GameMode.Trivia || gameState.gameMode === GameMode.KpopTrivia) && <TriviaContent gameState={gameState} />}
+        {gameState.gameMode === GameMode.BikinEmosi && <BikinEmosiContent gameState={gameState} />}
         {gameState.gameMode === GameMode.GuessTheCity && <GuessTheCityContent gameState={gameState} />}
         {gameState.gameMode === GameMode.ZonaBola && <ZonaBolaContent gameState={gameState} />}
 
