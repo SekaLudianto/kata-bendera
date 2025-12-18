@@ -17,8 +17,10 @@ interface ModeSelectionScreenProps {
 
 const classicCategories: { id: GameMode, name: string }[] = [
     { id: GameMode.GuessTheFlag, name: 'Tebak Bendera' },
+    { id: GameMode.GuessTheEmoji, name: 'Tebak Emoji' },
     { id: GameMode.ABC5Dasar, name: 'ABC 5 Dasar' },
     { id: GameMode.Trivia, name: 'Trivia Umum' },
+    { id: GameMode.FootballTrivia, name: 'Trivia Bola' },
     { id: GameMode.BikinEmosi, name: 'Bikin Emosi (Jebakan)' },
     { id: GameMode.GuessTheCity, name: 'Tebak Kota' },
     { id: GameMode.ZonaBola, name: 'Zona Bola' },
@@ -28,7 +30,7 @@ const classicCategories: { id: GameMode, name: string }[] = [
     { id: GameMode.ZonaFilm, name: 'Zona Film' },
 ];
 
-const validImportKeys = ['countries', 'trivia', 'cities', 'footballPlayers', 'footballClubs', 'footballStadiums', 'fruits', 'animals', 'kpopTrivia', 'movies', 'objects', 'professions', 'plants', 'indonesianCities', 'bikinEmosi'];
+const validImportKeys = ['countries', 'trivia', 'cities', 'footballPlayers', 'footballClubs', 'footballStadiums', 'footballTrivia', 'fruits', 'animals', 'kpopTrivia', 'movies', 'objects', 'professions', 'plants', 'indonesianCities', 'bikinEmosi', 'emojiPuzzles'];
 
 const jsonExampleFormat = `{
   "countries": [
@@ -36,6 +38,12 @@ const jsonExampleFormat = `{
   ],
   "trivia": [
     { "question": "Siapa Iron Man?", "answer": "Tony Stark" }
+  ],
+  "footballTrivia": [
+    { "question": "Juara Piala Dunia 2022?", "answer": "Argentina" }
+  ],
+  "emojiPuzzles": [
+    { "emoji": "🕸️👦", "answer": "Spiderman" }
   ],
   "bikinEmosi": [
     { "question": "Bangun tidur ku terus...", "answer": "Melek", "explanation": "Ya melek dulu baru mandi dong." }
@@ -312,8 +320,11 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
   };
   
   const knockoutCategories: { id: KnockoutCategory, name: string }[] = [
+    // FIX: Changed 'GuessTheFlag' to 'GuessTheCountry' to match the KnockoutCategory union type defined in types.ts.
     { id: 'GuessTheCountry', name: 'Tebak Negara' },
+    { id: 'GuessTheEmoji', name: 'Tebak Emoji' },
     { id: 'Trivia', name: 'Trivia Umum' },
+    { id: 'FootballTrivia', name: 'Trivia Bola' },
     { id: 'ZonaBola', name: 'Zona Bola' },
     { id: 'GuessTheFruit', name: 'Tebak Buah' },
     { id: 'GuessTheAnimal', name: 'Tebak Hewan' },

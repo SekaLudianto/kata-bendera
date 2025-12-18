@@ -20,6 +20,7 @@ const CATEGORIES = [
   { id: 'professions', name: 'ABC: Profesi', type: 'string' },
   { id: 'plants', name: 'ABC: Tumbuhan', type: 'string' },
   { id: 'trivia', name: 'Trivia Umum', type: 'object', fields: ['question', 'answer'] },
+  { id: 'footballTrivia', name: 'Trivia Bola', type: 'object', fields: ['question', 'answer'] },
   { id: 'kpopTrivia', name: 'Trivia K-Pop', type: 'object', fields: ['question', 'answer'] },
   { id: 'cities', name: 'Tebak Kota (Dunia)', type: 'object', fields: ['name', 'region'] },
   { id: 'footballStadiums', name: 'Stadion Bola', type: 'object', fields: ['name', 'location'] },

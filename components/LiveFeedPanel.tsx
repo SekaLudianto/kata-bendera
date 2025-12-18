@@ -1,7 +1,8 @@
+
 import React, { useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LiveFeedEvent, ChatMessage, GiftNotification, DonationEvent } from '../types';
-import { GiftIcon } from './IconComponents';
+import { GiftIcon, CheckIcon } from './IconComponents';
 
 const formatTimestamp = (ms: number | undefined): string => {
     if (!ms) return '';
@@ -78,9 +79,10 @@ const GiftItem: React.FC<GiftNotification | DonationEvent> = (props) => {
 
 interface LiveFeedPanelProps {
   feed: LiveFeedEvent[];
+  currentAnswer?: string;
 }
 
-const LiveFeedPanel: React.FC<LiveFeedPanelProps> = ({ feed }) => {
+const LiveFeedPanel: React.FC<LiveFeedPanelProps> = ({ feed, currentAnswer }) => {
   const feedContainerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -95,6 +97,7 @@ const LiveFeedPanel: React.FC<LiveFeedPanelProps> = ({ feed }) => {
       <header className="p-3 text-center border-b border-sky-100 dark:border-gray-700 shrink-0">
         <h2 className="text-md font-bold text-slate-700 dark:text-gray-300">Live Interaksi</h2>
       </header>
+      
       <div ref={feedContainerRef} className="flex-grow overflow-y-auto p-3">
         <div className="space-y-2">
             <AnimatePresence initial={false}>
@@ -114,6 +117,22 @@ const LiveFeedPanel: React.FC<LiveFeedPanelProps> = ({ feed }) => {
             )}
         </div>
       </div>
+
+      {currentAnswer && (
+        <div className="shrink-0 p-3 bg-green-50 dark:bg-green-900/10 border-t border-green-100 dark:border-green-800/30">
+            <div className="flex items-center gap-2 mb-1">
+                <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded-full">
+                    <CheckIcon className="w-3 h-3 text-green-600 dark:text-green-400" />
+                </div>
+                <p className="text-xs font-bold text-green-700 dark:text-green-300 uppercase tracking-wide">
+                    Kunci Jawaban
+                </p>
+            </div>
+            <p className="text-sm font-mono font-bold text-slate-800 dark:text-white break-words pl-1">
+                {currentAnswer}
+            </p>
+        </div>
+      )}
     </div>
   );
 };

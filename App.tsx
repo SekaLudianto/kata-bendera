@@ -130,10 +130,9 @@ const App: React.FC = () => {
 
     // --- MORE ROBUST DEDUPLICATION LOGIC ---
     const currentTimestamp = Date.now();
-    const cleanupThreshold = 10000; // Keep history for 10 seconds.
-    const duplicateThreshold = 1500; // 1.5 seconds for signature-based duplicates.
+    const cleanupThreshold = 10000; 
+    const duplicateThreshold = 1500; 
 
-    // 1. Cleanup old entries from both caches
     for (const [key, timestamp] of processedMsgIds.current.entries()) {
         if (currentTimestamp - timestamp > cleanupThreshold) processedMsgIds.current.delete(key);
     }
@@ -141,9 +140,6 @@ const App: React.FC = () => {
         if (currentTimestamp - timestamp > cleanupThreshold) processedGiftsCache.current.delete(key);
     }
 
-    // 2. PRIMARY CHECK: A time-sensitive signature.
-    // This catches rapid, near-identical events from different sources (e.g., two servers sending the same gift).
-    // We exclude giftName as it could be localized differently ("Rose" vs "Mawar").
     const giftSignature = `${normalizedGift.userId}-${normalizedGift.giftId}-${normalizedGift.giftCount}`;
     const lastSeenSignatureTime = processedGiftsCache.current.get(giftSignature);
 
@@ -152,8 +148,6 @@ const App: React.FC = () => {
         return;
     }
 
-    // 3. SECONDARY CHECK: The unique message ID from the server.
-    // This catches an exact event being re-broadcast, even if it's after the signature threshold.
     const msgId = gift.msgId;
     if (typeof msgId === 'string' && msgId.length > 0) {
         if (processedMsgIds.current.has(msgId)) {
@@ -162,20 +156,16 @@ const App: React.FC = () => {
         }
     }
 
-    // 4. If all checks pass, it's a unique gift. Update caches and process it.
     processedGiftsCache.current.set(giftSignature, currentTimestamp);
     if (typeof msgId === 'string' && msgId.length > 0) {
         processedMsgIds.current.set(msgId, currentTimestamp);
     }
-    // --- END DEDUPLICATION LOGIC ---
 
     const fullGift = { ...normalizedGift, id: `${new Date().getTime()}-${normalizedGift.userId}` };
     
-    // Add to queue and live feed using normalized data
     giftQueue.current.push(normalizedGift);
     setLiveFeed(prev => [fullGift, ...prev].slice(0, 100));
 
-    // Update Gifter Leaderboard
     setGifterLeaderboard(prev => {
         const newBoard = [...prev];
         const existingIndex = newBoard.findIndex(p => p.userId === normalizedGift.userId);
@@ -195,7 +185,6 @@ const App: React.FC = () => {
         return newBoard.sort((a, b) => b.score - a.score);
     });
 
-    // Trigger the queue processing
     setCurrentGift(prevCurrentGift => {
         if (prevCurrentGift) return prevCurrentGift;
         const nextGift = giftQueue.current.shift();
@@ -205,7 +194,7 @@ const App: React.FC = () => {
         return null;
     });
 
-    // Gift Logic
+    // Gift Logic - Buka clue di semua mode
     const giftNameLower = normalizedGift.giftName.toLowerCase();
     const giftId = normalizedGift.giftId;
     
@@ -218,7 +207,9 @@ const App: React.FC = () => {
     if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
         if (isFingerHeart) {
             game.skipRound();
-        } else if (game.state.isHardMode) {
+        } else {
+            // Mawar (atau gift lain) sekarang membuka clue baik di mode normal maupun sulit.
+            // Di mode normal, ini berfungsi sebagai "percepat reveal".
             for (let i = 0; i < normalizedGift.giftCount; i++) {
                 game.revealClue();
             }
@@ -227,14 +218,12 @@ const App: React.FC = () => {
   }, [gameState, game]);
   
   const handleLike = useCallback((like: Omit<LeaderboardEntry, 'score'> & { score: number }) => {
-    // Likes are cumulative
     setLikerLeaderboard(prev => {
         const newBoard = [...prev];
         const existingIndex = newBoard.findIndex(p => p.userId === like.userId);
 
         if (existingIndex > -1) {
             newBoard[existingIndex].score += like.score;
-            // Update profile info in case it changes
             newBoard[existingIndex].nickname = like.nickname;
             newBoard[existingIndex].profilePictureUrl = like.profilePictureUrl;
         } else {
@@ -245,7 +234,6 @@ const App: React.FC = () => {
                 score: like.score
             });
         }
-        // Sort and return the new board
         return newBoard.sort((a, b) => b.score - a.score);
     });
   }, []);
@@ -256,10 +244,9 @@ const App: React.FC = () => {
       nickname: donation.from_name,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${donation.from_name}`,
       giftName: `${donation.message || `Donasi via ${donation.platform}`} (Rp ${donation.amount.toLocaleString()})`,
-      // Use the donation amount as the score for the gifter leaderboard.
       giftCount: donation.amount,
-      giftId: 99999, // generic ID for donations
-      msgId: donation.id, // Use donation ID as msgId for deduplication
+      giftId: 99999, 
+      msgId: donation.id, 
     };
     handleGift(gift);
   }, [handleGift]);
@@ -268,14 +255,14 @@ const App: React.FC = () => {
     if (currentGift) {
         const timer = setTimeout(() => {
             setCurrentGift(null);
-        }, 5000); // gift shows for 5s
+        }, 5000); 
         return () => clearTimeout(timer);
     } else if (giftQueue.current.length > 0) {
         const nextGift = giftQueue.current.shift();
         if (nextGift) {
             const timer = setTimeout(() => {
               setCurrentGift({ ...nextGift, id: `${new Date().getTime()}-${nextGift.userId}` });
-            }, 300); // small delay between notifications
+            }, 300); 
             return () => clearTimeout(timer);
         }
     }
@@ -300,25 +287,24 @@ const App: React.FC = () => {
     if (currentRank) {
         const timer = setTimeout(() => {
             setCurrentRank(null);
-        }, 5000); // rank notification shows for 5s
+        }, 5000); 
         return () => clearTimeout(timer);
     } else if (rankQueue.current.length > 0) {
         const nextRank = rankQueue.current.shift();
         if (nextRank) {
             const timer = setTimeout(() => {
               setCurrentRank({ ...nextRank, id: `${new Date().getTime()}-${nextRank.userId}` });
-            }, 300); // small delay between notifications
+            }, 300); 
             return () => clearTimeout(timer);
         }
     }
   }, [currentRank]);
 
-  // Handle Quote Queue processing
   useEffect(() => {
     if (currentQuote) {
         const timer = setTimeout(() => {
             setCurrentQuote(null);
-        }, 7000); // Quote shows for 7s
+        }, 7000); 
         return () => clearTimeout(timer);
     } else if (quoteQueue.current.length > 0) {
         const nextQuote = quoteQueue.current.shift();
@@ -331,7 +317,6 @@ const App: React.FC = () => {
     }
   }, [currentQuote]);
 
-  // Periodic Info Notification Logic
   useEffect(() => {
       const activeGameStates = [
           GameState.Playing, 
@@ -341,7 +326,7 @@ const App: React.FC = () => {
           GameState.KnockoutReadyToPlay,
       ];
       if (!activeGameStates.includes(gameState)) {
-          setCurrentInfo(null); // Clear info when not in active game
+          setCurrentInfo(null); 
           return;
       }
 
@@ -352,7 +337,7 @@ const App: React.FC = () => {
               content: tipContent,
           });
           infoTipIndex.current = (infoTipIndex.current + 1) % infoTips.length;
-      }, 25000); // Show an info tip every 25 seconds
+      }, 25000); 
 
       return () => clearInterval(infoInterval);
   }, [gameState]);
@@ -361,7 +346,7 @@ const App: React.FC = () => {
       if (currentInfo) {
           const timer = setTimeout(() => {
               setCurrentInfo(null);
-          }, 7000); // Info shows for 7s
+          }, 7000); 
           return () => clearTimeout(timer);
       }
   }, [currentInfo]);
@@ -372,7 +357,6 @@ const App: React.FC = () => {
     const commentLower = commentText.toLowerCase();
     const isModerator = MODERATOR_USERNAMES.includes(message.userId.toLowerCase().replace(/^@/, ''));
     
-    // Command to check rank
     if (commentLower === '!myrank') {
       const playerRank = game.state.leaderboard.findIndex(p => p.userId === message.userId);
       if (playerRank !== -1) {
@@ -389,17 +373,16 @@ const App: React.FC = () => {
               userId: message.userId,
               nickname: message.nickname,
               profilePictureUrl: message.profilePictureUrl || `https://i.pravatar.cc/40?u=${message.userId}`,
-              rank: -1, // -1 indicates not ranked
+              rank: -1, 
               score: 0,
           });
       }
       return;
     }
 
-    // Command to send a quote
     const quoteMatch = commentText.match(/^!quote\s+(.+)/i);
     if (quoteMatch) {
-        const quoteContent = quoteMatch[1].substring(0, 100); // Limit to 100 chars
+        const quoteContent = quoteMatch[1].substring(0, 100); 
         const quote: QuoteNotification = {
             id: message.id,
             userId: message.userId,
@@ -408,7 +391,6 @@ const App: React.FC = () => {
             content: quoteContent
         };
         quoteQueue.current.push(quote);
-        // Trigger queue processing if empty
         if (!currentQuote) {
              const next = quoteQueue.current.shift();
              if(next) setCurrentQuote(next);
@@ -832,19 +814,17 @@ const App: React.FC = () => {
               )}
               {showAdminButtons && (
                 <>
-                {game.state.isHardMode && (
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.5 }}
-                        onClick={game.revealClue}
-                        className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-900 focus:ring-sky-500"
-                        aria-label="Buka 1 Clue"
-                        title="Buka 1 Clue (Admin)"
-                    >
-                        <EyeIcon className="w-5 h-5 text-purple-500" />
-                    </motion.button>
-                )}
+                <motion.button
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    onClick={game.revealClue}
+                    className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-900 focus:ring-sky-500"
+                    aria-label="Buka 1 Clue"
+                    title="Buka 1 Clue (Admin)"
+                >
+                    <EyeIcon className="w-5 h-5 text-purple-500" />
+                </motion.button>
                 <motion.button
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -893,7 +873,7 @@ const App: React.FC = () => {
         
         <div className="hidden md:flex flex-1">
             <AnimatePresence>
-            {showLiveFeed && <LiveFeedPanel feed={liveFeed} />}
+            {showLiveFeed && <LiveFeedPanel feed={liveFeed} currentAnswer={game.currentAnswer} />}
             {isSimulation && gameState !== GameState.Setup && (
                 <SimulationPanel 
                     onComment={handleComment} 

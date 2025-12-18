@@ -56,7 +56,7 @@ const LeaderboardTab: React.FC<LeaderboardTabProps> = ({ leaderboard, gifterLead
                 }`}
             >
                 <CrownIcon className="w-3.5 h-3.5" />
-                Top Sultan
+                Top Gifter
             </button>
           </div>
 
@@ -138,7 +138,7 @@ const LeaderboardTab: React.FC<LeaderboardTabProps> = ({ leaderboard, gifterLead
                         </p>
                         {isGifterView && (
                             <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                                Sultan
+                                Top Supporter
                             </p>
                         )}
                     </div>

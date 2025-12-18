@@ -164,20 +164,27 @@ export enum GameMode {
   Trivia = 'trivia',
   GuessTheCity = 'guess_the_city',
   ZonaBola = 'zona_bola',
+  FootballTrivia = 'football_trivia',
   GuessTheFruit = 'guess_the_fruit',
   GuessTheAnimal = 'guess_the_animal',
   KpopTrivia = 'kpop_trivia',
   ZonaFilm = 'zona_film',
   BikinEmosi = 'bikin_emosi',
+  GuessTheEmoji = 'guess_the_emoji',
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
-export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-buahan' | 'Hewan' | 'Film';
+export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-buahan' | 'Hewan' | 'Film' | 'Tebak Emoji';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 // --- Knockout Mode Types ---
-export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia' | 'ZonaFilm';
+export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'FootballTrivia' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia' | 'ZonaFilm' | 'GuessTheEmoji';
+
+export interface EmojiPuzzle {
+    emoji: string;
+    answer: string;
+}
 
 export interface TriviaQuestion {
   question: string;
@@ -231,6 +238,7 @@ export interface GameActionPayloads {
         word?: string,
         wordCategory?: WordCategory,
         stadium?: FootballStadium,
+        emojiPuzzle?: EmojiPuzzle,
       }
     };
     'NEXT_ROUND': { 
@@ -244,6 +252,7 @@ export interface GameActionPayloads {
       nextTriviaQuestion?: TriviaQuestion,
       nextCity?: City,
       nextStadium?: FootballStadium,
+      nextEmojiPuzzle?: EmojiPuzzle,
     };
     'PROCESS_COMMENT': ChatMessage;
     'REGISTER_PLAYER': KnockoutPlayer;
@@ -251,10 +260,12 @@ export interface GameActionPayloads {
     'SET_KNOCKOUT_COUNTRY': { country: Country };
     'SET_KNOCKOUT_TRIVIA': { question: TriviaQuestion };
     'SET_KNOCKOUT_ZONA_BOLA': { type: 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola', data: string | FootballStadium };
+    'SET_KNOCKOUT_FOOTBALL_TRIVIA': { question: TriviaQuestion };
     'SET_KNOCKOUT_GUESS_THE_FRUIT': { fruit: string };
     'SET_KNOCKOUT_GUESS_THE_ANIMAL': { animal: string };
     'SET_KNOCKOUT_KPOP_TRIVIA': { question: TriviaQuestion };
     'SET_KNOCKOUT_ZONA_FILM': { movie: string };
+    'SET_KNOCKOUT_GUESS_THE_EMOJI': { puzzle: EmojiPuzzle };
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer; score: string; };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };
