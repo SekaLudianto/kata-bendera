@@ -174,9 +174,12 @@ export enum GameMode {
 }
 
 export type AbcCategory = 'Negara' | 'Buah' | 'Hewan' | 'Benda' | 'Profesi' | 'Kota di Indonesia' | 'Tumbuhan';
-export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-buahan' | 'Hewan' | 'Film' | 'Tebak Emoji';
+export type WordCategory = 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola' | 'Buah-buahan' | 'Hewan' | 'Film' | 'Tebak Emoji' | 'Aplikasi' | 'Makanan' | 'Pekerjaan' | 'Karakter' | 'Merek';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
+
+// Aesthetic Themes for Boxes
+export type ColorTheme = 'blue' | 'emerald' | 'rose' | 'amber' | 'purple' | 'cyan' | 'indigo' | 'orange' | 'teal';
 
 // --- Knockout Mode Types ---
 export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'FootballTrivia' | 'GuessTheFruit' | 'GuessTheAnimal' | 'KpopTrivia' | 'ZonaFilm' | 'GuessTheEmoji';
@@ -184,6 +187,7 @@ export type KnockoutCategory = 'GuessTheCountry' | 'Trivia' | 'ZonaBola' | 'Foot
 export interface EmojiPuzzle {
     emoji: string;
     answer: string;
+    category?: string;
 }
 
 export interface TriviaQuestion {
@@ -236,7 +240,7 @@ export interface GameActionPayloads {
         triviaQuestion?: TriviaQuestion,
         city?: City,
         word?: string,
-        wordCategory?: WordCategory,
+        wordCategory?: string,
         stadium?: FootballStadium,
         emojiPuzzle?: EmojiPuzzle,
       }
@@ -248,7 +252,7 @@ export interface GameActionPayloads {
       nextCategory?: AbcCategory, 
       availableAnswersCount?: number,
       nextWord?: string,
-      nextWordCategory?: WordCategory,
+      nextWordCategory?: string,
       nextTriviaQuestion?: TriviaQuestion,
       nextCity?: City,
       nextStadium?: FootballStadium,
@@ -259,7 +263,7 @@ export interface GameActionPayloads {
     'SET_HOST_USERNAME': { username: string };
     'SET_KNOCKOUT_COUNTRY': { country: Country };
     'SET_KNOCKOUT_TRIVIA': { question: TriviaQuestion };
-    'SET_KNOCKOUT_ZONA_BOLA': { type: 'Pemain Bola' | 'Klub Bola' | 'Stadion Bola', data: string | FootballStadium };
+    'SET_KNOCKOUT_ZONA_BOLA': { type: string, data: string | FootballStadium };
     'SET_KNOCKOUT_FOOTBALL_TRIVIA': { question: TriviaQuestion };
     'SET_KNOCKOUT_GUESS_THE_FRUIT': { fruit: string };
     'SET_KNOCKOUT_GUESS_THE_ANIMAL': { animal: string };

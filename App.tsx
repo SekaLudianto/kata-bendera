@@ -16,6 +16,7 @@ import ModeSelectionScreen from './components/ModeSelectionScreen';
 import SimulationPanel from './components/SimulationPanel';
 import GlobalLeaderboardModal from './components/GlobalLeaderboardModal';
 import ConfirmModal from './components/ConfirmModal';
+import VisualDynamizer from './components/VisualDynamizer';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
@@ -33,21 +34,21 @@ const infoTips: (() => React.ReactNode)[] = [
   () => (
     <div className="flex items-center justify-center gap-3 text-xs sm:text-sm">
       <div className="flex items-center gap-1">
-         <span>Buka Clue:</span>
          <img 
             src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
             alt="Mawar" 
             className="w-5 h-5" 
          />
+         <span>= 1 HURUF</span>
       </div>
       <span className="text-white/30">|</span>
       <div className="flex items-center gap-1">
-         <span>Skip Soal:</span>
          <img 
             src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/a4c4dc437fd3a6632aba149769491f49.png~tplv-obj.webp" 
             alt="Finger Heart" 
             className="w-5 h-5" 
          />
+         <span>= SKIP SOAL</span>
       </div>
     </div>
   ),
@@ -773,6 +774,9 @@ const App: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-2 sm:p-4 relative">
+      {/* Global Visual Dynamizer - Mencakup Seluruh Layar */}
+      <VisualDynamizer lastMessage={game.state.chatMessages[0] || null} />
+
       <AnimatePresence>
         {showGlobalLeaderboard && (
           <GlobalLeaderboardModal 

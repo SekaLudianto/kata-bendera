@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheckIcon } from './IconComponents';
@@ -7,7 +8,6 @@ interface LoginScreenProps {
   onLoginSuccess: () => void;
 }
 
-// Helper function to hash a message using SHA-256
 async function sha256(message: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -45,19 +45,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="w-full max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-sky-500/10 border border-sky-200 dark:border-gray-700 overflow-hidden flex flex-col p-8"
+      className="w-full max-w-[360px] mx-auto bg-[#1a2332] rounded-[2rem] shadow-2xl border border-white/5 flex flex-col p-10"
     >
       <div className="text-center">
-        <ShieldCheckIcon className="w-16 h-16 text-sky-400 mx-auto" />
-        <h1 className="text-2xl font-bold mt-4 text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-500">
+        <div className="relative inline-block">
+          <ShieldCheckIcon className="w-20 h-20 text-sky-400 mx-auto" />
+          <motion.div 
+            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute inset-0 bg-sky-400/20 rounded-full blur-2xl -z-10"
+          />
+        </div>
+        <h1 className="text-3xl font-black mt-6 text-[#14b8a6] tracking-tight">
           Akses Admin
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Silakan masukkan kata sandi untuk melanjutkan.</p>
+        <p className="text-gray-400 mt-2 text-sm leading-relaxed px-4">
+          Silakan masukkan kata sandi untuk melanjutkan.
+        </p>
       </div>
 
-      <form onSubmit={handleLogin} className="w-full mt-8">
+      <form onSubmit={handleLogin} className="w-full mt-10">
         <div className="relative mb-4">
           <label htmlFor="password" className="sr-only">Kata Sandi</label>
           <input
@@ -66,18 +75,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Kata Sandi"
-            className="w-full px-4 py-3 bg-sky-100 border-2 border-sky-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 dark:focus:border-sky-500"
+            className="w-full px-5 py-4 bg-[#2d3a4f]/50 border-2 border-transparent text-white placeholder-gray-500 focus:outline-none focus:border-sky-500 focus:bg-[#2d3a4f] rounded-xl transition-all font-medium"
             aria-label="Admin Password"
             disabled={isLoading}
           />
         </div>
 
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isLoading || !password}
-          className="w-full mt-2 px-4 py-3 bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-all disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center"
+          className="w-full mt-2 px-4 py-4 bg-[#414d61] text-white font-bold rounded-xl shadow-lg hover:bg-[#4b586e] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-base"
         >
           {isLoading ? (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -91,7 +100,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-4 p-3 w-full bg-red-100 text-red-700 border border-red-300 rounded-lg text-sm dark:bg-red-900/50 dark:text-red-300 dark:border-red-500/50"
+          className="mt-6 p-3 w-full bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-xs text-center font-medium"
           role="alert"
         >
           {error}

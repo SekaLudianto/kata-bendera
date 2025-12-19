@@ -55,7 +55,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
             setData(initial);
         }
     } catch (e) {
-        console.error("Failed to load questions", e);
+        console.error("Failed to load data", e);
     }
   }, []);
 
@@ -117,7 +117,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
   const handleCloudSave = async () => {
       if (!apiKey) {
           setCloudStatus('error');
-          setCloudMessage('API Key JSONBin belum diatur (atur di Cloud Sync Leaderboard).');
+          setCloudMessage('API Key JSONBin belum diatur.');
           return;
       }
       setCloudStatus('loading');
@@ -135,7 +135,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
             url = `${JSONBIN_URL}/${questionBinId}`;
             method = 'PUT';
           } else {
-            headers['X-Bin-Name'] = 'TikTokQuizQuestions';
+            headers['X-Bin-Name'] = 'TikTokTriviaQuestions';
           }
 
           const res = await fetch(url, {
@@ -150,7 +150,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
           const newId = json.metadata?.id || questionBinId;
           setQuestionBinId(newId);
           setCloudStatus('success');
-          setCloudMessage(method === 'POST' ? 'Bank Soal Baru dibuat!' : 'Bank Soal diperbarui!');
+          setCloudMessage(method === 'POST' ? 'Bank Data Baru dibuat!' : 'Bank Data diperbarui!');
           setTimeout(() => setCloudMessage(''), 3000);
 
       } catch (e: any) {
@@ -162,7 +162,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
   const handleCloudLoad = async () => {
       if (!apiKey || !questionBinId) {
           setCloudStatus('error');
-          setCloudMessage('Butuh API Key & Bin ID Soal.');
+          setCloudMessage('Butuh API Key & Bin ID.');
           return;
       }
       setCloudStatus('loading');
@@ -181,7 +181,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
 
           saveToLocal(record);
           setCloudStatus('success');
-          setCloudMessage('Bank Soal berhasil dimuat!');
+          setCloudMessage('Bank Data berhasil dimuat!');
           setTimeout(() => setCloudMessage(''), 3000);
       } catch (e: any) {
           setCloudStatus('error');
@@ -235,7 +235,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-sky-50 dark:bg-gray-800">
                 <h2 className="font-bold text-lg text-sky-600 dark:text-sky-400 flex items-center gap-2">
                     <DatabaseIcon className="w-5 h-5"/>
-                    Bank Soal
+                    Bank Data
                 </h2>
                 <button onClick={onClose} className="md:hidden p-1 bg-red-100 text-red-600 rounded">
                     <XIcon className="w-5 h-5" />
@@ -245,7 +245,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300 border-b border-blue-100 dark:border-blue-800/30 flex items-start gap-2">
                 <InfoIcon className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                    Soal yang Anda tambahkan di sini bersifat <b>TAMBAHAN</b>. Saat bermain, data ini akan dicampur dengan ribuan soal bawaan game.
+                    Data yang Anda tambahkan di sini bersifat <b>TAMBAHAN</b>. Saat bermain, data ini akan dicampur dengan database bawaan game.
                 </span>
             </div>
 
@@ -273,7 +273,7 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
                 <div className="space-y-2">
                     <input 
                         type="text" 
-                        placeholder="Bin ID (Soal)" 
+                        placeholder="Bin ID (Data)" 
                         value={questionBinId}
                         onChange={e => setQuestionBinId(e.target.value)}
                         className="w-full p-1.5 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"

@@ -1,6 +1,6 @@
 
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
-import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject, EmojiPuzzle } from '../types';
+import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject, EmojiPuzzle, ColorTheme } from '../types';
 import { countries } from '../data/countries';
 import { fruits } from '../data/fruits';
 import { animals } from '../data/animals';
@@ -33,11 +33,12 @@ export interface InternalGameState {
   currentLetter: string | null;
   currentCategory: AbcCategory | null;
   currentWord: string | null;
-  currentWordCategory: WordCategory | null;
+  currentWordCategory: string | null;
   currentTriviaQuestion: TriviaQuestion | null;
   currentCity: City | null;
   currentStadium: FootballStadium | null;
   currentEmojiPuzzle: EmojiPuzzle | null;
+  currentRoundTheme: ColorTheme;
   usedAnswers: string[];
   scrambledWord: LetterObject[][];
   leaderboard: LeaderboardEntry[];
@@ -60,6 +61,10 @@ export interface InternalGameState {
   currentMatchIndex: number | null;
   knockoutMatchPoints: { player1: number; player2: number };
 }
+
+const colorThemes: ColorTheme[] = ['blue', 'emerald', 'rose', 'amber', 'purple', 'cyan', 'indigo', 'orange', 'teal'];
+
+const getRandomTheme = (): ColorTheme => colorThemes[Math.floor(Math.random() * colorThemes.length)];
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
@@ -94,6 +99,7 @@ const createInitialState = (): InternalGameState => ({
   currentCity: null,
   currentStadium: null,
   currentEmojiPuzzle: null,
+  currentRoundTheme: 'blue',
   usedAnswers: [],
   scrambledWord: [],
   leaderboard: JSON.parse(localStorage.getItem('leaderboard') || '[]'),
@@ -216,6 +222,26 @@ const isTournamentOver = (bracket: KnockoutBracket, roundIndex: number): boolean
     return roundIndex === bracket.length - 1;
 };
 
+// FIX: Moved deck refs and validation lists to module level so they are accessible in gameReducer
+const countryDeck = { current: [] as Country[] };
+const triviaDeck = { current: [] as TriviaQuestion[] };
+const kpopTriviaDeck = { current: [] as TriviaQuestion[] };
+const footballPlayerDeck = { current: [] as string[] };
+const footballClubDeck = { current: [] as string[] };
+const footballStadiumDeck = { current: [] as FootballStadium[] };
+const footballTriviaDeck = { current: [] as TriviaQuestion[] };
+const cityDeck = { current: [] as City[] };
+const fruitDeck = { current: [] as string[] };
+const animalDeck = { current: [] as string[] };
+const movieDeck = { current: [] as string[] };
+const bikinEmosiDeck = { current: [] as TriviaQuestion[] };
+const emojiDeck = { current: [] as EmojiPuzzle[] };
+const validationLists = { current: {} as Record<string, string[]> };
+const usedQuestionIdentifiers = { current: {} as Record<string, Set<string>> };
+const useImportedOnlyRef = { current: false };
+
+const abcCategories: AbcCategory[] = ['Negara', 'Buah', 'Hewan', 'Benda', 'Profesi', 'Kota di Indonesia', 'Tumbuhan'];
+
 const gameReducer = (state: InternalGameState, action: GameAction): InternalGameState => {
   switch (action.type) {
     case 'START_GAME': {
@@ -251,9 +277,10 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
           currentTriviaQuestion: firstRoundData.triviaQuestion || null,
           currentCity: firstRoundData.city || null,
           currentWord: firstRoundData.word || null,
-          currentWordCategory: firstRoundData.wordCategory || null,
+          currentWordCategory: firstRoundData.wordCategory || firstRoundData.emojiPuzzle?.category || null,
           currentStadium: firstRoundData.stadium || null,
           currentEmojiPuzzle: firstRoundData.emojiPuzzle || null,
+          currentRoundTheme: getRandomTheme(),
           availableAnswersCount: firstRoundData.availableAnswersCount || null,
           scrambledWord: scrambled,
           isRoundActive: true,
@@ -296,11 +323,12 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         currentLetter: nextLetter || null,
         currentCategory: nextCategory || null,
         currentWord: nextWord || null,
-        currentWordCategory: nextWordCategory || null,
+        currentWordCategory: nextWordCategory || nextEmojiPuzzle?.category || null,
         currentTriviaQuestion: nextTriviaQuestion || null,
         currentCity: nextCity || null,
         currentStadium: nextStadium || null,
         currentEmojiPuzzle: nextEmojiPuzzle || null,
+        currentRoundTheme: getRandomTheme(),
         availableAnswersCount: availableAnswersCount || null,
         scrambledWord: scrambled,
         usedAnswers: [],
@@ -346,29 +374,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         let foundAnswer = '';
 
         if (state.gameMode === GameMode.ABC5Dasar && state.currentLetter && state.currentCategory) {
-            let validationList: string[] = [];
-            let customData: any = {};
-            try {
-                const stored = localStorage.getItem('custom-questions');
-                if(stored) customData = JSON.parse(stored);
-            } catch(e) {}
-
-            const combine = (builtin: string[], custom: string[] | undefined) => {
-                if (!custom || !Array.isArray(custom)) return builtin;
-                return [...new Set([...builtin, ...custom])];
-            };
-
-            switch(state.currentCategory){
-                case 'Negara': validationList = combine(countries.map(c => c.name), customData.countries?.map((c:any) => c.name)); break;
-                case 'Buah': validationList = combine(fruits, customData.fruits); break;
-                case 'Hewan': validationList = combine(animals, customData.animals); break;
-                case 'Benda': validationList = combine(objects, customData.objects); break;
-                case 'Profesi': validationList = combine(professions, customData.professions); break;
-                case 'Kota di Indonesia': validationList = combine(indonesianCities, customData.indonesianCities); break;
-                case 'Tumbuhan': validationList = combine(plants, customData.plants); break;
-            }
-
-            const validItems = validationList
+            const validItems = (validationLists.current[state.currentCategory] || [])
                 .filter(item => item.toLowerCase().startsWith(state.currentLetter!.toLowerCase()))
                 .filter(item => !state.usedAnswers.includes(item.toLowerCase()));
             
@@ -563,6 +569,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentWordCategory: null,
             currentStadium: null,
             currentEmojiPuzzle: null,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [],
         };
     }
@@ -647,6 +654,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.GuessTheFlag,
             currentCountry: country,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -661,6 +669,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.Trivia,
             currentTriviaQuestion: question,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -678,6 +687,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentWord: type !== 'Stadion Bola' ? name : null,
             currentStadium: type === 'Stadion Bola' ? (data as FootballStadium) : null,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -692,6 +702,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.FootballTrivia,
             currentTriviaQuestion: question,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -707,6 +718,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentWordCategory: 'Buah-buahan',
             currentWord: fruit,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -722,6 +734,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentWordCategory: 'Hewan',
             currentWord: animal,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -736,6 +749,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             gameMode: GameMode.Trivia,
             currentTriviaQuestion: question,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -751,6 +765,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             currentWordCategory: 'Film',
             currentWord: movie,
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -764,7 +779,9 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             ...state,
             gameMode: GameMode.GuessTheEmoji,
             currentEmojiPuzzle: puzzle,
+            currentWordCategory: puzzle.category || 'Umum',
             scrambledWord: scrambled,
+            currentRoundTheme: getRandomTheme(),
             revealedIndices: [Math.floor(Math.random() * flattened.length)],
             roundTimer: KNOCKOUT_ROUND_TIMER_SECONDS,
             isRoundActive: true,
@@ -792,29 +809,12 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
   }
 };
 
-const abcCategories: AbcCategory[] = ['Negara', 'Buah', 'Hewan', 'Benda', 'Profesi', 'Kota di Indonesia', 'Tumbuhan'];
-
 export const useGameLogic = () => {
   const [state, dispatch] = useReducer(gameReducer, createInitialState());
-  const countryDeck = useRef<Country[]>([]);
-  const triviaDeck = useRef<TriviaQuestion[]>([]);
-  const kpopTriviaDeck = useRef<TriviaQuestion[]>([]);
-  const footballPlayerDeck = useRef<string[]>([]);
-  const footballClubDeck = useRef<string[]>([]);
-  const footballStadiumDeck = useRef<FootballStadium[]>([]);
-  const footballTriviaDeck = useRef<TriviaQuestion[]>([]);
-  const cityDeck = useRef<City[]>([]);
-  const fruitDeck = useRef<string[]>([]);
-  const animalDeck = useRef<string[]>([]);
-  const movieDeck = useRef<string[]>([]);
-  const bikinEmosiDeck = useRef<TriviaQuestion[]>([]);
-  const emojiDeck = useRef<EmojiPuzzle[]>([]);
-  const validationLists = useRef<Record<string, string[]>>({});
-  const usedQuestionIdentifiers = useRef<Record<string, Set<string>>>({});
-  const useImportedOnlyRef = useRef(false);
 
   const getNextUniqueItem = useCallback(<T,>(
-    deckRef: React.MutableRefObject<T[]>,
+    // FIX: Changed type to be more agnostic of useRef since they were moved to module level
+    deckRef: { current: T[] },
     builtInSourceData: T[],
     categoryKey: string,
     identifierFn: (item: T) => string
@@ -823,6 +823,8 @@ export const useGameLogic = () => {
         usedQuestionIdentifiers.current[categoryKey] = new Set();
     }
     const isUsed = (item: T) => usedQuestionIdentifiers.current[categoryKey]!.has(identifierFn(item));
+    
+    // 1. Try to get from existing deck
     while (deckRef.current.length > 0) {
         const candidate = deckRef.current[deckRef.current.length - 1];
         if (isUsed(candidate)) {
@@ -833,31 +835,45 @@ export const useGameLogic = () => {
             return item;
         }
     }
+    
+    // 2. Deck empty, rebuild source list based on settings
     let fullSourceData: T[] = [];
     try {
         const customQuestionsRaw = localStorage.getItem('custom-questions');
         const customData = customQuestionsRaw ? JSON.parse(customQuestionsRaw) : {};
         const customItems = (customData[categoryKey] && Array.isArray(customData[categoryKey])) ? (customData[categoryKey] as T[]) : [];
-        if (useImportedOnlyRef.current && customItems.length > 0) {
+        
+        if (useImportedOnlyRef.current) {
+             // STRICT: Only use custom items. If empty, game will use built-in as LAST RESORT ONLY to prevent crash
+             // But we prefer empty deck if that's what user asked.
              fullSourceData = [...customItems];
         } else {
              fullSourceData = [...customItems, ...builtInSourceData];
         }
     } catch (e) {
-        fullSourceData = [...builtInSourceData];
+        fullSourceData = useImportedOnlyRef.current ? [] : [...builtInSourceData];
     }
+    
+    // 3. Filter unused from new source
     const unusedItems = fullSourceData.filter(item => !isUsed(item));
     if (unusedItems.length > 0) {
         deckRef.current = shuffleArray(unusedItems);
-    } else {
+    } else if (fullSourceData.length > 0) {
+        // All items used, clear history for this category and reshuffle everything
         usedQuestionIdentifiers.current[categoryKey]!.clear();
         deckRef.current = shuffleArray([...fullSourceData]);
+    } else if (useImportedOnlyRef.current) {
+        // USER SELECTED CUSTOM ONLY BUT LIST IS EMPTY! 
+        // Fallback to builtin but log warning - or return builtin to prevent crash
+        return builtInSourceData[Math.floor(Math.random() * builtInSourceData.length)];
     }
+    
     const nextItem = deckRef.current.pop();
     if (nextItem) {
         usedQuestionIdentifiers.current[categoryKey]!.add(identifierFn(nextItem));
         return nextItem;
     }
+    
     return builtInSourceData[0];
   }, []);
 
@@ -865,11 +881,17 @@ export const useGameLogic = () => {
     useImportedOnlyRef.current = useImportedOnly;
     const customQuestionsRaw = localStorage.getItem('custom-questions');
     const customQuestions = customQuestionsRaw ? JSON.parse(customQuestionsRaw) : {};
+    
     const createDeck = <T,>(builtIn: T[], custom: T[] | undefined): T[] => {
         const customDeck = custom || [];
-        if (useImportedOnly && customDeck.length > 0) return shuffleArray(customDeck);
+        if (useImportedOnly) {
+            // STRICT: If no custom questions found for this category, return empty array
+            // The game logic will handle empty decks in getNextUniqueItem
+            return shuffleArray(customDeck);
+        }
         return shuffleArray([...customDeck, ...builtIn]);
     };
+
     countryDeck.current = createDeck(countries, customQuestions.countries);
     triviaDeck.current = createDeck(triviaQuestions, customQuestions.trivia);
     kpopTriviaDeck.current = createDeck(kpopTrivia, customQuestions.kpopTrivia);
@@ -883,11 +905,16 @@ export const useGameLogic = () => {
     movieDeck.current = createDeck(movies, customQuestions.movies);
     bikinEmosiDeck.current = createDeck(bikinEmosiQuestions, customQuestions.bikinEmosi);
     emojiDeck.current = createDeck(emojiPuzzles, customQuestions.emojiPuzzles);
+    
     const combine = (builtin: string[], custom: string[] | undefined) => {
         const c = custom || [];
+        // PERBAIKAN: Untuk validasi ABC 5 Dasar, kita selalu menggabungkan default dan kustom 
+        // agar kosakata tetap luas dan lancar dimainkan, tidak terpengaruh opsi useImportedOnly.
         return [...new Set([...builtin, ...c])];
     };
+    
     const customCountryNames = customQuestions.countries ? customQuestions.countries.map((c: any) => c.name) : [];
+    
     validationLists.current = {
         'Negara': combine(countries.map(c => c.name), customCountryNames),
         'Buah': combine(fruits, customQuestions.fruits),
@@ -916,19 +943,31 @@ export const useGameLogic = () => {
   const getNextAbcCombo = useCallback(() => {
     const categoryKey = 'abc_5_dasar';
     if (!usedQuestionIdentifiers.current[categoryKey]) usedQuestionIdentifiers.current[categoryKey] = new Set();
+    
     let letter: string, category: AbcCategory, combo: string, attempts = 0;
     const maxCombos = abcCategories.length * 26;
+    
     do {
         letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
         category = abcCategories[Math.floor(Math.random() * abcCategories.length)];
         combo = `${letter}-${category}`;
         attempts++;
+        
         if (usedQuestionIdentifiers.current[categoryKey]!.size >= maxCombos) usedQuestionIdentifiers.current[categoryKey]!.clear();
-    } while (usedQuestionIdentifiers.current[categoryKey]!.has(combo) && attempts < 150);
-    usedQuestionIdentifiers.current[categoryKey]!.add(combo);
-    const list = validationLists.current[category] || [];
-    const availableAnswers = list.filter(item => item.toLowerCase().startsWith(letter.toLowerCase()));
-    return { letter, category, availableAnswersCount: availableAnswers.length };
+        
+        // Check if there are answers for this combo in the active validation list
+        const list = validationLists.current[category] || [];
+        const availableCount = list.filter(item => item.toLowerCase().startsWith(letter.toLowerCase())).length;
+        
+        if (availableCount > 0 && !usedQuestionIdentifiers.current[categoryKey]!.has(combo)) {
+            usedQuestionIdentifiers.current[categoryKey]!.add(combo);
+            return { letter, category, availableAnswersCount: availableCount };
+        }
+        
+    } while (attempts < 200);
+    
+    // Fallback if no valid combo found after many attempts (highly unlikely unless custom data is extremely sparse)
+    return { letter: 'A', category: 'Buah' as AbcCategory, availableAnswersCount: 1 };
   }, []);
 
   const getNextZonaBola = useCallback(() => {

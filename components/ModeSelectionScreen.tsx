@@ -436,7 +436,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
                   onClick={() => setIsCategoryListOpen(prev => !prev)}
                   className="w-full flex justify-between items-center text-left text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium"
                 >
-                  <span>Pilih Kategori Soal Klasik ({selectedClassicCategories.length}/{classicCategories.length})</span>
+                  <span>Pilih Kategori Trivia Klasik ({selectedClassicCategories.length}/{classicCategories.length})</span>
                   {isCategoryListOpen ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                 </button>
                 <AnimatePresence>
@@ -478,7 +478,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
               className="overflow-hidden"
             >
               <div className="relative">
-                 <label className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1">Pilih Kategori Soal Knockout</label>
+                 <label className="block text-xs text-left text-gray-500 dark:text-gray-400 mb-1">Pilih Kategori Tebak-tebakan Knockout</label>
                  <div className="grid grid-cols-2 gap-2">
                     {knockoutCategories.map(cat => (
                          <button 
@@ -531,14 +531,14 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-indigo-500 text-white font-bold rounded-lg shadow-md hover:bg-indigo-600 transition-all text-xs"
               >
                 <UploadCloudIcon className="w-4 h-4" />
-                Impor Soal
+                Impor Data
               </button>
               <button
                 type="button"
                 onClick={handleClearImported}
                 className="flex-1 px-3 py-2 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-all text-xs"
               >
-                Hapus Soal
+                Hapus Data
               </button>
           </div>
 
@@ -604,14 +604,14 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
               </div>
               <div className="ml-3 text-gray-700 dark:text-gray-300 font-medium text-xs text-left max-w-[200px]">
                   {useImportedOnly 
-                    ? "Hanya Gunakan Soal Kustom (Nonaktifkan Bawaan)" 
-                    : "Campur Soal Kustom & Bawaan (Default)"}
+                    ? "Hanya Gunakan Data Kustom (Nonaktifkan Bawaan)" 
+                    : "Campur Data Kustom & Bawaan (Default)"}
               </div>
           </label>
           <div className="flex items-start gap-1.5 mt-2 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-[10px] text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
              <InfoIcon className="w-3 h-3 shrink-0 mt-0.5" />
              <p>
-               Secara default, soal yang Anda tambahkan di Bank Soal akan <b>dicampur/digabungkan</b> dengan database bawaan game. Centang opsi di atas jika hanya ingin memakai soal buatan sendiri.
+               Secara default, bank data yang Anda tambahkan akan <b>dicampur/digabungkan</b> dengan database bawaan game. Centang opsi di atas jika hanya ingin memakai data buatan sendiri.
              </p>
           </div>
         </div>
@@ -621,7 +621,7 @@ const ModeSelectionScreen: React.FC<ModeSelectionScreenProps> = ({ onStartClassi
           onClick={handleDownloadExample}
           className="w-full mt-2 text-sm text-sky-500 dark:text-sky-400 font-semibold hover:underline"
         >
-          Unduh Contoh Format Soal
+          Unduh Contoh Format Data
         </button>
 
         <AnimatePresence>

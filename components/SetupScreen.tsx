@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlobeIcon } from './IconComponents';
@@ -69,7 +70,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onConnect, error }) => {
           <GlobeIcon className="w-20 h-20 text-sky-400" />
         </motion.div>
         <h1 className="text-3xl font-bold mt-4 text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-500">
-          Kuis Kata & Bendera Live
+          Trivia Kata & Bendera Live
         </h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Edisi TikTok Live</p>
 
