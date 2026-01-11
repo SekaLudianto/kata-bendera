@@ -347,7 +347,10 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
             .map((_, i) => i)
             .filter(i => !state.revealedIndices.includes(i));
         
-        if (hiddenIndices.length > 0) {
+        // Aturan baru: Di mode biasa, sisakan minimal 1 huruf tertutup
+        const minHidden = state.isHardMode ? 0 : 1;
+
+        if (hiddenIndices.length > minHidden) {
             const randomIndex = hiddenIndices[Math.floor(Math.random() * hiddenIndices.length)];
             return { ...state, revealedIndices: [...state.revealedIndices, randomIndex] };
         }
@@ -505,6 +508,14 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         });
         updatedSessionLeaderboard.sort((a, b) => b.score - a.score);
       }
+
+      const flattened = state.scrambledWord.flat();
+      const allIndices = flattened.map((_, i) => i);
+      
+      // Aturan baru: Saat ronde berakhir di mode biasa, sisakan 1 huruf acak tetap tertutup
+      if (!state.isHardMode && allIndices.length > 1) {
+          allIndices.splice(Math.floor(Math.random() * allIndices.length), 1);
+      }
     
       return {
         ...state,
@@ -512,7 +523,7 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         gameState: GameState.ClassicAnswerReveal,
         roundWinners: updatedWinners,
         sessionLeaderboard: updatedSessionLeaderboard,
-        revealedIndices: state.scrambledWord.flat().map((_, i) => i), // Buka semua indeks
+        revealedIndices: allIndices,
       };
     }
     case 'SHOW_WINNER_MODAL':

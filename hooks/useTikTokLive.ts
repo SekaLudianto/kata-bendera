@@ -4,14 +4,13 @@ import { io, Socket } from 'socket.io-client';
 import { ConnectionStatus, ChatMessage, GiftNotification, TikTokGiftEvent, ServerConfig, ServerType, DonationPlatform, TikTokLikeEvent, LeaderboardEntry } from '../types';
 import { giftValues } from '../data/gifts';
 
-// Define the shape of the chat data coming from the backend
 interface TikTokChatEvent {
   uniqueId: string;
   nickname: string;
   comment: string;
   profilePictureUrl: string;
   msgId: string;
-  timestamp: number; // Add timestamp to the expected event data
+  timestamp: number;
 }
 
 const parseTikTokError = (reason: string): string => {
@@ -30,14 +29,14 @@ const indofinityDonationAdapter = (platform: DonationPlatform, data: any): Omit<
     profilePictureUrl: `https://i.pravatar.cc/40?u=${data.from_name || platform}`,
     giftName: `${data.message || `Donasi via ${platform}`} (Rp ${data.amount.toLocaleString()})`,
     giftCount: data.amount,
-    giftId: 99999, // generic ID for donations
+    giftId: 99999,
   };
 };
 
 export const useTikTokLive = (
     onMessage: (message: ChatMessage) => void,
     onGift: (gift: Omit<GiftNotification, 'id'>) => void,
-    onLike: (like: Omit<LeaderboardEntry, 'score'> & { score: number; totalLikeCount?: number }) => void, // score is likeCount
+    onLike: (like: Omit<LeaderboardEntry, 'score'> & { score: number; totalLikeCount?: number }) => void,
     onSyncTime: (timestamp: number) => void
 ) => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
@@ -57,18 +56,6 @@ export const useTikTokLive = (
     onSyncTimeRef.current = onSyncTime;
   }, [onMessage, onGift, onLike, onSyncTime]);
 
-  useEffect(() => {
-    return () => { // Cleanup on unmount
-      if (connectionRef.current) {
-        if (connectionRef.current instanceof WebSocket) {
-          connectionRef.current.close();
-        } else {
-          connectionRef.current.disconnect();
-        }
-      }
-    };
-  }, []);
-
   const disconnect = useCallback(() => {
     if (connectionRef.current) {
         if (connectionRef.current instanceof WebSocket) {
@@ -81,28 +68,6 @@ export const useTikTokLive = (
     setConnectionStatus('idle');
   }, []);
 
-  const connect = useCallback((config: ServerConfig) => {
-    if (connectionRef.current) disconnect();
-
-    setConnectionStatus('connecting');
-    setError(null);
-    timeSyncedRef.current = false; // Reset time sync flag on new connection
-
-    switch (config.type) {
-      case ServerType.RAILWAY_1:
-      case ServerType.RAILWAY_2:
-      case ServerType.CUSTOM:
-        connectToRailway(config);
-        break;
-      case ServerType.INDOFINITY_WEBSOCKET:
-        connectToIndoFinityWS();
-        break;
-      case ServerType.INDOFINITY_SOCKETIO:
-        connectToIndoFinitySocketIO();
-        break;
-    }
-  }, [disconnect]);
-
   const handleIndoFinityMessage = (event: string, data: TikTokGiftEvent | TikTokLikeEvent) => {
     const donationPlatforms: DonationPlatform[] = ['saweria', 'sociabuzz', 'trakteer', 'tako', 'bagibagi', 'sibagi'];
     const timestamp = data.timestamp || Date.now();
@@ -113,33 +78,28 @@ export const useTikTokLive = (
     }
 
     if (event === 'chat') {
-        const chatData = data as TikTokGiftEvent; // Can be treated same as gift event for user info
+        const chatData = data as TikTokGiftEvent;
         onMessageRef.current({
             id: chatData.msgId || `${Date.now()}`,
             userId: chatData.uniqueId,
             nickname: chatData.nickname,
-            comment: (data as any).comment || '', // Fallback to empty string if undefined
+            comment: (data as any).comment || '',
             profilePictureUrl: chatData.profilePictureUrl,
             isWinner: false,
             timestamp: timestamp,
         });
     } else if (event === 'gift') {
         const giftData = data as TikTokGiftEvent;
-        // Handle gift streaks. Only process the final event of a streak.
-        if (giftData.giftType === 1 && !giftData.repeatEnd) {
-            // Streak in progress, ignore this intermediate event.
-            return;
-        }
+        if (giftData.giftType === 1 && !giftData.repeatEnd) return;
 
-        // Prioritize server-sent diamondCount, otherwise use local gift map as fallback.
         const singleGiftValue = giftData.diamondCount && giftData.diamondCount > 0 
             ? giftData.diamondCount 
-            : giftValues.get(giftData.giftId) || 1; // Fallback to 1 if unknown
+            : giftValues.get(giftData.giftId) || 1;
 
         const totalValue = singleGiftValue * (giftData.giftCount || 1);
         
         onGiftRef.current({
-            msgId: giftData.msgId, // Pass msgId for deduplication
+            msgId: giftData.msgId,
             userId: giftData.uniqueId,
             nickname: giftData.nickname,
             profilePictureUrl: giftData.profilePictureUrl,
@@ -162,68 +122,81 @@ export const useTikTokLive = (
     }
   };
 
-  const connectToIndoFinityWS = () => {
-    const ws = new WebSocket('ws://localhost:62024');
+  const connectToRawWS = (url: string) => {
+    const ws = new WebSocket(url);
     connectionRef.current = ws;
 
     ws.onopen = () => {
-        console.log('Terhubung ke IndoFinity WebSocket');
+        console.log(`Terhubung ke Raw WebSocket: ${url}`);
         setConnectionStatus('connected');
     };
 
     ws.onmessage = (event) => {
         try {
             const message = JSON.parse(event.data);
-            handleIndoFinityMessage(message.event, message.data);
+            if (message.event && message.data) {
+                handleIndoFinityMessage(message.event, message.data);
+            }
         } catch (e) {
-            console.error('Error parsing IndoFinity WS message:', e);
+            console.error('Error parsing WS message:', e);
         }
     };
 
     ws.onerror = (err) => {
-        console.error('IndoFinity WebSocket error:', err);
-        setError('Gagal terhubung ke IndoFinity WebSocket. Pastikan server lokal berjalan.');
+        console.error('WebSocket error:', err);
+        setError(`Gagal terhubung ke ${url}. Pastikan alamat IP dan Port benar.`);
         setConnectionStatus('error');
     };
 
     ws.onclose = () => {
-        console.log('Koneksi IndoFinity WebSocket ditutup');
         if (connectionStatus !== 'error') setConnectionStatus('disconnected');
     };
   };
 
+  const connect = useCallback((config: ServerConfig) => {
+    if (connectionRef.current) disconnect();
+
+    setConnectionStatus('connecting');
+    setError(null);
+    timeSyncedRef.current = false;
+
+    if (config.type === ServerType.CUSTOM && config.url?.startsWith('ws')) {
+        connectToRawWS(config.url);
+        return;
+    }
+
+    switch (config.type) {
+      case ServerType.RAILWAY_1:
+      case ServerType.RAILWAY_2:
+      case ServerType.CUSTOM:
+        connectToRailway(config);
+        break;
+      case ServerType.INDOFINITY_WEBSOCKET:
+        connectToRawWS('ws://localhost:62024');
+        break;
+      case ServerType.INDOFINITY_SOCKETIO:
+        connectToIndoFinitySocketIO();
+        break;
+    }
+  }, [disconnect]);
+
   const connectToIndoFinitySocketIO = () => {
     const socket = io('http://localhost:62025');
     connectionRef.current = socket;
-
-    socket.on('connect', () => {
-        console.log('Terhubung ke IndoFinity Socket.IO');
-        setConnectionStatus('connected');
-    });
-
-    socket.on('message', (data) => {
-        try {
-            handleIndoFinityMessage(data.event, data.data);
-        } catch (e) {
-            console.error('Error parsing IndoFinity Socket.IO message:', e);
-        }
-    });
-
-    socket.on('connect_error', (err) => {
-        console.error('IndoFinity Socket.IO error:', err);
-        setError('Gagal terhubung ke IndoFinity Socket.IO. Pastikan server lokal berjalan.');
+    socket.on('connect', () => setConnectionStatus('connected'));
+    socket.on('message', (data) => handleIndoFinityMessage(data.event, data.data));
+    socket.on('connect_error', () => {
+        setError('Gagal terhubung ke IndoFinity Socket.IO.');
         setConnectionStatus('error');
     });
-
     socket.on('disconnect', () => {
-        console.log('Koneksi IndoFinity Socket.IO terputus');
         if (connectionStatus !== 'error') setConnectionStatus('disconnected');
     });
   };
 
   const connectToRailway = (config: ServerConfig) => {
     if (!config.url || !config.username) {
-        setError('URL Server atau Username TikTok tidak boleh kosong.');
+        setError('URL atau Username tidak boleh kosong.');
         setConnectionStatus('error');
         return;
     }
@@ -246,7 +219,7 @@ export const useTikTokLive = (
         id: data.msgId,
         userId: data.uniqueId,
         nickname: data.nickname,
-        comment: data.comment || '', // Fallback to empty string if undefined
+        comment: data.comment || '',
         profilePictureUrl: data.profilePictureUrl,
         isWinner: false,
         timestamp: data.timestamp || Date.now(),
@@ -257,22 +230,11 @@ export const useTikTokLive = (
           onSyncTimeRef.current(data.timestamp);
           timeSyncedRef.current = true;
         }
-
-        // Handle gift streaks. Only process the final event of a streak.
-        if (data.giftType === 1 && !data.repeatEnd) {
-            // Streak in progress, ignore this intermediate event.
-            return;
-        }
-        
-        // Prioritize server-sent diamondCount, otherwise use local gift map as fallback.
-        const singleGiftValue = data.diamondCount && data.diamondCount > 0 
-            ? data.diamondCount 
-            : giftValues.get(data.giftId) || 1; // Fallback to 1 if unknown
-
+        if (data.giftType === 1 && !data.repeatEnd) return;
+        const singleGiftValue = data.diamondCount && data.diamondCount > 0 ? data.diamondCount : giftValues.get(data.giftId) || 1;
         const totalValue = singleGiftValue * (data.giftCount || 1);
-
         onGiftRef.current({
-            msgId: data.msgId, // Pass msgId for deduplication
+            msgId: data.msgId,
             userId: data.uniqueId,
             nickname: data.nickname,
             profilePictureUrl: data.profilePictureUrl,
@@ -290,7 +252,7 @@ export const useTikTokLive = (
             userId: data.uniqueId,
             nickname: data.nickname,
             profilePictureUrl: data.profilePictureUrl || `https://i.pravatar.cc/40?u=${data.uniqueId}`,
-            score: data.likeCount, // score is the number of likes in this batch
+            score: data.likeCount,
             totalLikeCount: data.totalLikeCount
         });
     });
@@ -299,12 +261,9 @@ export const useTikTokLive = (
         setConnectionStatus('disconnected');
         socket.disconnect();
     });
-    socket.on('connect_error', (err) => {
-      setError(`Gagal terhubung ke ${config.url}. Pastikan server berjalan.`);
+    socket.on('connect_error', () => {
+      setError(`Gagal terhubung ke ${config.url}.`);
       setConnectionStatus('error');
-    });
-    socket.on('disconnect', () => {
-      if (connectionStatus !== 'error') setConnectionStatus('disconnected');
     });
   };
 
