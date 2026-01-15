@@ -25,10 +25,11 @@ const formatServerTime = (date: Date | null): string => {
 };
 
 const getLetterBoxSizeClasses = (maxWordLength: number): string => {
-  // Penskalaan lebih agresif untuk memastikan kartu mengecil saat kata panjang
-  if (maxWordLength > 24) return 'w-3 h-5 min-w-[0.75rem] min-h-[1.25rem] text-[8px] m-[1px]';
+  // Penskalaan agresif untuk memastikan kartu mengecil sesuai panjang kata (1 kata 1 baris)
+  if (maxWordLength > 30) return 'w-2.5 h-4 min-w-[0.6rem] min-h-[1rem] text-[7px] m-[0.5px]';
+  if (maxWordLength > 24) return 'w-3 h-5 min-w-[0.75rem] min-h-[1.25rem] text-[9px] m-[1px]';
   if (maxWordLength > 19) return 'w-4 h-6 min-w-[1rem] min-h-[1.5rem] text-[10px] m-[1px]';
-  if (maxWordLength > 15) return 'w-5 h-7 min-w-[1.25rem] min-h-[1.75rem] text-[11px] m-[2px]';
+  if (maxWordLength > 15) return 'w-5 h-7 min-w-[1.25rem] min-h-[1.75rem] text-[11px] m-[1.5px]';
   if (maxWordLength > 11) return 'w-7 h-9 min-w-[1.75rem] min-h-[2.25rem] text-sm m-[2px]';
   if (maxWordLength > 8) return 'w-9 h-11 min-w-[2.25rem] min-h-[2.75rem] text-lg sm:text-xl m-[2px]';
   return 'w-10 h-14 min-w-[2.5rem] min-h-[3.5rem] text-2xl sm:text-3xl m-[3px]';
@@ -130,8 +131,8 @@ const FlipWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundActive
     return (
         <div className="flex flex-col items-center gap-3 px-1 relative py-1 w-full max-w-full">
             {scrambledWord.map((word, wordIndex) => (
-                // flex-nowrap memastikan satu kata selalu satu baris horizontal
-                <div key={wordIndex} className="flex justify-center w-full flex-nowrap overflow-hidden">
+                // flex-nowrap memastikan satu kata selalu satu baris horizontal, tidak terpotong margin
+                <div key={wordIndex} className="flex justify-center w-full flex-nowrap overflow-visible">
                     {word.map((item: LetterObject) => {
                         const currentIndex = globalIndex;
                         const isRevealed = !isRoundActive || revealedIndices.includes(currentIndex);

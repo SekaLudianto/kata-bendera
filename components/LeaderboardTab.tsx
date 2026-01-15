@@ -84,7 +84,6 @@ const LeaderboardTab: React.FC<LeaderboardTabProps> = ({ leaderboard, gifterLead
                 
                 let rankColorClass = "text-slate-500 font-bold";
                 let bgClass = "bg-slate-900/40 border-white/5";
-                let borderClass = "";
 
                 if (isTop3) {
                     rankColorClass = "text-amber-400 font-black text-lg";
@@ -98,7 +97,7 @@ const LeaderboardTab: React.FC<LeaderboardTabProps> = ({ leaderboard, gifterLead
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.98 }}
                     layout
-                    className={`flex items-center p-3 rounded-2xl border transition-all ${bgClass} ${borderClass}`}
+                    className={`flex items-center p-3 rounded-2xl border transition-all ${bgClass}`}
                 >
                     <div className={`w-10 text-center shrink-0 ${rankColorClass}`}>
                         {getMedal(index)}
