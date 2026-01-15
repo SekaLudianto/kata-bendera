@@ -17,11 +17,12 @@ import SimulationPanel from './components/SimulationPanel';
 import GlobalLeaderboardModal from './components/GlobalLeaderboardModal';
 import ConfirmModal from './components/ConfirmModal';
 import VisualDynamizer from './components/VisualDynamizer';
+import BirthdayScreen from './components/BirthdayScreen';
 import { useTheme } from './hooks/useTheme';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useTikTokLive } from './hooks/useTikTokLive';
 import { useKnockoutChampions } from './hooks/useKnockoutChampions';
-import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode, LeaderboardEntry, QuoteNotification } from './types';
+import { GameState, GameStyle, GiftNotification as GiftNotificationType, ChatMessage, LiveFeedEvent, KnockoutCategory, RankNotification as RankNotificationType, InfoNotification as InfoNotificationType, ServerConfig, DonationEvent, GameMode, LeaderboardEntry, QuoteNotification, BirthdayEntry } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DEFAULT_MAX_WINNERS_PER_ROUND, TOTAL_ROUNDS, ADMIN_PASSWORD_HASH } from './constants';
 import { KeyboardIcon, ServerIcon, SkipForwardIcon, SwitchIcon, EyeIcon, LogOutIcon } from './components/IconComponents';
@@ -106,6 +107,9 @@ const App: React.FC = () => {
   const [serverTime, setServerTime] = useState<Date | null>(null);
   const serverTimeOffset = useRef<number>(0);
   const [isTimeSynced, setIsTimeSynced] = useState(false);
+
+  // Birthday Session Tracking (mencegah loop aktivasi berulang)
+  const activatedBirthdays = useRef<Set<string>>(new Set());
 
   // Deduplication Cache (Map for better performance and history)
   const processedGiftsCache = useRef<Map<string, number>>(new Map());
@@ -358,6 +362,30 @@ const App: React.FC = () => {
     const commentLower = commentText.toLowerCase();
     const isModerator = MODERATOR_USERNAMES.includes(message.userId.toLowerCase().replace(/^@/, ''));
     
+    // --- Logika Deteksi Ulang Tahun Otomatis ---
+    if (gameState === GameState.Playing || gameState === GameState.KnockoutPlaying) {
+        const customDataRaw = localStorage.getItem('custom-questions');
+        if (customDataRaw) {
+            const customData = JSON.parse(customDataRaw);
+            const birthdays: BirthdayEntry[] = customData.birthdays || [];
+            
+            // Get Today String: YYYY-MM-DD
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            
+            const bdayEntry = birthdays.find(b => 
+                b.date === dateStr && 
+                b.userId.toLowerCase().replace(/^@/, '') === message.userId.toLowerCase().replace(/^@/, '')
+            );
+
+            if (bdayEntry && !activatedBirthdays.current.has(message.userId)) {
+                activatedBirthdays.current.add(message.userId);
+                game.startBirthdayCelebration(bdayEntry, message.profilePictureUrl);
+                return;
+            }
+        }
+    }
+
     if (commentLower === '!myrank') {
       const playerRank = game.state.leaderboard.findIndex(p => p.userId === message.userId);
       if (playerRank !== -1) {
@@ -471,6 +499,7 @@ const App: React.FC = () => {
     
     processedGiftsCache.current.clear();
     processedMsgIds.current.clear();
+    activatedBirthdays.current.clear();
     
     game.setHostUsername(config.username);
 
@@ -687,6 +716,8 @@ const App: React.FC = () => {
                 />
               </motion.div>
             );
+        case GameState.Birthday:
+            return <BirthdayScreen birthday={game.state.currentBirthday} onClose={game.endBirthdayCelebration} />;
         case GameState.KnockoutRegistration:
             return <KnockoutRegistrationScreen 
                       players={game.state.knockoutPlayers} 
@@ -883,6 +914,7 @@ const App: React.FC = () => {
                     onComment={handleComment} 
                     onGift={handleGift}
                     onDonation={handleDonation}
+                    onTriggerBirthday={game.startBirthdayCelebration}
                     currentAnswer={game.currentAnswer} 
                     gameState={gameState}
                     onRegisterPlayer={game.registerPlayer}

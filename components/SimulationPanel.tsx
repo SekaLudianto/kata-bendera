@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChatMessage, GameState, KnockoutPlayer, GiftNotification, DonationEvent, DonationPlatform } from '../types';
+import { ChatMessage, GameState, KnockoutPlayer, GiftNotification, DonationEvent, DonationPlatform, BirthdayEntry } from '../types';
 import { giftValues } from '../data/gifts';
 
 interface SimulationPanelProps {
   onComment: (comment: ChatMessage) => void;
   onGift: (gift: Omit<GiftNotification, 'id'>) => void;
   onDonation: (donation: DonationEvent) => void;
+  onTriggerBirthday: (entry: BirthdayEntry, avatar?: string) => void;
   currentAnswer: string;
   gameState: GameState;
   onRegisterPlayer: (player: KnockoutPlayer) => void;
@@ -16,7 +17,7 @@ interface SimulationPanelProps {
 
 const donationPlatforms: DonationPlatform[] = ['saweria', 'sociabuzz', 'trakteer', 'tako', 'bagibagi', 'sibagi'];
 
-const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, onDonation, currentAnswer, gameState, onRegisterPlayer, knockoutPlayers = [] }) => {
+const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, onDonation, onTriggerBirthday, currentAnswer, gameState, onRegisterPlayer, knockoutPlayers = [] }) => {
   const [userId, setUserId] = useState('tester.user');
   const [nickname, setNickname] = useState('Tester');
   const [comment, setComment] = useState('');
@@ -32,6 +33,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
   const [donationAmount, setDonationAmount] = useState(10000);
   const [donationMessage, setDonationMessage] = useState('Semangat ya livenya!');
 
+  const [birthdayMessage, setBirthdayMessage] = useState('');
 
   const generateRandomUser = () => {
     const newId = userCounter;
@@ -55,7 +57,6 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
     e?.preventDefault();
     if (comment.trim() === '' || userId.trim() === '' || nickname.trim() === '') return;
 
-    // FIX: Added missing timestamp property.
     onComment({
       id: `${Date.now()}-${userId}`,
       userId: userId,
@@ -73,7 +74,6 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
     e?.preventDefault();
     if (userId.trim() === '' || nickname.trim() === '' || giftName.trim() === '' || giftCount < 1) return;
 
-    // Use the local gift map to calculate the total coin value for the simulation
     const singleGiftValue = giftValues.get(giftId) || 1;
     const totalValue = singleGiftValue * giftCount;
 
@@ -82,7 +82,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
       nickname: nickname,
       profilePictureUrl: `https://i.pravatar.cc/40?u=${userId}`,
       giftName,
-      giftCount: totalValue, // Send the calculated total coin value
+      giftCount: totalValue,
       giftId,
     });
   };
@@ -100,10 +100,18 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
     });
   };
 
-  const handleSendCorrectAnswer = () => {
-    if (currentAnswer.startsWith('(')) return; // Don't send for ABC 5 Dasar helper text
+  const handleTriggerBirthday = () => {
+      // Perbaikan: Kirim objek baru dengan ID unik (Date.now) agar me-refresh layar setiap kali diklik
+      onTriggerBirthday({
+          userId: `${userId}_${Date.now()}`, 
+          nickname,
+          date: new Date().toISOString().split('T')[0],
+          message: birthdayMessage
+      }, `https://i.pravatar.cc/150?u=${userId}`);
+  };
 
-    // FIX: Added missing timestamp property.
+  const handleSendCorrectAnswer = () => {
+    if (currentAnswer.startsWith('(')) return;
     onComment({
       id: `${Date.now()}-${userId}`,
       userId: userId,
@@ -122,7 +130,6 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
     const rUserId = `random.user.${randomId}`;
     const rNickname = `Penebak Jitu ${randomId}`;
 
-    // FIX: Added missing timestamp property.
     onComment({
       id: `${Date.now()}-${rUserId}`,
       userId: rUserId,
@@ -157,7 +164,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
       <header className="p-3 text-center border-b border-sky-100 dark:border-gray-700 shrink-0">
         <h2 className="text-md font-bold text-slate-700 dark:text-gray-300">Panel Simulasi</h2>
       </header>
-      <div className="flex-grow overflow-y-auto p-4 space-y-4">
+      <div className="flex-grow overflow-y-auto p-4 space-y-4 no-scrollbar">
         
         {gameState === GameState.KnockoutRegistration && (
             <div className="border-b border-dashed border-sky-200 dark:border-gray-600 pb-4">
@@ -240,6 +247,29 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ onComment, onGift, on
             >
                 Acak Identitas di Input
             </button>
+        </div>
+
+        {/* 🎉 Simulasi Ulang Tahun */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-3 rounded-xl border border-purple-200 dark:border-purple-800">
+             <h3 className="text-sm font-black text-purple-700 dark:text-purple-300 mb-2 flex items-center gap-1">
+                 🎉 Simulasi Ulang Tahun
+             </h3>
+             <input 
+                type="text" 
+                value={birthdayMessage} 
+                onChange={e => setBirthdayMessage(e.target.value)}
+                placeholder="Pesan doa khusus (opsional)"
+                className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-lg focus:outline-none focus:border-purple-500 mb-2 dark:text-white"
+             />
+             <button 
+                onClick={handleTriggerBirthday}
+                className="w-full px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-black rounded-lg shadow-lg hover:scale-[1.02] transition-transform uppercase"
+             >
+                 Tampilkan Layar Ultah
+             </button>
+             <p className="text-[9px] text-purple-500 dark:text-purple-400 mt-1.5 text-center italic">
+                 (Setiap klik akan menampilkan ucapan tokoh acak baru)
+             </p>
         </div>
 
         <form onSubmit={handleSendComment}>

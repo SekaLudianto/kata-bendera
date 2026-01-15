@@ -12,6 +12,7 @@ const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
 
 const CATEGORIES = [
   { id: 'bikinEmosi', name: 'Bikin Emosi (Jebakan)', type: 'object', fields: ['question', 'answer', 'explanation'] },
+  { id: 'birthdays', name: '🎉 Event Ulang Tahun', type: 'object', fields: ['userId', 'nickname', 'date', 'message'] },
   { id: 'countries', name: 'Negara (Bendera & ABC)', type: 'object', fields: ['name', 'code'] },
   { id: 'indonesianCities', name: 'ABC: Kota Indonesia', type: 'string' },
   { id: 'fruits', name: 'ABC: Buah', type: 'string' },
@@ -208,14 +209,22 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
       return (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {categoryDef.fields!.map(field => (
-                  <div key={field} className={field === 'explanation' ? 'col-span-full' : ''}>
-                      <label className="text-xs text-gray-500 uppercase font-bold">{field === 'explanation' ? 'Penjelasan (Opsional)' : field}</label>
+                  <div key={field} className={(field === 'explanation' || field === 'message') ? 'col-span-full' : ''}>
+                      <label className="text-xs text-gray-500 uppercase font-bold">
+                        {field === 'explanation' ? 'Penjelasan (Opsional)' : 
+                         field === 'userId' ? 'Username TikTok (tanpa @)' : 
+                         field === 'nickname' ? 'Nama Panggilan' :
+                         field === 'date' ? 'Tanggal (YYYY-MM-DD)' :
+                         field === 'message' ? 'Pesan Ultah' :
+                         field}
+                      </label>
                       <input 
-                        type="text"
+                        type={field === 'date' ? 'date' : 'text'}
                         value={editForm[field] || ''}
                         onChange={e => setEditForm({ ...editForm, [field]: e.target.value })}
                         className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        placeholder={field === 'explanation' ? 'Muncul setelah jawaban terungkap...' : ''}
+                        placeholder={field === 'explanation' ? 'Muncul setelah jawaban terungkap...' : 
+                                     field === 'userId' ? 'Contoh: ahmadsyams' : ''}
                       />
                   </div>
               ))}
@@ -245,7 +254,9 @@ const AdminQuestionDashboard: React.FC<AdminQuestionDashboardProps> = ({ onClose
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300 border-b border-blue-100 dark:border-blue-800/30 flex items-start gap-2">
                 <InfoIcon className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                    Data yang Anda tambahkan di sini bersifat <b>TAMBAHAN</b>. Saat bermain, data ini akan dicampur dengan database bawaan game.
+                    {activeCategory === 'birthdays' 
+                        ? 'Fitur ini otomatis aktif jika penonton yang terdaftar berkomentar di tanggal yang tepat.' 
+                        : 'Data yang Anda tambahkan di sini bersifat TAMBAHAN database bawaan.'}
                 </span>
             </div>
 

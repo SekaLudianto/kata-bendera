@@ -39,7 +39,7 @@ export const countries: Country[] = [
     { name: 'Chili', code: 'cl' },
     { name: 'Cina', code: 'cn' },
     { name: 'Denmark', code: 'dk' },
-    { name: 'Jibuti', code: 'dj' },
+    { name: 'Djibouti', code: 'dj' },
     { name: 'Dominika', code: 'dm' },
     { name: 'Ekuador', code: 'ec' },
     { name: 'El Salvador', code: 'sv' },

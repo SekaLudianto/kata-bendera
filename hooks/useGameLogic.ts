@@ -1,6 +1,6 @@
 
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
-import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject, EmojiPuzzle, ColorTheme } from '../types';
+import { Country, ChatMessage, LeaderboardEntry, RoundWinner, GameMode, AbcCategory, WordCategory, GameState, GameStyle, KnockoutPlayer, KnockoutBracket, KnockoutMatch, GameActionPayloads, KnockoutCategory, TriviaQuestion, GameAction, City, FootballStadium, LetterObject, EmojiPuzzle, ColorTheme, BirthdayEntry } from '../types';
 import { countries } from '../data/countries';
 import { fruits } from '../data/fruits';
 import { animals } from '../data/animals';
@@ -38,6 +38,7 @@ export interface InternalGameState {
   currentCity: City | null;
   currentStadium: FootballStadium | null;
   currentEmojiPuzzle: EmojiPuzzle | null;
+  currentBirthday: (BirthdayEntry & { userAvatar?: string }) | null;
   currentRoundTheme: ColorTheme;
   usedAnswers: string[];
   scrambledWord: LetterObject[][];
@@ -99,6 +100,7 @@ const createInitialState = (): InternalGameState => ({
   currentCity: null,
   currentStadium: null,
   currentEmojiPuzzle: null,
+  currentBirthday: null,
   currentRoundTheme: 'blue',
   usedAnswers: [],
   scrambledWord: [],
@@ -534,6 +536,10 @@ const gameReducer = (state: InternalGameState, action: GameAction): InternalGame
         return { ...state, isRoundActive: false, isPausedByAdmin: true, gameState: GameState.Paused };
     case 'RESUME_GAME':
         return { ...state, isRoundActive: true, isPausedByAdmin: false, gameState: state.gameStyle === GameStyle.Classic ? GameState.Playing : GameState.KnockoutPlaying };
+    case 'START_BIRTHDAY':
+        return { ...state, isRoundActive: false, gameState: GameState.Birthday, currentBirthday: { ...action.payload.birthdayEntry, userAvatar: action.payload.userAvatar } };
+    case 'END_BIRTHDAY':
+        return { ...state, gameState: state.gameStyle === GameStyle.Classic ? GameState.Playing : GameState.KnockoutPlaying, isRoundActive: true, currentBirthday: null };
     case 'RESET_GAME':
       return createInitialState();
     case 'START_COUNTDOWN':
@@ -1115,6 +1121,15 @@ export const useGameLogic = () => {
   const pauseGame = useCallback(() => dispatch({ type: 'PAUSE_GAME' }), []);
   const resumeGame = useCallback(() => dispatch({ type: 'RESUME_GAME' }), []);
   const setHostUsername = useCallback((username: string) => dispatch({ type: 'SET_HOST_USERNAME', payload: { username } }), []);
+  
+  const startBirthdayCelebration = useCallback((birthdayEntry: BirthdayEntry, userAvatar?: string) => {
+      dispatch({ type: 'START_BIRTHDAY', payload: { birthdayEntry, userAvatar } });
+  }, []);
+
+  const endBirthdayCelebration = useCallback(() => {
+      dispatch({ type: 'END_BIRTHDAY' });
+  }, []);
+
   const getCurrentKnockoutMatch = useCallback(() => {
       const { knockoutBracket, currentBracketRoundIndex, currentMatchIndex } = state;
       if (knockoutBracket && currentBracketRoundIndex !== null && currentMatchIndex !== null) return knockoutBracket[currentBracketRoundIndex][currentMatchIndex];
@@ -1268,5 +1283,5 @@ export const useGameLogic = () => {
     }
   };
 
-  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, finishWinnerDisplay, setHostUsername, resetGlobalLeaderboard, revealClue, currentAnswer: getCurrentAnswer() };
+  return { state, startGame, resetGame, processComment, skipRound, pauseGame, resumeGame, registerPlayer, endRegistrationAndDrawBracket, prepareNextMatch, getCurrentKnockoutMatch, returnToBracket, redrawBracket, declareWalkoverWinner, finishGame, resetKnockoutRegistration, restartKnockoutCompetition, returnToModeSelection, finishWinnerDisplay, setHostUsername, resetGlobalLeaderboard, revealClue, startBirthdayCelebration, endBirthdayCelebration, currentAnswer: getCurrentAnswer() };
 };

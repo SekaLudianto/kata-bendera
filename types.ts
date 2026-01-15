@@ -146,6 +146,7 @@ export enum GameState {
     Playing = 'playing',
     ClassicAnswerReveal = 'classic_answer_reveal',
     Paused = 'paused',
+    Birthday = 'birthday', // New State
     Champion = 'champion',
     Finished = 'finished',
     // Knockout Specific States
@@ -222,6 +223,13 @@ export interface ChampionRecord {
 
 export type KnockoutChampions = Record<string, ChampionRecord>; // Key is userId
 
+export interface BirthdayEntry {
+    userId: string;
+    nickname: string;
+    date: string; // YYYY-MM-DD
+    message?: string;
+}
+
 // This will be used in useGameLogic.ts to set the word for a knockout match
 export interface GameActionPayloads {
     'START_GAME': { 
@@ -273,8 +281,9 @@ export interface GameActionPayloads {
     'PREPARE_NEXT_MATCH': { roundIndex: number; matchIndex: number };
     'FINISH_KNOCKOUT_MATCH': { winner: KnockoutPlayer; score: string; };
     'DECLARE_WALKOVER_WINNER': { roundIndex: number; matchIndex: number; winner: KnockoutPlayer };
+    'START_BIRTHDAY': { birthdayEntry: BirthdayEntry, userAvatar?: string };
 }
 
 export type GameAction =
     | { [K in keyof GameActionPayloads]: { type: K; payload: GameActionPayloads[K] } }[keyof GameActionPayloads]
-    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'SKIP_KNOCKOUT_MATCH' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' | 'RESET_KNOCKOUT_REGISTRATION' | 'RESTART_KNOCKOUT_COMPETITION' | 'RETURN_TO_MODE_SELECTION' | 'RESET_GLOBAL_LEADERBOARD' | 'REVEAL_CLUE' };
+    | { type: 'END_ROUND' | 'TICK_TIMER' | 'SHOW_WINNER_MODAL' | 'HIDE_WINNER_MODAL' | 'PAUSE_GAME' | 'RESUME_GAME' | 'RESET_GAME' | 'START_COUNTDOWN' | 'TICK_COUNTDOWN' | 'END_REGISTRATION_AND_DRAW_BRACKET' | 'START_MATCH' | 'SET_READY_TO_PLAY' | 'KNOCKOUT_QUESTION_TIMEOUT' | 'SKIP_KNOCKOUT_MATCH' | 'REDRAW_BRACKET' | 'RETURN_TO_BRACKET' | 'FINISH_GAME' | 'RESET_KNOCKOUT_REGISTRATION' | 'RESTART_KNOCKOUT_COMPETITION' | 'RETURN_TO_MODE_SELECTION' | 'RESET_GLOBAL_LEADERBOARD' | 'REVEAL_CLUE' | 'END_BIRTHDAY' };
