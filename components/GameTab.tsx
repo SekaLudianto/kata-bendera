@@ -25,11 +25,13 @@ const formatServerTime = (date: Date | null): string => {
 };
 
 const getLetterBoxSizeClasses = (maxWordLength: number): string => {
-  if (maxWordLength > 16) return 'w-4 h-6 min-w-[1rem] min-h-[1.5rem] text-[10px]';
-  if (maxWordLength > 12) return 'w-5 h-7 min-w-[1.25rem] min-h-[1.75rem] text-[11px]';
-  if (maxWordLength > 9) return 'w-7 h-9 min-w-[1.75rem] min-h-[2.25rem] text-sm';
-  if (maxWordLength > 7) return 'w-9 h-11 min-w-[2.25rem] min-h-[2.75rem] text-lg sm:text-xl';
-  return 'w-10 h-14 min-w-[2.5rem] min-h-[3.5rem] text-2xl sm:text-3xl';
+  // Penskalaan lebih agresif untuk memastikan kartu mengecil saat kata panjang
+  if (maxWordLength > 24) return 'w-3 h-5 min-w-[0.75rem] min-h-[1.25rem] text-[8px] m-[1px]';
+  if (maxWordLength > 19) return 'w-4 h-6 min-w-[1rem] min-h-[1.5rem] text-[10px] m-[1px]';
+  if (maxWordLength > 15) return 'w-5 h-7 min-w-[1.25rem] min-h-[1.75rem] text-[11px] m-[2px]';
+  if (maxWordLength > 11) return 'w-7 h-9 min-w-[1.75rem] min-h-[2.25rem] text-sm m-[2px]';
+  if (maxWordLength > 8) return 'w-9 h-11 min-w-[2.25rem] min-h-[2.75rem] text-lg sm:text-xl m-[2px]';
+  return 'w-10 h-14 min-w-[2.5rem] min-h-[3.5rem] text-2xl sm:text-3xl m-[3px]';
 };
 
 const DanmakuBar: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
@@ -91,7 +93,7 @@ const FlipCard: React.FC<{ letter: string, isRevealed: boolean, sizeClasses: str
     };
 
     return (
-        <div className={`relative ${sizeClasses} perspective-1000 group m-0.5 shrink-0`}>
+        <div className={`relative ${sizeClasses} perspective-1000 group shrink-0`}>
             <motion.div
                 initial={false}
                 animate={{ rotateY: isRevealed ? 180 : 0 }}
@@ -109,7 +111,7 @@ const FlipCard: React.FC<{ letter: string, isRevealed: boolean, sizeClasses: str
                    <span className="text-white/40 font-black italic text-[1.1em]">?</span>
                 </div>
 
-                {/* Back (Revealed) */}
+                {/* Back (Revealed) - Putih Solid untuk keterbacaan maksimal */}
                 <div className="absolute inset-0 backface-hidden rotate-y-180 flex items-center justify-center rounded-lg bg-slate-50 border-2 border-sky-400 shadow-[inset_0_0_10px_rgba(0,0,0,0.1)]">
                     <span className="font-black text-slate-900 drop-shadow-sm leading-none uppercase">{letter}</span>
                 </div>
@@ -119,15 +121,17 @@ const FlipCard: React.FC<{ letter: string, isRevealed: boolean, sizeClasses: str
 };
 
 const FlipWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundActive: boolean, revealedIndices: number[], theme: ColorTheme }> = ({ scrambledWord, isRoundActive, revealedIndices, theme }) => {
+    // Cari panjang kata terpanjang di antara semua kata untuk menentukan ukuran kotak global
     const maxWordLength = Math.max(...scrambledWord.map(word => word.length), 0);
     const sizeClasses = getLetterBoxSizeClasses(maxWordLength);
     
     let globalIndex = 0;
 
     return (
-        <div className="flex flex-col items-center gap-2 px-1 relative py-1 w-full">
+        <div className="flex flex-col items-center gap-3 px-1 relative py-1 w-full max-w-full">
             {scrambledWord.map((word, wordIndex) => (
-                <div key={wordIndex} className="flex justify-center gap-1 w-full flex-wrap">
+                // flex-nowrap memastikan satu kata selalu satu baris horizontal
+                <div key={wordIndex} className="flex justify-center w-full flex-nowrap overflow-hidden">
                     {word.map((item: LetterObject) => {
                         const currentIndex = globalIndex;
                         const isRevealed = !isRoundActive || revealedIndices.includes(currentIndex);
@@ -151,7 +155,7 @@ const FlipWordDisplay: React.FC<{ scrambledWord: LetterObject[][], isRoundActive
                 <motion.div 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }}
-                    className="mt-3 flex items-center justify-center gap-2 bg-slate-900/60 px-4 py-1.5 rounded-full border border-white/10 backdrop-blur-md"
+                    className="mt-4 flex items-center justify-center gap-2 bg-slate-900/60 px-4 py-1.5 rounded-full border border-white/10 backdrop-blur-md"
                 >
                     <img 
                         src="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp" 
@@ -196,14 +200,14 @@ const GuessTheFlagContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
     const { currentCountry, scrambledWord, isRoundActive, isHardMode, revealedIndices, currentRoundTheme } = gameState;
     if (!currentCountry) return null;
     return (
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center w-full">
             <motion.h2 
                 className="text-sm font-black text-sky-400 text-center mb-2 uppercase tracking-[0.2em]"
             >
                 TEBAK NEGARA
             </motion.h2>
             <div 
-                className="mb-4 relative inline-block rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 ring-4 ring-sky-500/20"
+                className="mb-6 relative inline-block rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700 ring-4 ring-sky-500/20"
             >
                 <img 
                     src={`https://flagcdn.com/w320/${currentCountry.code}.png`} 
@@ -226,14 +230,14 @@ const GuessTheEmojiContent: React.FC<{ gameState: InternalGameState }> = ({ game
                 TEBAK APA INI?
             </h2>
             {currentWordCategory && (
-                <div className="mb-3 px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/30">
+                <div className="mb-4 px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/30">
                     <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">{currentWordCategory}</span>
                 </div>
             )}
             <motion.div 
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="bg-slate-800/80 p-5 rounded-[2rem] border-2 border-white/10 mb-4 flex items-center justify-center text-5xl sm:text-6xl min-h-[100px] shadow-xl"
+                className="bg-slate-800/80 p-5 rounded-[2rem] border-2 border-white/10 mb-6 flex items-center justify-center text-5xl sm:text-6xl min-h-[100px] shadow-xl"
             >
                 <span className="drop-shadow-lg">{currentEmojiPuzzle.emoji}</span>
             </motion.div>
@@ -267,14 +271,14 @@ const ABC5DasarContent: React.FC<{ gameState: InternalGameState }> = ({ gameStat
 const GuessTheWordContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }) => {
     const { currentWord, currentWordCategory, scrambledWord, isRoundActive, revealedIndices, currentRoundTheme } = gameState;
     return (
-      <div className="flex flex-col items-center">
-        <h2 className="text-sm font-black text-sky-400 text-center mb-3 uppercase tracking-[0.2em]">
+      <div className="flex flex-col items-center w-full">
+        <h2 className="text-sm font-black text-sky-400 text-center mb-4 uppercase tracking-[0.2em]">
             KATEGORI: <span className="text-white">{currentWordCategory}</span>
         </h2>
         <FlipWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} revealedIndices={revealedIndices} theme={currentRoundTheme} />
         <AnimatePresence>
             {!isRoundActive && currentWord && (
-                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 text-center">
+                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 text-center">
                     <p className="text-sm font-black text-emerald-400 px-6 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/30 uppercase tracking-[0.2em]">{currentWord}</p>
                  </motion.div>
             )}
@@ -287,11 +291,11 @@ const GuessTheCityContent: React.FC<{ gameState: InternalGameState }> = ({ gameS
     const { currentCity, scrambledWord, isRoundActive, revealedIndices, currentRoundTheme } = gameState;
     if (!currentCity) return null;
     return (
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center w-full">
         <h2 className="text-sm font-black text-sky-400 text-center mb-2 uppercase tracking-[0.2em]">
             TEBAK KOTA
         </h2>
-        <p className="text-[11px] text-slate-200 mb-4 font-extrabold italic text-center px-4 py-1 bg-slate-800 rounded-full border border-white/5 uppercase tracking-wider">
+        <p className="text-[11px] text-slate-200 mb-6 font-extrabold italic text-center px-4 py-1 bg-slate-800 rounded-full border border-white/5 uppercase tracking-wider">
             LOKASI: <span className="text-sky-400">{currentCity.region}</span>
         </p>
         <FlipWordDisplay scrambledWord={scrambledWord} isRoundActive={isRoundActive} revealedIndices={revealedIndices} theme={currentRoundTheme} />
@@ -303,7 +307,7 @@ const TriviaContent: React.FC<{ gameState: InternalGameState }> = ({ gameState }
     const { currentTriviaQuestion, isRoundActive, scrambledWord, revealedIndices, currentRoundTheme } = gameState;
     if (!currentTriviaQuestion) return null;
     return (
-      <div className="text-center px-4 flex flex-col items-center justify-center gap-4">
+      <div className="text-center px-4 flex flex-col items-center justify-center gap-6 w-full">
         <div className="bg-slate-800/80 p-5 rounded-2xl shadow-2xl border border-white/5 w-full">
             <h2 className="text-sm sm:text-base font-bold text-slate-100 leading-relaxed tracking-wide">
                 {currentTriviaQuestion.question}
@@ -326,7 +330,7 @@ const BikinEmosiContent: React.FC<{ gameState: InternalGameState }> = ({ gameSta
     const { currentTriviaQuestion, isRoundActive, scrambledWord, revealedIndices, currentRoundTheme } = gameState;
     if (!currentTriviaQuestion) return null;
     return (
-      <div className="text-center px-4 flex flex-col items-center justify-center gap-3">
+      <div className="text-center px-4 flex flex-col items-center justify-center gap-4 w-full">
         <div className="bg-red-600 px-5 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg animate-pulse">
             ⚠️ AWAS JEBAKAN! ⚠️
         </div>
